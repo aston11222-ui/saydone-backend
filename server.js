@@ -11,7 +11,7 @@ const client = new OpenAI({
 });
 
 app.get("/", (_, res) => {
-  res.send("Server is working");
+  res.send("Server v2 parser active");
 });
 
 app.post("/parse", async (req, res) => {
@@ -25,115 +25,62 @@ app.post("/parse", async (req, res) => {
       });
     }
 
-    const systemPrompt = `
-You are a reminder time parser.
-
-Your task:
-Extract reminder task text and exact datetime from the user's phrase.
-
-You must return ONLY valid JSON in this format:
-{
-  "text": "task without time words",
-  "datetime": "ISO 8601 datetime"
-}
-
-Rules:
-- Use locale, timezone, and current datetime from the input as source of truth.
-- Understand Russian, Ukrainian, and English.
-- Interpret phrases like:
-  - "позвонить завтра в 8 утра"
-  - "в 8.45 вечера"
-  - "через 1 день"
-  - "через 1 час 20 минут"
-  - "восемь сорок пять вечера"
-- Remove time/date words from "text" and keep only the reminder meaning.
-- If user says only time and no task, keep the original text without time words if possible.
-- Do not explain anything.
-- Do not return markdown.
-- Do not return anything except JSON.
-
-Examples:
-
-Input:
-{
-  "text": "позвонить завтра в 8 утра",
-  "locale": "ru_RU",
-  "timezone": "Europe/Kyiv",
-  "now": "2026-04-02T10:00:00+03:00"
-}
-Output:
-{
-  "text": "позвонить",
-  "datetime": "2026-04-03T08:00:00+03:00"
-}
-
-Input:
-{
-  "text": "таблетки в 2 дня",
-  "locale": "ru_RU",
-  "timezone": "Europe/Kyiv",
-  "now": "2026-04-02T10:00:00+03:00"
-}
-Output:
-{
-  "text": "таблетки",
-  "datetime": "2026-04-02T14:00:00+03:00"
-}
-
-Input:
-{
-  "text": "напомни через 1 день",
-  "locale": "ru_RU",
-  "timezone": "Europe/Kyiv",
-  "now": "2026-04-02T10:00:00+03:00"
-}
-Output:
-{
-  "text": "напомни",
-  "datetime": "2026-04-03T10:00:00+03:00"
-}
-
-Input:
-{
-  "text": "напомни через 1 час 20 минут",
-  "locale": "ru_RU",
-  "timezone": "Europe/Kyiv",
-  "now": "2026-04-02T10:00:00+03:00"
-}
-Output:
-{
-  "text": "напомни",
-  "datetime": "2026-04-02T11:20:00+03:00"
-}
-
-Input:
-{
-  "text": "восемь сорок пять вечера позвонить другу",
-  "locale": "ru_RU",
-  "timezone": "Europe/Kyiv",
-  "now": "2026-04-02T10:00:00+03:00"
-}
-Output:
-{
-  "text": "позвонить другу",
-  "datetime": "2026-04-02T20:45:00+03:00"
-}
-`;
-
-    const userPayload = {
-      text,
-      locale,
-      timezone,
-      now,
-    };
-
     const response = await client.chat.completions.create({
       model: "gpt-4o-mini",
       temperature: 0,
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: JSON.stringify(userPayload) }
+        {
+          role: "system",
+          content:
+            "You are a reminder parser. Extract reminder task text and exact datetime from the user phrase. Return only valid JSON with keys text and datetime. Datetime must be ISO 8601. Use locale, timezone, and now as source of truth. Support Russian, Ukrainian, and English. Remove time words from text."
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            locale,
+            timezone,
+            now,
+            text,
+            examples: [
+              {
+                input: "позвонить завтра в 8 утра",
+                output: {
+                  text: "позвонить",
+                  datetime: "2026-04-03T08:00:00+03:00"
+                }
+              },
+              {
+                input: "таблетки в 2 дня",
+                output: {
+                  text: "таблетки",
+                  datetime: "2026-04-02T14:00:00+03:00"
+                }
+              },
+              {
+                input: "напомни через 1 день",
+                output: {
+                  text: "напомни",
+                  datetime: "2026-04-03T10:00:00+03:00"
+                }
+              },
+              {
+                input: "напомни через 1 час 20 минут",
+                output: {
+                  text: "напомни",
+                  datetime: "2026-04-02T11:20:00+03:00"
+                }
+              },
+              {
+                input: "восемь сорок пять вечера позвонить другу",
+                output: {
+                  text: "позвонить другу",
+                  datetime: "2026-04-02T20:45:00+03:00"
+                }
+              }
+            ]
+          })
+        }
       ]
     });
 
@@ -146,6 +93,14 @@ Output:
     }
 
     const result = JSON.parse(content);
+
+    if (!result.text || !result.datetime) {
+      return res.status(500).json({
+        ok: false,
+        error: "Invalid JSON from model",
+        raw: result
+      });
+    }
 
     return res.json({
       ok: true,
