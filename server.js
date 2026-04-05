@@ -14,184 +14,24 @@ const client = new OpenAI({
 });
 
 app.get("/", (_, res) => {
-  res.send("Server v3 parser active");
+  res.send("Server v4 parser active");
 });
 
 app.get("/health", (_, res) => {
   res.json({ ok: true });
 });
 
-function isIsoDateTime(value) {
-  return typeof value === "string" && !Number.isNaN(Date.parse(value));
-}
-
 function normalizeWhitespace(text) {
   return String(text ?? "").replace(/\s+/g, " ").trim();
 }
 
-function inferExpectedHints(text) {
-  const t = normalizeWhitespace(text).toLowerCase();
-
-  return {
-    hasTomorrow:
-      /\b(завтра|tomorrow)\b/.test(t),
-    hasToday:
-      /\b(сегодня|сьогодні|today)\b/.test(t),
-    hasMorning:
-      /\b(утра|утром|ранку|вранці|morning|am)\b/.test(t),
-    hasDaytime:
-      /\b(дня|днем|daytime)\b/.test(t),
-    hasEvening:
-      /\b(вечера|вечером|вечора|увечері|evening|pm)\b/.test(t),
-    hasNight:
-      /\b(ночи|ночью|ночі|вночі|night)\b/.test(t),
-  };
-}
-
-function extractHourMinute(text) {
-  const t = normalizeWhitespace(text).toLowerCase();
-
-  const numeric = t.match(/(?:^|[\s,])(\\d{1,2})(?:[:\\.](\\d{2}))?(?=$|[\\s,!.?])/);
-  if (numeric) {
-    return {
-      hour: parseInt(numeric[1], 10),
-      minute: numeric[2] ? parseInt(numeric[2], 10) : 0,
-    };
-  }
-
-  const words = {
-    "ноль": 0,
-    "один": 1,
-    "час": 1,
-    "два": 2,
-    "три": 3,
-    "четыре": 4,
-    "пять": 5,
-    "шесть": 6,
-    "семь": 7,
-    "восемь": 8,
-    "девять": 9,
-    "десять": 10,
-    "одиннадцать": 11,
-    "двенадцать": 12,
-  };
-
-  for (const [word, value] of Object.entries(words)) {
-    const re = new RegExp(`(?:^|\\s)${word}(?:$|\\s)`, "i");
-    if (re.test(t)) {
-      return { hour: value, minute: 0 };
-    }
-  }
-
-  return null;
-}
-
-function applyDayPart(hour, hints) {
-  let h = hour;
-
-  if (hints.hasMorning) {
-    if (h === 12) return 0;
-    return h;
-  }
-
-  if (hints.hasDaytime) {
-    if (h >= 1 && h <= 11) return h + 12;
-    return h;
-  }
-
-  if (hints.hasEvening) {
-    if (h >= 1 && h <= 11) return h + 12;
-    return h;
-  }
-
-  if (hints.hasNight) {
-    if (h === 12) return 0;
-    return h;
-  }
-
-  return h;
-}
-
-function validateAndRepairModelResult(inputText, nowIso, modelResult) {
-  const original = normalizeWhitespace(inputText);
-  const hints = inferExpectedHints(original);
-  const extracted = extractHourMinute(original);
-  const now = new Date(nowIso);
-
-  if (!modelResult || typeof modelResult !== "object") {
-    return { ok: false, error: "Model result is not an object" };
-  }
-
-  let text = normalizeWhitespace(modelResult.text);
-  let datetime = modelResult.datetime;
-
-  if (!text) {
-    return { ok: false, error: "Model returned empty text" };
-  }
-
-  if (!isIsoDateTime(datetime)) {
-    return { ok: false, error: "Model returned invalid datetime" };
-  }
-
-  let dt = new Date(datetime);
-
-  if (Number.isNaN(dt.getTime())) {
-    return { ok: false, error: "Datetime parse failed" };
-  }
-
-  // Если фраза явно содержит "завтра", а модель вернула сегодня — чинить
-  if (hints.hasTomorrow) {
-    const nowY = now.getUTCFullYear();
-    const nowM = now.getUTCMonth();
-    const nowD = now.getUTCDate();
-
-    const dtY = dt.getUTCFullYear();
-    const dtM = dt.getUTCMonth();
-    const dtD = dt.getUTCDate();
-
-    const sameUtcDay = nowY === dtY && nowM === dtM && nowD === dtD;
-
-    if (sameUtcDay) {
-      dt = new Date(dt.getTime() + 24 * 60 * 60 * 1000);
-    }
-  }
-
-  // Если во фразе есть точный час — чинить несоответствия
-  if (extracted && extracted.hour >= 0 && extracted.hour <= 23) {
-    const expectedHour = applyDayPart(extracted.hour, hints);
-    const expectedMinute = extracted.minute ?? 0;
-
-    const actualHour = dt.getHours();
-    const actualMinute = dt.getMinutes();
-
-    const hourMismatch = actualHour !== expectedHour;
-    const minuteMismatch = actualMinute !== expectedMinute;
-
-    if (hourMismatch || minuteMismatch) {
-      dt = new Date(
-        dt.getFullYear(),
-        dt.getMonth(),
-        dt.getDate(),
-        expectedHour,
-        expectedMinute,
-        0,
-        0
-      );
-    }
-  }
-
-  // Если нет "сегодня", нет "завтра", но время уже прошло — переносить на завтра
-  if (!hints.hasToday && !hints.hasTomorrow && extracted) {
-    if (dt.getTime() <= now.getTime()) {
-      dt = new Date(dt.getTime() + 24 * 60 * 60 * 1000);
-    }
-  }
-
-  return {
-    ok: true,
-    text,
-    datetime: dt.toISOString(),
-  };
+function looksLikeIsoWithOffset(value) {
+  return (
+    typeof value === "string" &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(
+      value
+    )
+  );
 }
 
 app.post("/parse", async (req, res) => {
@@ -215,7 +55,7 @@ app.post("/parse", async (req, res) => {
         {
           role: "system",
           content: `
-You are a STRICT reminder parser.
+You are a strict reminder parser.
 
 Return ONLY valid JSON with exactly these keys:
 {
@@ -224,27 +64,27 @@ Return ONLY valid JSON with exactly these keys:
 }
 
 Rules:
-1. Never explain anything.
-2. Never guess wildly.
-3. Preserve the user's intended action in "text", but remove time/date words.
-4. Respect these words strictly:
+1. Use the provided locale, timezone, and now as source of truth.
+2. Respect date words strictly:
    - "завтра" / "tomorrow" = next day
    - "сегодня" / "сьогодні" / "today" = current day
-5. Respect day parts strictly:
-   - "утра", "утром", "ранку", "вранці", "am" => 00:00-11:59
-   - "дня" => 12:00-16:59
-   - "вечера", "вечором", "вечора", "pm" => 17:00-23:59
-   - "ночи", "ночью", "ночі" => 00:00-05:59
-6. Examples:
+3. Respect time-of-day words strictly:
+   - "утра", "утром", "ранку", "вранці", "am" => morning
+   - "дня" => daytime
+   - "вечера", "вечером", "вечора", "увечері", "pm" => evening
+   - "ночи", "ночью", "ночі", "вночі" => night
+4. Examples:
    - "7 утра" => 07:00
    - "7 вечера" => 19:00
+   - "в 8" => 08:00 unless user clearly means evening
    - "в 20:30" => 20:30
-7. If the user gave an exact time, keep that exact time.
-8. If no day word is specified and the time already passed today, move to tomorrow.
-9. Use the provided locale, timezone, and now as the source of truth.
-10. Support Russian, Ukrainian, and English.
+5. If no explicit day is given and the exact time has already passed today, schedule it for tomorrow.
+6. Preserve the reminder action in "text", but remove time/date words from it.
+7. Do not explain anything.
+8. Do not add extra keys.
+9. "datetime" MUST include timezone offset, for example +03:00.
 
-Do not output markdown. Output only JSON.
+Output only JSON.
           `.trim(),
         },
         {
@@ -280,7 +120,7 @@ Do not output markdown. Output only JSON.
                 input: "напомни через полчаса купить молоко",
                 output: {
                   text: "купить молоко",
-                  datetime: "2026-04-05T18:15:00+03:00",
+                  datetime: "2026-04-05T18:48:00+03:00",
                 },
               },
               {
@@ -315,20 +155,21 @@ Do not output markdown. Output only JSON.
       });
     }
 
-    const checked = validateAndRepairModelResult(cleanedText, now, parsed);
+    const resultText = normalizeWhitespace(parsed.text);
+    const resultDatetime = parsed.datetime;
 
-    if (!checked.ok) {
+    if (!resultText || !looksLikeIsoWithOffset(resultDatetime)) {
       return res.status(500).json({
         ok: false,
-        error: checked.error,
+        error: "Invalid JSON from model",
         raw: parsed,
       });
     }
 
     return res.json({
       ok: true,
-      text: checked.text,
-      datetime: checked.datetime,
+      text: resultText,
+      datetime: resultDatetime,
     });
   } catch (e) {
     console.error("PARSE ERROR:", e);
