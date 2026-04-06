@@ -62,7 +62,7 @@ app.post("/parse", async (req, res) => {
       messages: [
         {
           role: "system",
-          content: 
+          content: `
 You are a strict reminder parsing engine.
 
 Return ONLY valid JSON with exactly these keys:
@@ -102,7 +102,7 @@ Rules:
 
 The output datetime must include timezone offset, for example:
 2026-04-06T18:00:00+03:00
-          .trim(),
+          `.trim(),
         },
         {
           role: "user",
@@ -133,7 +133,7 @@ The output datetime must include timezone offset, for example:
                   text: "напомни через час",
                   datetime: "2026-04-05T19:18:00+03:00",
                 },
- },
+              },
               {
                 input: {
                   local_now: "2026-04-05T18:18:00",
@@ -234,5 +234,5 @@ The output datetime must include timezone offset, for example:
 
 const port = process.env.PORT || 10000;
 app.listen(port, () => {
-  console.log(Server started on port ${port});
+  console.log(`Server started on port ${port}`);
 });
