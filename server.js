@@ -63,7 +63,9 @@ app.post("/parse", async (req, res) => {
         {
           role: "system",
           content: `
-You are a strict reminder parsing engine.
+You are a strict multilingual reminder parsing engine.
+
+You parse the user's reminder phrase into structured JSON.
 
 Return ONLY valid JSON with exactly these keys:
 {
@@ -71,41 +73,66 @@ Return ONLY valid JSON with exactly these keys:
   "datetime": "string"
 }
 
-Rules:
-1. Use the user's local current datetime as the source of truth.
-2. Use utc_offset_minutes to construct the timezone offset in the output.
-3. Never return empty "text" if the user phrase is not empty.
-4. If the phrase contains both a task and time, keep only the task in "text".
-5. If the phrase contains only timing and no separate task, keep the original phrase in "text".
-6. Parse relative phrases exactly:
-   - "через час" = +1 hour
-   - "через 2 часа" = +2 hours
-   - "через 20 минут" = +20 minutes
-   - "через полчаса" = +30 minutes
-   - "через день" = +1 day
-   - "через 2 дня" = +2 days
-7. Parse absolute phrases exactly:
-   - "завтра" = next day
-   - "сегодня" / "today" = current day
-8. Parse time-of-day exactly:
-   - "8 вечера" = 20:00
-   - "6 вечера" = 18:00
-   - "9 утра" = 09:00
-   - "2 дня" = 14:00
-   - "1 ночи" = 01:00
-9. Parse exact numeric time exactly:
-   - "в 20:30" = 20:30
-   - "в 8" = 08:00 unless the phrase explicitly says evening/pm
-10. If user gives a time but no explicit day, and that time already passed today, move it to tomorrow.
-11. If datetime cannot be determined reliably, return:
+Definitions:
+- "text" = cleaned reminder task text
+- "datetime" = ISO-8601 datetime with timezone offset, for example:
+  2026-04-06T21:00:00+03:00
+
+Universal rules:
+1. The user may speak in ANY language.
+2. Detect and understand the user's language automatically.
+3. Use locale only as a helpful hint, but parse from the actual phrase text.
+4. Use local_now as the user's current local date/time.
+5. Use utc_offset_minutes to construct the timezone offset in the output datetime.
+6. Never ignore day words like:
+   - today / tomorrow
+   - сегодня / завтра
+   - сьогодні / завтра
+   - heute / morgen
+   - and equivalent words in other languages
+7. Never ignore time-of-day words like:
+   - morning / evening / night / afternoon
+   - утра / вечера / ночи / дня
+   - ранку / вечора / ночі / дня
+   - morgens / abends / nachts / nachmittags
+   - and equivalent words in other languages
+8. Interpret evening / pm correctly:
+   - 6 in the evening = 18:00
+   - 7 in the evening = 19:00
+   - 8 in the evening = 20:00
+   - 9 in the evening = 21:00
+   - 10 in the evening = 22:00
+   - 11 in the evening = 23:00
+9. Interpret morning / am correctly:
+   - 7 in the morning = 07:00
+   - 9 in the morning = 09:00
+10. Respect exact numeric times exactly:
+   - 20:30 means 20:30
+   - 21 00 means 21:00
+11. Respect relative expressions exactly:
+   - in an hour / через час / через годину / in einer Stunde => +1 hour
+   - in 20 minutes / через 20 минут / через 20 хвилин / in 20 Minuten => +20 minutes
+   - in half an hour / через полчаса / через пів години / in einer halben Stunde => +30 minutes
+   - in a day / через день / через день / in einem Tag => +1 day
+   - in 2 days / через 2 дня / через 2 дні / in 2 Tagen => +2 days
+12. If the phrase contains both task and time, keep only the task in "text".
+13. If the phrase contains only timing and no separate task, keep the original phrase in "text".
+14. Never return empty "text" when the input phrase is non-empty.
+15. If a time is given but no explicit day is given, and that local time has already passed today, move it to tomorrow.
+16. If datetime cannot be determined reliably, return:
 {
   "text": "<original phrase>",
   "datetime": ""
 }
-12. Never explain. Never add extra keys. Never output markdown.
+17. Never explain reasoning.
+18. Never add extra keys.
+19. Never output markdown.
 
-The output datetime must include timezone offset, for example:
-2026-04-06T18:00:00+03:00
+Examples of multilingual behavior:
+- "buy milk at 9 in the evening" => 21:00
+- "купить молоко в 9 вечера" => 21:00
+- "купити молоко о 9 вечора" => 21:00
+- "Kaufe Milch um 9 Uhr abends" => 21:00
           `.trim(),
         },
         {
@@ -118,72 +145,103 @@ The output datetime must include timezone offset, for example:
             examples: [
               {
                 input: {
+                  locale: "ru_RU",
                   local_now: "2026-04-05T18:18:00",
                   utc_offset_minutes: 180,
-                  text: "напомни через полчаса купить молоко",
-                },
-                output: {
-                  text: "купить молоко",
-                  datetime: "2026-04-05T18:48:00+03:00",
-                },
-              },
-              {
-                input: {
-                  local_now: "2026-04-05T18:18:00",
-                  utc_offset_minutes: 180,
-                  text: "напомни через час",
-                },
-                output: {
-                  text: "напомни через час",
-                  datetime: "2026-04-05T19:18:00+03:00",
-                },
-              },
-              {
-                input: {
-                  local_now: "2026-04-05T18:18:00",
-                  utc_offset_minutes: 180,
-                  text: "Поставь напоминание через час",
-                },
-                output: {
-                  text: "Поставь напоминание через час",
-                  datetime: "2026-04-05T19:18:00+03:00",
-                },
-              },
-              {
-                input: {
-                  local_now: "2026-04-05T18:18:00",
-                  utc_offset_minutes: 180,
-                  text: "Купить молоко в 8 вечера",
+                  text: "Купить молоко в 9 вечера",
                 },
                 output: {
                   text: "Купить молоко",
-                  datetime: "2026-04-05T20:00:00+03:00",
+                  datetime: "2026-04-05T21:00:00+03:00",
                 },
               },
               {
                 input: {
+                  locale: "ru_RU",
                   local_now: "2026-04-05T18:18:00",
                   utc_offset_minutes: 180,
-                  text: "купить хлеб в 20:30",
+                  text: "Поставь напоминание через час",
                 },
                 output: {
-                  text: "купить хлеб",
-                  datetime: "2026-04-05T20:30:00+03:00",
+                  text: "Поставь напоминание через час",
+                  datetime: "2026-04-05T19:18:00+03:00",
                 },
               },
               {
                 input: {
+                  locale: "uk_UA",
                   local_now: "2026-04-05T18:18:00",
                   utc_offset_minutes: 180,
-                  text: "напомни завтра в 6 вечера",
+                  text: "Купити молоко о 9 вечора",
                 },
                 output: {
-                  text: "напомни завтра в 6 вечера",
-                  datetime: "2026-04-06T18:00:00+03:00",
+                  text: "Купити молоко",
+                  datetime: "2026-04-05T21:00:00+03:00",
                 },
               },
               {
                 input: {
+                  locale: "uk_UA",
+                  local_now: "2026-04-05T18:18:00",
+                  utc_offset_minutes: 180,
+                  text: "Нагадай через годину",
+                },
+                output: {
+                  text: "Нагадай через годину",
+                  datetime: "2026-04-05T19:18:00+03:00",
+                },
+              },
+              {
+                input: {
+                  locale: "en_US",
+                  local_now: "2026-04-05T18:18:00",
+                  utc_offset_minutes: -240,
+                  text: "Buy milk at 9 in the evening",
+                },
+                output: {
+                  text: "Buy milk",
+                  datetime: "2026-04-05T21:00:00-04:00",
+                },
+              },
+              {
+                input: {
+                  locale: "en_US",
+                  local_now: "2026-04-05T18:18:00",
+                  utc_offset_minutes: -240,
+                  text: "Remind me in an hour",
+                },
+                output: {
+                  text: "Remind me in an hour",
+                  datetime: "2026-04-05T19:18:00-04:00",
+                },
+              },
+              {
+                input: {
+                  locale: "de_DE",
+                  local_now: "2026-04-05T18:18:00",
+                  utc_offset_minutes: 120,
+                  text: "Kaufe Milch um 9 Uhr abends",
+                },
+                output: {
+                  text: "Kaufe Milch",
+                  datetime: "2026-04-05T21:00:00+02:00",
+                },
+              },
+              {
+                input: {
+                  locale: "de_DE",
+                  local_now: "2026-04-05T18:18:00",
+                  utc_offset_minutes: 120,
+                  text: "Erinnere mich in einer Stunde",
+                },
+                output: {
+                  text: "Erinnere mich in einer Stunde",
+                  datetime: "2026-04-05T19:18:00+02:00",
+                },
+              },
+              {
+                input: {
+                  locale: "ru_RU",
                   local_now: "2026-04-05T18:18:00",
                   utc_offset_minutes: 180,
                   text: "встреча в 9 утра",
@@ -195,6 +253,19 @@ The output datetime must include timezone offset, for example:
               },
               {
                 input: {
+                  locale: "ru_RU",
+                  local_now: "2026-04-05T18:18:00",
+                  utc_offset_minutes: 180,
+                  text: "напомни завтра в 6 вечера",
+                },
+                output: {
+                  text: "напомни завтра в 6 вечера",
+                  datetime: "2026-04-06T18:00:00+03:00",
+                },
+              },
+              {
+                input: {
+                  locale: "en_US",
                   local_now: "2026-04-05T18:18:00",
                   utc_offset_minutes: -240,
                   text: "remind me in 2 days to call mom at 7 pm",
@@ -203,7 +274,7 @@ The output datetime must include timezone offset, for example:
                   text: "call mom",
                   datetime: "2026-04-07T19:00:00-04:00",
                 },
-              },
+              }
             ],
           }),
         },
@@ -233,12 +304,10 @@ The output datetime must include timezone offset, for example:
     let resultDatetime =
       typeof parsed.datetime === "string" ? parsed.datetime.trim() : "";
 
-    // если модель не вернула text — берём исходную фразу
     if (!resultText) {
       resultText = cleanedText;
     }
 
-    // если datetime пустой или невалидный — не падаем, просто отдаем пустую дату
     if (!resultDatetime || !isValidIsoDateTime(resultDatetime)) {
       return res.json({
         ok: true,
