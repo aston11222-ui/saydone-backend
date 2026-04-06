@@ -62,19 +62,16 @@ app.post("/parse", async (req, res) => {
       messages: [
         {
           role: "system",
-          content: `
+          content: 
 You are a strict reminder parsing engine.
-
-Your task:
-Convert the user's reminder phrase into structured JSON.
 
 Return ONLY valid JSON with exactly these keys:
 {
   "text": "string",
-  "datetime": "ISO-8601 datetime with timezone offset"
+  "datetime": "string"
 }
 
-STRICT RULES:
+Rules:
 1. Use the user's local current datetime as the source of truth.
 2. Use utc_offset_minutes to construct the timezone offset in the output.
 3. Respect relative time expressions exactly:
@@ -94,17 +91,18 @@ STRICT RULES:
    - "в 20:30" => 20:30
    - "в 8" => 08:00 unless the phrase explicitly says evening/pm
 7. If user gives a time but no explicit day, and that time has already passed in the user's local day, move it to tomorrow.
-8. The "text" field must keep the reminder meaning, but remove time/date words.
-9. Never explain. Never add extra keys. Never output markdown.
-10. If the phrase is incomplete or impossible to parse reliably, still return JSON:
+8. If the phrase contains only timing and no separate task text, keep "text" equal to the user's original phrase.
+9. Never return empty "text" when the input phrase is non-empty.
+10. If datetime cannot be determined reliably, return:
 {
-  "text": "<best cleaned reminder text or original short text>",
+  "text": "<original phrase>",
   "datetime": ""
 }
+11. Never explain. Never add extra keys. Never output markdown.
 
 The output datetime must include timezone offset, for example:
 2026-04-06T18:00:00+03:00
-          `.trim(),
+          .trim(),
         },
         {
           role: "user",
@@ -129,10 +127,21 @@ The output datetime must include timezone offset, for example:
                 input: {
                   local_now: "2026-04-05T18:18:00",
                   utc_offset_minutes: 180,
+                  text: "напомни через час",
+                },
+                output: {
+                  text: "напомни через час",
+                  datetime: "2026-04-05T19:18:00+03:00",
+                },
+ },
+              {
+                input: {
+                  local_now: "2026-04-05T18:18:00",
+                  utc_offset_minutes: 180,
                   text: "напомни завтра в 6 вечера",
                 },
                 output: {
-                  text: "напомни",
+                  text: "напомни завтра в 6 вечера",
                   datetime: "2026-04-06T18:00:00+03:00",
                 },
               },
@@ -145,28 +154,6 @@ The output datetime must include timezone offset, for example:
                 output: {
                   text: "встреча",
                   datetime: "2026-04-06T09:00:00+03:00",
-                },
-              },
-              {
-                input: {
-                  local_now: "2026-04-05T18:18:00",
-                  utc_offset_minutes: 180,
-                  text: "позвонить маме в 8",
-                },
-                output: {
-                  text: "позвонить маме",
-                  datetime: "2026-04-06T08:00:00+03:00",
-                },
-              },
-              {
-                input: {
-                  local_now: "2026-04-05T18:18:00",
-                  utc_offset_minutes: 180,
-                  text: "купить хлеб в 20:30",
-                },
-                output: {
-                  text: "купить хлеб",
-                  datetime: "2026-04-05T20:30:00+03:00",
                 },
               },
               {
@@ -205,20 +192,25 @@ The output datetime must include timezone offset, for example:
       });
     }
 
-    const resultText = normalizeWhitespace(parsed.text);
-    const resultDatetime = typeof parsed.datetime === "string"
-      ? parsed.datetime.trim()
-      : "";
+    let resultText = normalizeWhitespace(parsed.text);
+    let resultDatetime =
+      typeof parsed.datetime === "string" ? parsed.datetime.trim() : "";
 
+    // Главное исправление:
+    // если модель не дала text, берём исходную фразу пользователя
     if (!resultText) {
-      return res.status(500).json({
-        ok: false,
-        error: "Model returned empty text",
-        raw: parsed,
+      resultText = cleanedText;
+    }
+
+    if (!resultDatetime) {
+      return res.json({
+        ok: true,
+        text: resultText,
+        datetime: "",
       });
     }
 
-    if (!resultDatetime || !isValidIsoDateTime(resultDatetime)) {
+    if (!isValidIsoDateTime(resultDatetime)) {
       return res.json({
         ok: true,
         text: resultText,
@@ -242,5 +234,5 @@ The output datetime must include timezone offset, for example:
 
 const port = process.env.PORT || 10000;
 app.listen(port, () => {
-  console.log(`Server started on port ${port}`);
+  console.log(Server started on port ${port});
 });
