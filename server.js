@@ -74,31 +74,35 @@ Return ONLY valid JSON with exactly these keys:
 Rules:
 1. Use the user's local current datetime as the source of truth.
 2. Use utc_offset_minutes to construct the timezone offset in the output.
-3. Respect relative time expressions exactly:
-   - "через полчаса" = +30 minutes
+3. Never return empty "text" if the user phrase is not empty.
+4. If the phrase contains both a task and time, keep only the task in "text".
+5. If the phrase contains only timing and no separate task, keep the original phrase in "text".
+6. Parse relative phrases exactly:
+   - "через час" = +1 hour
    - "через 2 часа" = +2 hours
+   - "через 20 минут" = +20 minutes
+   - "через полчаса" = +30 minutes
    - "через день" = +1 day
    - "через 2 дня" = +2 days
-4. Respect absolute date expressions:
+7. Parse absolute phrases exactly:
    - "завтра" = next day
    - "сегодня" / "today" = current day
-5. Respect time-of-day words exactly:
-   - "утра" / "am" => morning, e.g. 7 утра = 07:00
-   - "вечера" / "pm" => evening, e.g. 6 вечера = 18:00
-   - "дня" => daytime, e.g. 2 дня = 14:00
-   - "ночи" => night, e.g. 1 ночи = 01:00
-6. Respect exact numeric time exactly:
-   - "в 20:30" => 20:30
-   - "в 8" => 08:00 unless the phrase explicitly says evening/pm
-7. If user gives a time but no explicit day, and that time has already passed in the user's local day, move it to tomorrow.
-8. If the phrase contains only timing and no separate task text, keep "text" equal to the user's original phrase.
-9. Never return empty "text" when the input phrase is non-empty.
-10. If datetime cannot be determined reliably, return:
+8. Parse time-of-day exactly:
+   - "8 вечера" = 20:00
+   - "6 вечера" = 18:00
+   - "9 утра" = 09:00
+   - "2 дня" = 14:00
+   - "1 ночи" = 01:00
+9. Parse exact numeric time exactly:
+   - "в 20:30" = 20:30
+   - "в 8" = 08:00 unless the phrase explicitly says evening/pm
+10. If user gives a time but no explicit day, and that time already passed today, move it to tomorrow.
+11. If datetime cannot be determined reliably, return:
 {
   "text": "<original phrase>",
   "datetime": ""
 }
-11. Never explain. Never add extra keys. Never output markdown.
+12. Never explain. Never add extra keys. Never output markdown.
 
 The output datetime must include timezone offset, for example:
 2026-04-06T18:00:00+03:00
@@ -132,6 +136,39 @@ The output datetime must include timezone offset, for example:
                 output: {
                   text: "напомни через час",
                   datetime: "2026-04-05T19:18:00+03:00",
+                },
+              },
+              {
+                input: {
+                  local_now: "2026-04-05T18:18:00",
+                  utc_offset_minutes: 180,
+                  text: "Поставь напоминание через час",
+                },
+                output: {
+                  text: "Поставь напоминание через час",
+                  datetime: "2026-04-05T19:18:00+03:00",
+                },
+              },
+              {
+                input: {
+                  local_now: "2026-04-05T18:18:00",
+                  utc_offset_minutes: 180,
+                  text: "Купить молоко в 8 вечера",
+                },
+                output: {
+                  text: "Купить молоко",
+                  datetime: "2026-04-05T20:00:00+03:00",
+                },
+              },
+              {
+                input: {
+                  local_now: "2026-04-05T18:18:00",
+                  utc_offset_minutes: 180,
+                  text: "купить хлеб в 20:30",
+                },
+                output: {
+                  text: "купить хлеб",
+                  datetime: "2026-04-05T20:30:00+03:00",
                 },
               },
               {
@@ -196,21 +233,13 @@ The output datetime must include timezone offset, for example:
     let resultDatetime =
       typeof parsed.datetime === "string" ? parsed.datetime.trim() : "";
 
-    // Главное исправление:
-    // если модель не дала text, берём исходную фразу пользователя
+    // если модель не вернула text — берём исходную фразу
     if (!resultText) {
       resultText = cleanedText;
     }
 
-    if (!resultDatetime) {
-      return res.json({
-        ok: true,
-        text: resultText,
-        datetime: "",
-      });
-    }
-
-    if (!isValidIsoDateTime(resultDatetime)) {
+    // если datetime пустой или невалидный — не падаем, просто отдаем пустую дату
+    if (!resultDatetime || !isValidIsoDateTime(resultDatetime)) {
       return res.json({
         ok: true,
         text: resultText,
