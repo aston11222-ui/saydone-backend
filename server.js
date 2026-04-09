@@ -191,8 +191,8 @@ app.post("/parse", async (req, res) => {
               "Support Russian, Ukrainian, English, German, French, Spanish, Polish, Italian. " +
               "Use the provided 'now' as the current local time. " +
               "For RELATIVE time (через/in/fra/dans + number): add that duration to 'now' to get the exact datetime. " +
-              "For ABSOLUTE time (at 9pm, в 6 утра, в 14:00): if that time has already passed today, schedule for tomorrow. " +
-              "Never return datetime equal to or before 'now' unless it is a relative calculation that results in a future time."
+              "For ABSOLUTE time (at 9pm, в 6 утра, в 14:00): compare with 'now'. If that time is STILL IN THE FUTURE today, keep it today. Only schedule for tomorrow if the time has ALREADY PASSED. " +
+              "Example: now=07:19, user says 'в 12:00 дня' -> today at 12:00 (future). now=21:50, user says 'в 9 вечера' -> tomorrow (past)."
           },
           {
             role: "user",
