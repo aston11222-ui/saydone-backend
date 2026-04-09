@@ -216,7 +216,19 @@ app.post("/parse", async (req, res) => {
       if (content) {
         const result = JSON.parse(content);
         if (result.text && result.datetime) {
-                    console.log(`[AI] "${cleanedText}" -> ${result.datetime}`);
+                    const resultDate = new Date(result.datetime);
+ 
+          // Если AI вернул прошедшее время — переносим на завтра
+          // Но не для относительных фраз (через X минут) — там AI сам считает правильно
+          const words = cleanedText.toLowerCase();
+          const hasRelative = words.includes('через') || /\bin\s+\d/i.test(words);
+          if (!hasRelative && resultDate.getTime() < localNow.getTime()) {
+            resultDate.setDate(resultDate.getDate() + 1);
+            result.datetime = toIsoWithOffsetFromLocal(resultDate, offsetMinutes);
+            console.log(`[AI+tomorrow] "${cleanedText}" -> ${result.datetime}`);
+          } else {
+            console.log(`[AI] "${cleanedText}" -> ${result.datetime}`);
+          }
  
           return res.json({ ok: true, text: result.text, datetime: result.datetime, lang, source: "ai" });
         }
