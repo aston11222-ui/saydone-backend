@@ -216,16 +216,32 @@ app.post("/parse", async (req, res) => {
       if (content) {
         const result = JSON.parse(content);
         if (result.text && result.datetime) {
-                    const resultDate = new Date(result.datetime);
- 
-          // Если AI вернул прошедшее время — переносим на завтра
-          // Но не для относительных фраз (через X минут) — там AI сам считает правильно
+                    // Если AI вернул прошедшее время — переносим на завтра
+          // Сравниваем строки напрямую чтобы избежать UTC конвертации
           const words = cleanedText.toLowerCase();
           const hasRelative = words.includes('через') || /\bin\s+\d/i.test(words);
-          if (!hasRelative && resultDate.getTime() < localNow.getTime()) {
-            resultDate.setDate(resultDate.getDate() + 1);
-            result.datetime = toIsoWithOffsetFromLocal(resultDate, offsetMinutes);
-            console.log(`[AI+tomorrow] "${cleanedText}" -> ${result.datetime}`);
+          if (!hasRelative) {
+            // Берём только дату и время из ISO строки без timezone конвертации
+            const dtStr = result.datetime; // например 2026-04-09T07:00:00+03:00
+            const dtMatch = dtStr.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+            if (dtMatch) {
+              const aiH = parseInt(dtMatch[4]), aiM = parseInt(dtMatch[5]);
+              const nowH = localNow.getHours(), nowM = localNow.getMinutes();
+              const aiTotalMin = aiH * 60 + aiM;
+              const nowTotalMin = nowH * 60 + nowM;
+              if (aiTotalMin < nowTotalMin) {
+                // Просто заменяем дату в строке на завтра
+                const tomorrow = new Date(localNow);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const y = tomorrow.getFullYear();
+                const mo = pad2(tomorrow.getMonth() + 1);
+                const d = pad2(tomorrow.getDate());
+                result.datetime = result.datetime.replace(/^\d{4}-\d{2}-\d{2}/, `${y}-${mo}-${d}`);
+                console.log(`[AI+tomorrow] "${cleanedText}" -> ${result.datetime}`);
+              } else {
+                console.log(`[AI] "${cleanedText}" -> ${result.datetime}`);
+              }
+            }
           } else {
             console.log(`[AI] "${cleanedText}" -> ${result.datetime}`);
           }
