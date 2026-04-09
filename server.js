@@ -189,9 +189,10 @@ app.post("/parse", async (req, res) => {
               "You are a reminder parser. Extract the reminder task and exact datetime from the user phrase. " +
               "Return ONLY valid JSON with keys 'text' (task without time words) and 'datetime' (ISO 8601 with timezone offset). " +
               "Support Russian, Ukrainian, English, German, French, Spanish, Polish, Italian. " +
-              "Use the provided 'now' as current time. Never return empty datetime. " +
-              "CRITICAL: If the specified time has already passed today, schedule for TOMORROW. " +
-              "Example: now=21:50+03:00, user says 'at 9:49 PM' -> datetime must be tomorrow at 21:49:00+03:00."
+              "Use the provided 'now' as the current local time. " +
+              "For RELATIVE time (через/in/fra/dans + number): add that duration to 'now' to get the exact datetime. " +
+              "For ABSOLUTE time (at 9pm, в 6 утра, в 14:00): if that time has already passed today, schedule for tomorrow. " +
+              "Never return datetime equal to or before 'now' unless it is a relative calculation that results in a future time."
           },
           {
             role: "user",
@@ -215,19 +216,7 @@ app.post("/parse", async (req, res) => {
       if (content) {
         const result = JSON.parse(content);
         if (result.text && result.datetime) {
-          const resultDate = new Date(result.datetime);
- 
-          // Релятивные фразы (через X минут/часов) — никогда не переносим
-          const isRelative = /через|in\s+\d|за\s+\d|tra\s+|dans\s+/i.test(cleanedText);
- 
-          // Для абсолютного времени: если уже прошло — переносим на завтра
-          if (!isRelative && resultDate <= localNow) {
-            resultDate.setDate(resultDate.getDate() + 1);
-            result.datetime = toIsoWithOffsetFromLocal(resultDate, offsetMinutes);
-            console.log(`[AI+tomorrow] "${cleanedText}" -> ${result.datetime}`);
-          } else {
-            console.log(`[AI] "${cleanedText}" -> ${result.datetime}`);
-          }
+                    console.log(`[AI] "${cleanedText}" -> ${result.datetime}`);
  
           return res.json({ ok: true, text: result.text, datetime: result.datetime, lang, source: "ai" });
         }
