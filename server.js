@@ -217,8 +217,11 @@ app.post("/parse", async (req, res) => {
         if (result.text && result.datetime) {
           const resultDate = new Date(result.datetime);
  
-          // Если время уже прошло — переносим на следующий день
-          if (resultDate <= localNow) {
+          // Релятивные фразы (через X минут/часов) — никогда не переносим
+          const isRelative = /через|in\s+\d|за\s+\d|tra\s+|dans\s+/i.test(cleanedText);
+ 
+          // Для абсолютного времени: если уже прошло — переносим на завтра
+          if (!isRelative && resultDate <= localNow) {
             resultDate.setDate(resultDate.getDate() + 1);
             result.datetime = toIsoWithOffsetFromLocal(resultDate, offsetMinutes);
             console.log(`[AI+tomorrow] "${cleanedText}" -> ${result.datetime}`);
