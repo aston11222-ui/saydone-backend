@@ -73,6 +73,7 @@ function cleanTaskText(text) {
     .replace(/^\s*(поставити нагадування|нагадай|нагадати)\s+/i, "")
     .replace(/^\s*(remind me to|remind me)\s+/i, "")
     .replace(/\b(сегодня|сьогодні|today|heute|aujourd'hui|hoy|dzisiaj|oggi)\b/gi, " ")
+    .replace(/\b(послезавтра|day after tomorrow|übermorgen|après-demain|pasado mañana|pojutrze|dopodomani)\b/gi, " ")
     .replace(/\b(завтра|tomorrow|morgen|demain|mañana|jutro|domani)\b/gi, " ")
     .replace(/\bчерез\s+\S+(\s+\S+)?\b/gi, " ")
     .replace(/\bin\s+\S+(\s+\S+)?\b/gi, " ")
@@ -131,7 +132,8 @@ function periodTo24Hour(hour, period) {
 }
 function parseAbsolute(text, now, offsetMinutes) {
   const src = text.toLowerCase();
-  const hasTomorrow = /\b(завтра|tomorrow|morgen|demain|mañana|jutro|domani)\b/i.test(src);
+  const hasDayAfterTomorrow = /\b(послезавтра|day after tomorrow|übermorgen|après-demain|pasado mañana|pojutrze|dopodomani)\b/i.test(src);
+  const hasTomorrow = !hasDayAfterTomorrow && /\b(завтра|tomorrow|morgen|demain|mañana|jutro|domani)\b/i.test(src);
   const hasToday    = /\b(сегодня|сьогодні|today|heute|aujourd'hui|hoy|dzisiaj|oggi)\b/i.test(src);
  
   let m = src.match(/\b(?:в|во|о|at|um|а|a las|o|alle)?\s*(\d{1,2})[:.](\d{2})\b/i);
@@ -140,7 +142,8 @@ function parseAbsolute(text, now, offsetMinutes) {
     if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
       const dt = new Date(now);
       dt.setHours(hour, minute, 0, 0);
-      if (hasTomorrow) dt.setDate(dt.getDate() + 1);
+      if (hasDayAfterTomorrow) dt.setDate(dt.getDate() + 2);
+      else if (hasTomorrow) dt.setDate(dt.getDate() + 1);
       else if (!hasToday && dt.getTime() <= now.getTime()) dt.setDate(dt.getDate() + 1);
       return { text: cleanTaskText(text), datetime: toIsoWithOffsetFromLocal(dt, offsetMinutes) };
     }
@@ -155,7 +158,8 @@ function parseAbsolute(text, now, offsetMinutes) {
     if (hour24 != null && minute >= 0 && minute <= 59) {
       const dt = new Date(now);
       dt.setHours(hour24, minute, 0, 0);
-      if (hasTomorrow) dt.setDate(dt.getDate() + 1);
+      if (hasDayAfterTomorrow) dt.setDate(dt.getDate() + 2);
+      else if (hasTomorrow) dt.setDate(dt.getDate() + 1);
       else if (!hasToday && dt.getTime() <= now.getTime()) dt.setDate(dt.getDate() + 1);
       return { text: cleanTaskText(text), datetime: toIsoWithOffsetFromLocal(dt, offsetMinutes) };
     }
@@ -190,9 +194,17 @@ app.post("/parse", async (req, res) => {
               "Return ONLY valid JSON with keys 'text' (task without time words) and 'datetime' (ISO 8601 with timezone offset). " +
               "Support Russian, Ukrainian, English, German, French, Spanish, Polish, Italian. " +
               "Use the provided 'now' as the current local time. " +
-              "For RELATIVE time (через/in/fra/dans + number): add that duration to 'now' to get the exact datetime. " +
-              "For ABSOLUTE time (at 9pm, в 6 утра, в 14:00): compare with 'now'. If that time is STILL IN THE FUTURE today, keep it today. Only schedule for tomorrow if the time has ALREADY PASSED. " +
-              "Example: now=07:19, user says 'в 12:00 дня' -> today at 12:00 (future). now=21:50, user says 'в 9 вечера' -> tomorrow (past)."
+              "RULE 1 - RELATIVE (через/in + number): add duration to 'now'. " +
+              "RULE 2 - ABSOLUTE time (в 10 вечера, at 10pm, в 22:00): " +
+              "  - Extract only the clock time from the phrase. " +
+              "  - If that clock time is GREATER than current time -> use TODAY. " +
+              "  - If that clock time is LESS than current time -> use TOMORROW. " +
+              "  - NEVER add extra days beyond this simple rule. " +
+              "RULE 3 - послезавтра/day after tomorrow: now + 2 days. " +
+              "RULE 4 - завтра/tomorrow: now + 1 day. " +
+              "CRITICAL EXAMPLE: now=21:22+03:00, user says 'в 10 вечера' (=22:00). 22:00 > 21:22 -> TODAY 22:00. NOT tomorrow. " +
+              "CRITICAL EXAMPLE: now=21:22+03:00, user says 'в 9 вечера' (=21:00). 21:00 < 21:22 -> TOMORROW 21:00. " +
+              "CRITICAL EXAMPLE: now=21:22+03:00, user says 'послезавтра в 10 утра' -> day after tomorrow 10:00."
           },
           {
             role: "user",
@@ -200,12 +212,33 @@ app.post("/parse", async (req, res) => {
               locale,
               now: nowIso,
               text: cleanedText,
+              // Примеры привязаны к now чтобы AI понял логику
               examples: [
-                { input: "позвонить завтра в 8 утра",            output: { text: "позвонить",        datetime: "2026-04-09T08:00:00+03:00" } },
-                { input: "таблетки в 2 дня",                     output: { text: "таблетки",          datetime: "2026-04-08T14:00:00+03:00" } },
-                { input: "напомни через 1 час 20 минут",         output: { text: "напомни",           datetime: "2026-04-08T22:20:00+03:00" } },
-                { input: "поставь напоминание в 2 ночи",        output: { text: "напоминание",       datetime: "2026-04-09T02:00:00+03:00" } },
-                { input: "взять документ в 9 49 вечера",        output: { text: "взять документ",    datetime: "2026-04-09T21:49:00+03:00" } },
+                {
+                  // now=21:22, в 10 вечера = 22:00. 22:00 > 21:22 -> СЕГОДНЯ
+                  input: `now=${nowIso}, phrase: "забрать документы в 10 вечера"`,
+                  output: { text: "забрать документы", datetime: `${nowIso.slice(0,10)}T22:00:00${nowIso.slice(19)}` }
+                },
+                {
+                  // now=21:22, в 9 вечера = 21:00. 21:00 < 21:22 -> ЗАВТРА
+                  input: `now=${nowIso}, phrase: "позвонить в 9 вечера"`,
+                  output: { text: "позвонить", datetime: (() => { const d=new Date(localNow); d.setDate(d.getDate()+1); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T21:00:00${nowIso.slice(19)}`; })() }
+                },
+                {
+                  // послезавтра = +2 дня
+                  input: `now=${nowIso}, phrase: "послезавтра в 10 утра"`,
+                  output: { text: "напомни", datetime: (() => { const d=new Date(localNow); d.setDate(d.getDate()+2); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T10:00:00${nowIso.slice(19)}`; })() }
+                },
+                {
+                  // завтра = +1 день
+                  input: `now=${nowIso}, phrase: "позвонить завтра в 8 утра"`,
+                  output: { text: "позвонить", datetime: (() => { const d=new Date(localNow); d.setDate(d.getDate()+1); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T08:00:00${nowIso.slice(19)}`; })() }
+                },
+                {
+                  // через N минут = now + N минут
+                  input: `now=${nowIso}, phrase: "напомни через 1 час 20 минут"`,
+                  output: { text: "напомни", datetime: (() => { const d=new Date(localNow); d.setMinutes(d.getMinutes()+80); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:00${nowIso.slice(19)}`; })() }
+                },
               ]
             })
           }
