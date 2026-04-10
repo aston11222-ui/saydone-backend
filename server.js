@@ -194,53 +194,15 @@ app.post("/parse", async (req, res) => {
               "Return ONLY valid JSON with keys 'text' (task without time words) and 'datetime' (ISO 8601 with timezone offset). " +
               "Support Russian, Ukrainian, English, German, French, Spanish, Polish, Italian. " +
               "Use the provided 'now' as the current local time. " +
-              "RULE 1 - RELATIVE (через/in + number): add duration to 'now'. " +
-              "RULE 2 - ABSOLUTE time (в 10 вечера, at 10pm, в 22:00): " +
-              "  - Extract only the clock time from the phrase. " +
-              "  - If that clock time is GREATER than current time -> use TODAY. " +
-              "  - If that clock time is LESS than current time -> use TOMORROW. " +
-              "  - NEVER add extra days beyond this simple rule. " +
-              "RULE 3 - послезавтра/day after tomorrow: now + 2 days. " +
-              "RULE 4 - завтра/tomorrow: now + 1 day. " +
-              "CRITICAL EXAMPLE: now=21:22+03:00, user says 'в 10 вечера' (=22:00). 22:00 > 21:22 -> TODAY 22:00. NOT tomorrow. " +
-              "CRITICAL EXAMPLE: now=21:22+03:00, user says 'в 9 вечера' (=21:00). 21:00 < 21:22 -> TOMORROW 21:00. " +
-              "CRITICAL EXAMPLE: now=21:22+03:00, user says 'послезавтра в 10 утра' -> day after tomorrow 10:00."
+              "For RELATIVE time (через/in + number): add that duration to 'now'. " +
+              "For ABSOLUTE time: extract the exact HH:MM the user said. " +
+              "For 'завтра/tomorrow': use tomorrow's date. " +
+              "For 'послезавтра/day after tomorrow': use the day after tomorrow. " +
+              "For 'через N дней/in N days': add N days to now."
           },
           {
             role: "user",
-            content: JSON.stringify({
-              locale,
-              now: nowIso,
-              text: cleanedText,
-              // Примеры привязаны к now чтобы AI понял логику
-              examples: [
-                {
-                  // now=21:22, в 10 вечера = 22:00. 22:00 > 21:22 -> СЕГОДНЯ
-                  input: `now=${nowIso}, phrase: "забрать документы в 10 вечера"`,
-                  output: { text: "забрать документы", datetime: `${nowIso.slice(0,10)}T22:00:00${nowIso.slice(19)}` }
-                },
-                {
-                  // now=21:22, в 9 вечера = 21:00. 21:00 < 21:22 -> ЗАВТРА
-                  input: `now=${nowIso}, phrase: "позвонить в 9 вечера"`,
-                  output: { text: "позвонить", datetime: (() => { const d=new Date(localNow); d.setDate(d.getDate()+1); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T21:00:00${nowIso.slice(19)}`; })() }
-                },
-                {
-                  // послезавтра = +2 дня
-                  input: `now=${nowIso}, phrase: "послезавтра в 10 утра"`,
-                  output: { text: "напомни", datetime: (() => { const d=new Date(localNow); d.setDate(d.getDate()+2); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T10:00:00${nowIso.slice(19)}`; })() }
-                },
-                {
-                  // завтра = +1 день
-                  input: `now=${nowIso}, phrase: "позвонить завтра в 8 утра"`,
-                  output: { text: "позвонить", datetime: (() => { const d=new Date(localNow); d.setDate(d.getDate()+1); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T08:00:00${nowIso.slice(19)}`; })() }
-                },
-                {
-                  // через N минут = now + N минут
-                  input: `now=${nowIso}, phrase: "напомни через 1 час 20 минут"`,
-                  output: { text: "напомни", datetime: (() => { const d=new Date(localNow); d.setMinutes(d.getMinutes()+80); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:00${nowIso.slice(19)}`; })() }
-                },
-              ]
-            })
+            content: JSON.stringify({ locale, now: nowIso, text: cleanedText })
           }
         ]
       });
@@ -249,36 +211,29 @@ app.post("/parse", async (req, res) => {
       if (content) {
         const result = JSON.parse(content);
         if (result.text && result.datetime) {
-                    // Если AI вернул прошедшее время — переносим на завтра
-          // Сравниваем строки напрямую чтобы избежать UTC конвертации
           const words = cleanedText.toLowerCase();
-          const hasRelative = words.includes('через') || /\bin\s+\d/i.test(words);
-          if (!hasRelative) {
-            // Берём только дату и время из ISO строки без timezone конвертации
-            const dtStr = result.datetime; // например 2026-04-09T07:00:00+03:00
-            const dtMatch = dtStr.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
-            if (dtMatch) {
-              const aiH = parseInt(dtMatch[4]), aiM = parseInt(dtMatch[5]);
-              const nowH = localNow.getHours(), nowM = localNow.getMinutes();
-              const aiTotalMin = aiH * 60 + aiM;
-              const nowTotalMin = nowH * 60 + nowM;
-              if (aiTotalMin < nowTotalMin) {
-                // Просто заменяем дату в строке на завтра
-                const tomorrow = new Date(localNow);
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                const y = tomorrow.getFullYear();
-                const mo = pad2(tomorrow.getMonth() + 1);
-                const d = pad2(tomorrow.getDate());
-                result.datetime = result.datetime.replace(/^\d{4}-\d{2}-\d{2}/, `${y}-${mo}-${d}`);
-                console.log(`[AI+tomorrow] "${cleanedText}" -> ${result.datetime}`);
-              } else {
-                console.log(`[AI] "${cleanedText}" -> ${result.datetime}`);
-              }
+ 
+          // Если пользователь не уточнял когда — ставим сегодня, только время от AI
+          const hasExplicitDay =
+            /\b(завтра|tomorrow|morgen|demain|mañana|jutro|domani)\b/i.test(words) ||
+            /\b(послезавтра|day after tomorrow|übermorgen)\b/i.test(words) ||
+            /\b(через\s+\d+\s*(дн|день|дней|day|days|Tag|jour|día|dzień|giorno))\b/i.test(words) ||
+            /\bin\s+\d+\s*(day|days)\b/i.test(words);
+ 
+          const isRelative =
+            /\bчерез\b/i.test(words) ||
+            /\bin\s+\d+\s*(minute|hour|min|час|минут)/i.test(words);
+ 
+          if (!hasExplicitDay && !isRelative) {
+            // Нет указания на день — берём время от AI, дату = сегодня
+            const timeMatch = result.datetime.match(/T(\d{2}:\d{2}:\d{2})/);
+            if (timeMatch) {
+              const today = `${localNow.getFullYear()}-${pad2(localNow.getMonth()+1)}-${pad2(localNow.getDate())}`;
+              result.datetime = `${today}T${timeMatch[1]}${nowIso.slice(19)}`;
             }
-          } else {
-            console.log(`[AI] "${cleanedText}" -> ${result.datetime}`);
           }
  
+          console.log(`[AI] "${cleanedText}" -> ${result.datetime}`);
           return res.json({ ok: true, text: result.text, datetime: result.datetime, lang, source: "ai" });
         }
       }
