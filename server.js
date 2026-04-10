@@ -213,19 +213,15 @@ app.post("/parse", async (req, res) => {
         if (result.text && result.datetime) {
           const words = cleanedText.toLowerCase();
  
-          // Если пользователь не уточнял когда — ставим сегодня, только время от AI
-          const hasExplicitDay =
-            /\b(завтра|tomorrow|morgen|demain|mañana|jutro|domani)\b/i.test(words) ||
-            /\b(послезавтра|day after tomorrow|übermorgen)\b/i.test(words) ||
-            /\b(через\s+\d+\s*(дн|день|дней|day|days|Tag|jour|día|dzień|giorno))\b/i.test(words) ||
-            /\bin\s+\d+\s*(day|days)\b/i.test(words);
+          // Если нет слов про конкретный день — ставим сегодня, время берём от AI
+          // Слова которые означают другой день: завтра, послезавтра, через N дней
+          const hasAnotherDay =
+            /\b(завтра|послезавтра|tomorrow|day after tomorrow|morgen|übermorgen|demain|après-demain|mañana|pasado mañana|jutro|pojutrze|domani|dopodomani)\b/i.test(words) ||
+            /\bчерез\s+\d+\s*(дн|день|дней)/i.test(words) ||
+            /\bin\s+\d+\s*days?\b/i.test(words);
  
-          const isRelative =
-            /\bчерез\b/i.test(words) ||
-            /\bin\s+\d+\s*(minute|hour|min|час|минут)/i.test(words);
- 
-          if (!hasExplicitDay && !isRelative) {
-            // Нет указания на день — берём время от AI, дату = сегодня
+          if (!hasAnotherDay) {
+            // Нет другого дня — всегда сегодня, только время от AI
             const timeMatch = result.datetime.match(/T(\d{2}:\d{2}:\d{2})/);
             if (timeMatch) {
               const today = `${localNow.getFullYear()}-${pad2(localNow.getMonth()+1)}-${pad2(localNow.getDate())}`;
