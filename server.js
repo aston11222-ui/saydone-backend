@@ -232,11 +232,14 @@ app.post("/parse", async (req, res) => {
               return res.json({ ok: true, text: result.text, datetime: result.datetime, lang, source: "ai" });
             }
  
-            const isTomorrow     = /\b(завтра|tomorrow|morgen|demain|mañana|jutro|domani)\b/i.test(words);
-            const isDayAfter     = /\b(послезавтра|day after tomorrow|übermorgen|après-demain|pasado mañana|pojutrze|dopodomani)\b/i.test(words);
-            const daysMatch      = words.match(/через\s+(\d+)\s*(дн|день|дней)/i) ||
-                                   words.match(/in\s+(\d+)\s*days?/i);
-            const nDays          = daysMatch ? parseInt(daysMatch[1]) : 0;
+            //  не работает с кириллицей в JS — используем пробелы/начало строки
+            const isTomorrow = /(^|\s)(завтра)(\s|$)/i.test(words) ||
+                               /\b(tomorrow|morgen|demain|mañana|jutro|domani)\b/i.test(words);
+            const isDayAfter = /(^|\s)(послезавтра)(\s|$)/i.test(words) ||
+                               /\b(day after tomorrow|übermorgen|après-demain|pasado mañana|pojutrze|dopodomani)\b/i.test(words);
+            const daysMatch  = words.match(/через\s+(\d+)\s*(дн|день|дней|дня)/i) ||
+                               words.match(/\bin\s+(\d+)\s*days?\b/i);
+            const nDays      = daysMatch ? parseInt(daysMatch[1]) : 0;
  
             if (isDayAfter) {
               dt.setDate(dt.getDate() + 2);
