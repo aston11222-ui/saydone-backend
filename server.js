@@ -248,7 +248,17 @@ app.post("/parse", async (req, res) => {
             } else if (nDays > 0) {
               dt.setDate(dt.getDate() + nDays);
             }
-            // Иначе — сегодня (dt не меняем)
+            // Иначе — сегодня, но проверяем не прошло ли время
+            if (!isDayAfter && !isTomorrow && nDays === 0) {
+              const [h, m] = timeStr.split(':').map(Number);
+              const aiTotalMin = h * 60 + m;
+              const nowTotalMin = localNow.getHours() * 60 + localNow.getMinutes();
+              const hasToday = /(^|\s)(сегодня|today|heute|aujourd'hui|hoy|dzisiaj|oggi)(\s|$)/i.test(words);
+              // Если время уже прошло и пользователь не сказал "сегодня" — завтра
+              if (aiTotalMin < nowTotalMin && !hasToday) {
+                dt.setDate(dt.getDate() + 1);
+              }
+            }
  
             const y  = dt.getFullYear();
             const mo = pad2(dt.getMonth() + 1);
