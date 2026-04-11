@@ -213,20 +213,44 @@ app.post("/parse", async (req, res) => {
         if (result.text && result.datetime) {
           const words = cleanedText.toLowerCase();
  
-          // Если нет слов про конкретный день — ставим сегодня, время берём от AI
-          // Слова которые означают другой день: завтра, послезавтра, через N дней
-          const hasAnotherDay =
-            /\b(завтра|послезавтра|tomorrow|day after tomorrow|morgen|übermorgen|demain|après-demain|mañana|pasado mañana|jutro|pojutrze|domani|dopodomani)\b/i.test(words) ||
-            /\bчерез\s+\d+\s*(дн|день|дней)/i.test(words) ||
-            /\bin\s+\d+\s*days?\b/i.test(words);
+          // Сервер сам вычисляет дату — AI только парсит время HH:MM
+          // Получаем время от AI
+          const timeMatch = result.datetime.match(/T(\d{2}:\d{2}:\d{2})/);
+          const timeStr = timeMatch ? timeMatch[1] : null;
+          const offset = nowIso.slice(19); // +03:00
  
-          if (!hasAnotherDay) {
-            // Нет другого дня — всегда сегодня, только время от AI
-            const timeMatch = result.datetime.match(/T(\d{2}:\d{2}:\d{2})/);
-            if (timeMatch) {
-              const today = `${localNow.getFullYear()}-${pad2(localNow.getMonth()+1)}-${pad2(localNow.getDate())}`;
-              result.datetime = `${today}T${timeMatch[1]}${nowIso.slice(19)}`;
+          if (timeStr) {
+            const dt = new Date(localNow);
+ 
+            // Проверяем слова про день
+            // Для относительного времени (через N минут/часов) — AI считает сам, не трогаем дату
+            const isRelativeTime = /\bчерез\s+\d+\s*(мин|минут|час|секунд|сек)/i.test(words) ||
+                                   /\bin\s+\d+\s*(min|hour|sec)/i.test(words);
+            if (isRelativeTime) {
+              // Оставляем datetime от AI как есть
+              console.log(`[AI/relative] "${cleanedText}" -> ${result.datetime}`);
+              return res.json({ ok: true, text: result.text, datetime: result.datetime, lang, source: "ai" });
             }
+ 
+            const isTomorrow     = /\b(завтра|tomorrow|morgen|demain|mañana|jutro|domani)\b/i.test(words);
+            const isDayAfter     = /\b(послезавтра|day after tomorrow|übermorgen|après-demain|pasado mañana|pojutrze|dopodomani)\b/i.test(words);
+            const daysMatch      = words.match(/через\s+(\d+)\s*(дн|день|дней)/i) ||
+                                   words.match(/in\s+(\d+)\s*days?/i);
+            const nDays          = daysMatch ? parseInt(daysMatch[1]) : 0;
+ 
+            if (isDayAfter) {
+              dt.setDate(dt.getDate() + 2);
+            } else if (isTomorrow) {
+              dt.setDate(dt.getDate() + 1);
+            } else if (nDays > 0) {
+              dt.setDate(dt.getDate() + nDays);
+            }
+            // Иначе — сегодня (dt не меняем)
+ 
+            const y  = dt.getFullYear();
+            const mo = pad2(dt.getMonth() + 1);
+            const d  = pad2(dt.getDate());
+            result.datetime = `${y}-${mo}-${d}T${timeStr}${offset}`;
           }
  
           console.log(`[AI] "${cleanedText}" -> ${result.datetime}`);
