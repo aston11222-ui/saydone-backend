@@ -183,7 +183,7 @@ app.post("/parse", async (req, res) => {
     // 1. OpenAI
     try {
       const aiResponse = await client.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-4.1-nano",
         temperature: 0,
         response_format: { type: "json_object" },
         messages: [
