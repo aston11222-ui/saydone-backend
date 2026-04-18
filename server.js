@@ -199,10 +199,13 @@ Sunday    / Воскресенье / Неділя    / Sonntag    / Dimanche / D
 Also handle declensions:
   RU: понедельник/понедельника, вторник/вторника, среда/среду, четверг/четверга,
       пятница/пятницу, суббота/субботу, воскресенье/воскресенья
-  UK: понеділок/понеділка/понеділку, вівторок/вівторка/вівторку,
-      середа/середу/середи, четвер/четверга/четверу,
-      п'ятниця/п'ятницю/п'ятниці, субота/суботу/суботи,
-      неділя/неділю/неділі
+  UK: понеділок/понеділка/понеділку/у понеділок/в понеділок,
+      вівторок/вівторка/вівторку/у вівторок/в вівторок,
+      середа/середу/середи/у середу/в середу,
+      четвер/четверга/четверу/у четвер/в четвер,
+      п'ятниця/п'ятницю/п'ятниці/у п'ятницю/в п'ятницю,
+      субота/суботу/суботи/у суботу/в суботу,
+      неділя/неділю/неділі/у неділю/в неділю
   DE: Montag/am Montag, Dienstag/am Dienstag, Mittwoch/am Mittwoch,
       Donnerstag/am Donnerstag, Freitag/am Freitag, Samstag/am Samstag, Sonntag/am Sonntag
   FR: lundi, mardi, mercredi, jeudi, vendredi, samedi, dimanche
@@ -232,12 +235,12 @@ If no date word given:
 3B. MORNING — keep hour as-is (1-11 → same, 12 → 0)
 Words meaning "morning / am":
   RU: утра / утром / с утра
-  UK: ранку / вранці / зранку / вранці-рано
+  UK: ранку / вранці / зранку / вранці-рано / рано-вранці / зрана
   EN: am / in the morning / morning
-  DE: morgens / Uhr morgens / Uhr früh / früh
+  DE: morgens / Uhr morgens / Uhr früh / früh / morgens um X Uhr
   FR: du matin / le matin
   ES: de la mañana / por la mañana
-  PL: rano / z rana
+  PL: rano / z rana / rano o / godzinie rano
 
 Examples:
   "7 утра"    → 07:00    "7 ранку"    → 07:00    "7am"       → 07:00
@@ -268,12 +271,13 @@ Examples:
 3D. EVENING / PM — add 12 if hour < 12 (12 stays 12)
 Words meaning "evening / pm":
   RU: вечера / вечером / ввечері
-  UK: вечора / увечері / ввечері / вечором / о вечорі
+  UK: вечора / увечері / ввечері / вечором / о вечорі / звечора / надвечір / вечірнього
   EN: pm / in the evening / evening
-  DE: abends / am Abend / Uhr abends / Uhr am Abend
+  DE: abends / am Abend / Uhr abends / Uhr am Abend / abends um X Uhr
+  NOTE DE: "um X Uhr" without period = 24h as stated (e.g. "um 10 Uhr" = 10:00, "um 21 Uhr" = 21:00)
   FR: du soir / le soir / en soirée
   ES: de la tarde (18h+) / de la noche / por la noche
-  PL: wieczorem / po południu (18h+)
+  PL: wieczorem / po południu (18h+) / wieczór / w wieczór
 
 Examples:
   "6 вечера"   → 18:00    "6 вечора"   → 18:00    "6pm"        → 18:00
@@ -289,7 +293,7 @@ Examples:
 3E. NIGHT — context-dependent
 Words meaning "night":
   RU: ночи / ночью / в ночь
-  UK: ночі / вночі / уночі / ніч
+  UK: ночі / вночі / уночі / ніч / опівночі / серед ночі
   EN: at night / tonight (late)
   DE: nachts / in der Nacht
   FR: de nuit / la nuit
@@ -422,14 +426,23 @@ Examples (current time ${timeStr}):
 "W poniedziałek o 9 rano"
 → {"text":"","datetime":"${nextDow(1)}T09:00:00${offsetStr}"}
 
-"Напомни в 7 утра позвонить маме" (current time is ${timeStr}, 7:00 < ${timeStr} → tomorrow)
+"Напомни в 7 утра позвонить маме" (7:00 ≤ current ${timeStr} → tomorrow ${addD(1)})
 → {"text":"позвонить маме","datetime":"${addD(1)}T07:00:00${offsetStr}"}
 
-"Нагадай о 1 ночі зателефонувати" (1:00 < ${timeStr} → tomorrow)
+"Нагадай о 1 ночі зателефонувати" (01:00 ≤ current ${timeStr} → tomorrow ${addD(1)})
 → {"text":"зателефонувати","datetime":"${addD(1)}T01:00:00${offsetStr}"}
 
-"Напомни в 9 вечера" (21:00 > ${timeStr} → today)
+"Напомни в 9 вечера" (21:00 > current ${timeStr} → today ${todayStr})
 → {"text":"","datetime":"${todayStr}T21:00:00${offsetStr}"}
+
+"Нагадай о 6 ранку" (06:00 ≤ current ${timeStr} → tomorrow ${addD(1)})
+→ {"text":"","datetime":"${addD(1)}T06:00:00${offsetStr}"}
+
+"Remind me at 8am" (08:00 ≤ current ${timeStr} → tomorrow ${addD(1)})
+→ {"text":"","datetime":"${addD(1)}T08:00:00${offsetStr}"}
+
+"Erinnere mich um 7 Uhr morgens" (07:00 ≤ current ${timeStr} → tomorrow ${addD(1)})
+→ {"text":"","datetime":"${addD(1)}T07:00:00${offsetStr}"}
 
 "Через 30 минут напомни купить хлеб"
 → {"text":"купить хлеб","datetime":"${(() => { const d=new Date(localNow); d.setMinutes(d.getMinutes()+30); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
@@ -437,11 +450,50 @@ Examples (current time ${timeStr}):
 "Через пів години нагадай купити хліб"
 → {"text":"купити хліб","datetime":"${(() => { const d=new Date(localNow); d.setMinutes(d.getMinutes()+30); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
 
+"Нагадай у середу о 15:00"
+→ {"text":"","datetime":"${nextDow(3)}T15:00:00${offsetStr}"}
+
+"Нагадай у четвер о 9 вечора"
+→ {"text":"","datetime":"${nextDow(4)}T21:00:00${offsetStr}"}
+
+"Нагадай у неділю о 12:00"
+→ {"text":"","datetime":"${nextDow(0)}T12:00:00${offsetStr}"}
+
+"Нагадай у суботу на 10:00 ранку"
+→ {"text":"","datetime":"${nextDow(6)}T10:00:00${offsetStr}"}
+
+"Нагадай за тиждень о 9 ранку"
+→ {"text":"","datetime":"${addD(7)}T09:00:00${offsetStr}"}
+
+"Erinnere mich übermorgen um 10 Uhr"
+→ {"text":"","datetime":"${addD(2)}T10:00:00${offsetStr}"}
+
+"Rappelle-moi après-demain à 10h"
+→ {"text":"","datetime":"${addD(2)}T10:00:00${offsetStr}"}
+
+"Recuérdame pasado mañana a las 10"
+→ {"text":"","datetime":"${addD(2)}T10:00:00${offsetStr}"}
+
+"Przypomnij mi w sobotę o 21:00"
+→ {"text":"","datetime":"${nextDow(6)}T21:00:00${offsetStr}"}
+
+"Через 2 години зустріч"
+→ {"text":"зустріч","datetime":"${(() => { const d=new Date(localNow); d.setHours(d.getHours()+2); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
+
+"Нагадай о 6 ранку" (06:00 ≤ ${timeStr} → tomorrow)
+→ {"text":"","datetime":"${addD(1)}T06:00:00${offsetStr}"}
+
+"Remind me at 8am" (08:00 ≤ ${timeStr} → tomorrow)
+→ {"text":"","datetime":"${addD(1)}T08:00:00${offsetStr}"}
+
+"Erinnere mich um 7 Uhr morgens" (07:00 ≤ ${timeStr} → tomorrow)
+→ {"text":"","datetime":"${addD(1)}T07:00:00${offsetStr}"}
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Remember: output ONLY the JSON object. No explanation, no markdown.`;
 }
 
-app.get("/",       (_, res) => res.send("SayDone AI-only parser v4"));
+app.get("/",       (_, res) => res.send("SayDone AI-only parser v5"));
 app.get("/health", (_, res) => res.json({ ok: true }));
 
 app.post("/parse", auth, async (req, res) => {
@@ -497,5 +549,5 @@ app.post("/parse", auth, async (req, res) => {
 });
 
 const port = process.env.PORT || 10000;
-app.listen(port, () => console.log(`SayDone parser v4 on port ${port}`));
+app.listen(port, () => console.log(`SayDone parser v5 on port ${port}`));
 
