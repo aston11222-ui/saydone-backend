@@ -109,6 +109,7 @@ function cleanTask(text) {
   t = t.replace(/\b\d{1,2}\s*(утра|утром|ранку|вранці|дня|вечера|вечером|вечора|увечері|ночи|ночью|ночі|вночі|morning|afternoon|evening|night|am|pm|morgens|abends|nachts|du soir|du matin|de la tarde|de la noche|de la mañana|wieczorem|rano|uhr)\b/gi, " ");
   t = t.replace(/\b(в|во|о|at|um|à|a las|alle|o)\s+\d{1,2}\b/gi, " ");
   // Remove weekday names
+  t = t.replace(/\bна\s+(понедельник|вторник|среду|четверг|пятниц[ау]|суббот[уа]|воскресенье[е]?)\b/gi, " ");
   t = t.replace(/\b(понедельник|вторник|среда|среду|четверг|пятниц[ау]|суббот[уа]|воскресенье[е]?)\b/gi, " ");
   t = t.replace(/\b(понеділок|вівторок|середа?|середу|четвер|п'ятниц[яю]|субот[аи]|неділ[яю])\b/gi, " ");
   t = t.replace(/\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/gi, " ");
@@ -176,9 +177,14 @@ TIME EXTRACTION RULES:
 - "полдень/полудень/noon/midi/mediodía" → 12:00
 - "полночь/опівніч/midnight/minuit" → 00:00
 - If no time mentioned → use null
+- "10:00 утра/ранку/am/morgens" → "10:00" (already 24h, do NOT add 12)
+- "10:00 вечера/вечора/pm/abends" → "22:00"
+- "8:00 утра/ранку/am" → "08:00"
+- When time is in HH:MM format with утра/am/morning → keep as is if < 12
+- When time is in HH:MM format with вечера/pm/evening → add 12 if < 12
 
-DO NOT calculate dates. Only return the time.
-Task text: remove all date/time words, keep only the task in input language.
+DO NOT calculate dates. ONLY return the time in 24h HH:MM format.
+Task text: remove ALL date/time/weekday words, keep only the task in input language.
 
 Return ONLY valid JSON:
 {"time": "HH:MM", "text": "task only"}
@@ -218,9 +224,16 @@ If no time found: {"time": null, "text": "task only"}`;
         .replace(/za\s+\d+\s*(?:dni|godzin|minut)/gi, "")
         .trim();
 
-      // HH:MM explicit
-      let tm = wNoRel.match(/\b(\d{1,2}):(\d{2})\b/);
-      if (tm) { aiTime = { h: +tm[1], m: +tm[2], raw: true }; }
+      // HH:MM explicit + optional period (e.g. "10:00 утра", "8:00 pm", "22:00")
+      let tm = wNoRel.match(/\b(\d{1,2}):(\d{2})\s*(утра|утром|ранку|вранці|дня|вечера|вечером|вечора|увечері|ночи|ночью|ночі|вночі|morning|afternoon|evening|night|am|pm|morgens|abends|nachmittags|du soir|de la tarde|de la noche)?\b/i);
+      if (tm) {
+        let h = +tm[1], m = +tm[2];
+        const per = (tm[3]||"").toLowerCase();
+        const eveW = ["вечера","вечером","вечора","увечері","evening","pm","abends","nachmittags","du soir","de la tarde","de la noche"];
+        if (eveW.some(x=>per.includes(x)) && h < 12) h += 12;
+        // morning/am: keep h as-is (already correct)
+        aiTime = { h, m };
+      }
       else {
         // digit + period word (optional "Uhr" between)
         tm = wNoRel.match(/(\d{1,2})h?\s*(?:uhr\s*)?(утра|утром|ранку|вранці|дня|вечера|вечером|вечора|увечері|ночи|ночью|ночі|вночі|morning|afternoon|evening|night|am|pm|morgens|abends|nachts|nachmittags|du soir|du matin|de la tarde|de la noche|de la mañana|wieczorem|rano)/i);
