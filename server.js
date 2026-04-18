@@ -512,7 +512,7 @@ app.post("/parse", auth, async (req, res) => {
     let result = null;
     try {
       const response = await client.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-4o-nano",
         temperature: 0,
         response_format: { type: "json_object" },
         messages: [
