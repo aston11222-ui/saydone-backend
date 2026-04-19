@@ -550,6 +550,64 @@ Examples (current time ${timeStr}):
 "Erinnere mich um 7 Uhr morgens" (07:00 ≤ ${timeStr} → tomorrow)
 → {"text":"","datetime":"${addD(1)}T07:00:00${offsetStr}"}
 
+── Завтра + утро (all languages) ──
+"Напомни завтра в 8 утра"
+→ {"text":"","datetime":"${addD(1)}T08:00:00${offsetStr}"}
+
+"Remind me tomorrow at 8am"
+→ {"text":"","datetime":"${addD(1)}T08:00:00${offsetStr}"}
+
+"Erinnere mich morgen um 8 Uhr morgens"
+→ {"text":"","datetime":"${addD(1)}T08:00:00${offsetStr}"}
+
+"Rappelle-moi demain à 8h du matin"
+→ {"text":"","datetime":"${addD(1)}T08:00:00${offsetStr}"}
+
+"Recuérdame mañana a las 8 de la mañana"
+→ {"text":"","datetime":"${addD(1)}T08:00:00${offsetStr}"}
+
+"Przypomnij mi jutro o 8 rano"
+→ {"text":"","datetime":"${addD(1)}T08:00:00${offsetStr}"}
+
+── Послезавтра (all languages) ──
+"Напомни послезавтра в 10 утра"
+→ {"text":"","datetime":"${addD(2)}T10:00:00${offsetStr}"}
+
+"Remind me the day after tomorrow at 10am"
+→ {"text":"","datetime":"${addD(2)}T10:00:00${offsetStr}"}
+
+── Дни недели — понедельник (EN, DE, FR) ──
+"Remind me on Monday at 10am"
+→ {"text":"","datetime":"${nextDow(1)}T10:00:00${offsetStr}"}
+
+"Erinnere mich am Montag um 10 Uhr"
+→ {"text":"","datetime":"${nextDow(1)}T10:00:00${offsetStr}"}
+
+"Rappelle-moi lundi à 10h"
+→ {"text":"","datetime":"${nextDow(1)}T10:00:00${offsetStr}"}
+
+── Через N минут/часов (all languages) ──
+"In 30 minutes buy bread"
+→ {"text":"buy bread","datetime":"${(() => { const d=new Date(localNow); d.setMinutes(d.getMinutes()+30); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
+
+"In 2 hours call"
+→ {"text":"call","datetime":"${(() => { const d=new Date(localNow); d.setHours(d.getHours()+2); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
+
+"In 2 Stunden anrufen"
+→ {"text":"anrufen","datetime":"${(() => { const d=new Date(localNow); d.setHours(d.getHours()+2); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
+
+"Dans 30 minutes acheter du pain"
+→ {"text":"acheter du pain","datetime":"${(() => { const d=new Date(localNow); d.setMinutes(d.getMinutes()+30); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
+
+"En 30 minutos comprar pan"
+→ {"text":"comprar pan","datetime":"${(() => { const d=new Date(localNow); d.setMinutes(d.getMinutes()+30); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
+
+"Za 30 minut kupić chleb"
+→ {"text":"kupić chleb","datetime":"${(() => { const d=new Date(localNow); d.setMinutes(d.getMinutes()+30); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
+
+"Через 2 часа позвонить"
+→ {"text":"позвонить","datetime":"${(() => { const d=new Date(localNow); d.setHours(d.getHours()+2); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Remember: output ONLY the JSON object. No explanation, no markdown.`;
 }
