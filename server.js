@@ -214,13 +214,29 @@ Also handle declensions:
       piątek/w piątek, sobota/w sobotę, niedziela/w niedzielę
 
 ──────────────────────────────────────── 
-2G. NO DATE STATED
-If no date word given:
-  - If the stated time is STILL IN THE FUTURE today → use today (${todayStr})
-  - If the stated time has ALREADY PASSED today → use tomorrow (${addD(1)})
-  Current time is ${timeStr}, so:
-    Any time > ${timeStr} today → use ${todayStr}
-    Any time ≤ ${timeStr} → use ${addD(1)}
+2G. NO DATE STATED — CRITICAL RULE
+If no date word is given, compare the stated time to current time ${timeStr}:
+
+  RULE: if stated_time > ${timeStr} → use TODAY (${todayStr})
+        if stated_time ≤ ${timeStr} → use TOMORROW (${addD(1)})
+
+  This means ANY time that has already passed today goes to TOMORROW.
+  Current time is ${timeStr}. Examples of what is past and what is future:
+    00:00–${timeStr} → ALL PAST → use TOMORROW ${addD(1)}
+    ${timeStr}–23:59 → FUTURE   → use TODAY   ${todayStr}
+
+  Concrete examples at current time ${timeStr}:
+    "в 9 утра"  (09:00 ≤ ${timeStr}) → ${addD(1)}T09:00:00${offsetStr}
+    "в 10 утра" (10:00 ≤ ${timeStr}) → ${addD(1)}T10:00:00${offsetStr}
+    "в 11 утра" (11:00 ≤ ${timeStr}) → ${addD(1)}T11:00:00${offsetStr}
+    "в 12:00"   (12:00 ≤ ${timeStr}) → ${addD(1)}T12:00:00${offsetStr}
+    "в 14:00"   (14:00 ≤ ${timeStr}) → ${addD(1)}T14:00:00${offsetStr}
+    "в 9 ранку" (09:00 ≤ ${timeStr}) → ${addD(1)}T09:00:00${offsetStr}
+    "at 9am"    (09:00 ≤ ${timeStr}) → ${addD(1)}T09:00:00${offsetStr}
+    "at 10am"   (10:00 ≤ ${timeStr}) → ${addD(1)}T10:00:00${offsetStr}
+    "at 11am"   (11:00 ≤ ${timeStr}) → ${addD(1)}T11:00:00${offsetStr}
+    "um 9 Uhr"  (09:00 ≤ ${timeStr}) → ${addD(1)}T09:00:00${offsetStr}
+    "à 10h"     (10:00 ≤ ${timeStr}) → ${addD(1)}T10:00:00${offsetStr}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 §3. TIME RULES (convert all to 24h HH:MM)
@@ -426,22 +442,49 @@ Examples (current time ${timeStr}):
 "W poniedziałek o 9 rano"
 → {"text":"","datetime":"${nextDow(1)}T09:00:00${offsetStr}"}
 
-"Напомни в 7 утра позвонить маме" (7:00 ≤ current ${timeStr} → tomorrow ${addD(1)})
+"Напомни в 7 утра позвонить маме" (07:00 ≤ ${timeStr} → tomorrow)
 → {"text":"позвонить маме","datetime":"${addD(1)}T07:00:00${offsetStr}"}
 
-"Нагадай о 1 ночі зателефонувати" (01:00 ≤ current ${timeStr} → tomorrow ${addD(1)})
+"Напомни в 9 утра" (09:00 ≤ ${timeStr} → tomorrow)
+→ {"text":"","datetime":"${addD(1)}T09:00:00${offsetStr}"}
+
+"Напомни в 10 утра" (10:00 ≤ ${timeStr} → tomorrow)
+→ {"text":"","datetime":"${addD(1)}T10:00:00${offsetStr}"}
+
+"Поставь на 9 утра" (09:00 ≤ ${timeStr} → tomorrow)
+→ {"text":"","datetime":"${addD(1)}T09:00:00${offsetStr}"}
+
+"Поставь на 10 утра" (10:00 ≤ ${timeStr} → tomorrow)
+→ {"text":"","datetime":"${addD(1)}T10:00:00${offsetStr}"}
+
+"Нагадай о 9 ранку" (09:00 ≤ ${timeStr} → tomorrow)
+→ {"text":"","datetime":"${addD(1)}T09:00:00${offsetStr}"}
+
+"Нагадай о 10 ранку" (10:00 ≤ ${timeStr} → tomorrow)
+→ {"text":"","datetime":"${addD(1)}T10:00:00${offsetStr}"}
+
+"Нагадай о 1 ночі зателефонувати" (01:00 ≤ ${timeStr} → tomorrow)
 → {"text":"зателефонувати","datetime":"${addD(1)}T01:00:00${offsetStr}"}
 
-"Напомни в 9 вечера" (21:00 > current ${timeStr} → today ${todayStr})
+"Напомни в 9 вечера" (21:00 > ${timeStr} → today)
 → {"text":"","datetime":"${todayStr}T21:00:00${offsetStr}"}
 
-"Нагадай о 6 ранку" (06:00 ≤ current ${timeStr} → tomorrow ${addD(1)})
+"Нагадай о 6 ранку" (06:00 ≤ ${timeStr} → tomorrow)
 → {"text":"","datetime":"${addD(1)}T06:00:00${offsetStr}"}
 
-"Remind me at 8am" (08:00 ≤ current ${timeStr} → tomorrow ${addD(1)})
+"Remind me at 9am" (09:00 ≤ ${timeStr} → tomorrow)
+→ {"text":"","datetime":"${addD(1)}T09:00:00${offsetStr}"}
+
+"Remind me at 10am" (10:00 ≤ ${timeStr} → tomorrow)
+→ {"text":"","datetime":"${addD(1)}T10:00:00${offsetStr}"}
+
+"Remind me at 8am" (08:00 ≤ ${timeStr} → tomorrow)
 → {"text":"","datetime":"${addD(1)}T08:00:00${offsetStr}"}
 
-"Erinnere mich um 7 Uhr morgens" (07:00 ≤ current ${timeStr} → tomorrow ${addD(1)})
+"Erinnere mich um 9 Uhr morgens" (09:00 ≤ ${timeStr} → tomorrow)
+→ {"text":"","datetime":"${addD(1)}T09:00:00${offsetStr}"}
+
+"Erinnere mich um 7 Uhr morgens" (07:00 ≤ ${timeStr} → tomorrow)
 → {"text":"","datetime":"${addD(1)}T07:00:00${offsetStr}"}
 
 "Через 30 минут напомни купить хлеб"
@@ -550,4 +593,5 @@ app.post("/parse", auth, async (req, res) => {
 
 const port = process.env.PORT || 10000;
 app.listen(port, () => console.log(`SayDone parser v5 on port ${port}`));
+
 
