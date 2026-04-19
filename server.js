@@ -487,6 +487,24 @@ Examples (current time ${timeStr}):
 "Erinnere mich um 7 Uhr morgens" (07:00 ≤ ${timeStr} → tomorrow)
 → {"text":"","datetime":"${addD(1)}T07:00:00${offsetStr}"}
 
+"Rappelle-moi à 9h du matin" (09:00 ≤ ${timeStr} → tomorrow)
+→ {"text":"","datetime":"${addD(1)}T09:00:00${offsetStr}"}
+
+"Rappelle-moi à 10h du matin" (10:00 ≤ ${timeStr} → tomorrow)
+→ {"text":"","datetime":"${addD(1)}T10:00:00${offsetStr}"}
+
+"Recuérdame a las 9 de la mañana" (09:00 ≤ ${timeStr} → tomorrow)
+→ {"text":"","datetime":"${addD(1)}T09:00:00${offsetStr}"}
+
+"Recuérdame a las 10 de la mañana" (10:00 ≤ ${timeStr} → tomorrow)
+→ {"text":"","datetime":"${addD(1)}T10:00:00${offsetStr}"}
+
+"Przypomnij mi o 9 rano" (09:00 ≤ ${timeStr} → tomorrow)
+→ {"text":"","datetime":"${addD(1)}T09:00:00${offsetStr}"}
+
+"Przypomnij mi o 10 rano" (10:00 ≤ ${timeStr} → tomorrow)
+→ {"text":"","datetime":"${addD(1)}T10:00:00${offsetStr}"}
+
 "Через 30 минут напомни купить хлеб"
 → {"text":"купить хлеб","datetime":"${(() => { const d=new Date(localNow); d.setMinutes(d.getMinutes()+30); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
 
