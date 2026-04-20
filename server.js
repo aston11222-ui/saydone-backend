@@ -73,23 +73,65 @@ OUTPUT — ONLY valid JSON, nothing else:
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 §1. TASK TEXT
-Remove ALL time/date/weekday words. Keep only the reminder task.
+Remove ALL time/date/weekday/interval words. Keep ONLY the actual reminder task.
 Use the same language as the voice input.
 
-CRITICAL: Extract "text" ONLY from the actual voice input — NEVER copy text from examples.
-If the input contains NO task (only time/date words like "поставь на 9 утра", "remind me in 30 minutes", "через час"):
-  → set "text" to "" (empty string)
+STEP 1 — Remove these trigger words (they are NEVER part of the task):
+  RU/UK: поставь, напомни, нагадай, поставь напоминание, нагадування, напоминание, напомни мне, нагадай мені, поставь будильник
+  EN: remind me, set a reminder, set reminder, remember, alert me
+  DE: erinnere mich, erinnerung setzen, erinnere
+  FR: rappelle-moi, rappel, mets un rappel
+  ES: recuérdame, ponme un recordatorio, recordatorio
+  PL: przypomnij mi, ustaw przypomnienie, przypomnij
 
-Examples of inputs with NO task text → text must be "":
-  "Поставь напоминание через 30 минут" → text: ""
-  "Remind me in 30 minutes" → text: ""
-  "Напомни через час" → text: ""
-  "Set a reminder for 9am" → text: ""
-  "Поставь на завтра в 8" → text: ""
+STEP 2 — Remove ALL time/date/interval words:
+  Intervals: через 30 минут, через час, через N минут/часов, in 30 minutes, in an hour, in N minutes, за N хвилин/годин, dans N minutes, en N minutos, za N minut
+  Dates: сегодня, завтра, послезавтра, today, tomorrow, сьогодні, завтра, nach X Tagen
+  Times: в 9 утра, в 20:00, at 9am, um 9 Uhr, à 9h, a las 9, o 9 rano, о 9 ранку
+  Weekdays: понедельник, вторник, monday, tuesday, Montag, lundi, lunes, poniedziałek
 
-Good examples:
+STEP 3 — What remains is "text". If nothing remains → text = ""
+
+CRITICAL RULE: "text" MUST be empty "" when input contains ONLY trigger+time words with NO actual task.
+  RU: "Поставь напоминание через 30 минут" → text: ""
+  RU: "Напомни через час 25" → text: ""
+  RU: "Поставь напоминание на 11:00 вечера" → text: ""
+  RU: "Напомни на 9 утра" → text: ""
+  RU: "Поставь на завтра в 8" → text: ""
+  RU: "Напомни завтра в 8" → text: ""
+  UK: "Постав нагадування через 30 хвилин" → text: ""
+  UK: "Нагадай через годину" → text: ""
+  UK: "Постав нагадування на 11:00 вечора" → text: ""
+  UK: "Нагадай о 9 ранку" → text: ""
+  UK: "Постав на завтра о 8" → text: ""
+  EN: "Remind me in 30 minutes" → text: ""
+  EN: "Remind me at 11pm" → text: ""
+  EN: "Set a reminder for 9am" → text: ""
+  EN: "Set reminder for tomorrow at 8" → text: ""
+  EN: "Remind me tomorrow at 8am" → text: ""
+  DE: "Erinnere mich in 30 Minuten" → text: ""
+  DE: "Erinnere mich um 11 Uhr abends" → text: ""
+  DE: "Stell eine Erinnerung für 9 Uhr morgens" → text: ""
+  DE: "Erinnere mich morgen um 8" → text: ""
+  FR: "Rappelle-moi dans 30 minutes" → text: ""
+  FR: "Rappelle-moi à 11h du soir" → text: ""
+  FR: "Mets un rappel pour 9h du matin" → text: ""
+  FR: "Rappelle-moi demain à 9h" → text: ""
+  ES: "Recuérdame en 30 minutos" → text: ""
+  ES: "Ponme un recordatorio a las 11 de la noche" → text: ""
+  ES: "Recuérdame a las 9 de la mañana" → text: ""
+  ES: "Recuérdame mañana a las 8" → text: ""
+  PL: "Przypomnij mi za 30 minut" → text: ""
+  PL: "Przypomnij mi o 11 wieczorem" → text: ""
+  PL: "Ustaw przypomnienie na 9 rano" → text: ""
+  PL: "Przypomnij mi jutro o 8" → text: ""
+
+Good examples WITH real task:
   Input RU: "Поставь напоминание в пятницу в 10 утра купить молоко"
-  Output:   "купить молоко"
+  Output:   "купить молоко"    ← task is "купить молоко"
+
+  Input RU: "Напомни через час позвонить маме"
+  Output:   "позвонить маме"   ← task is "позвонить маме"
 
   Input UK: "Нагадай у п'ятницю о 10 ранку купити молоко"
   Output:   "купити молоко"
@@ -315,6 +357,17 @@ Examples:
   "11 вечера"  → 23:00    "11 вечора"  → 23:00    "11pm"       → 23:00
   "12 вечера"  → 12:00
   "10:00 вечера" → 22:00   "9:30 вечора" → 21:30   "8:00 pm"  → 20:00
+  "11:00 вечера" → 23:00   "11:30 вечора" → 23:30   "11:00 pm" → 23:00
+  "7:30 вечера"  → 19:30   "6:45 вечора"  → 18:45   "10:30 pm" → 22:30
+
+RULE for HH:MM + evening word: if HH < 12 → add 12 to get 24h time
+  RU: 11:00 + вечера → 23:00  |  10:00 + вечера → 22:00  |  9:00 + вечера → 21:00
+  UK: 11:00 + вечора → 23:00  |  10:00 + вечора → 22:00  |  9:30 + вечора → 21:30
+  EN: 11:00 + pm     → 23:00  |  10:00 + pm     → 22:00  |  9:30 + pm     → 21:30
+  DE: 11:00 + abends → 23:00  |  10:00 + abends → 22:00  |  9:00 + abends → 21:00
+  FR: 11:00 + du soir→ 23:00  |  10:00 + du soir→ 22:00  |  9:30 + soir   → 21:30
+  ES: 11:00 + de la noche → 23:00  |  10:00 + de la noche → 22:00
+  PL: 11:00 + wieczorem   → 23:00  |  10:00 + wieczorem   → 22:00  |  9:00 + wieczór → 21:00
 
 ──────────────────────────────────────── 
 3E. NIGHT — context-dependent
@@ -549,6 +602,27 @@ NOTE: "купить хлеб" comes from the input above — extract task from t
 
 "Przypomnij mi w sobotę o 21:00"
 → {"text":"","datetime":"${nextDow(6)}T21:00:00${offsetStr}"}
+
+"Поставь напоминание на 11:00 вечера" (RU, no task → text="", 11:00+вечера=23:00)
+→ {"text":"","datetime":"${todayStr}T23:00:00${offsetStr}"}
+
+"Постав нагадування на 11:00 вечора" (UK, no task → text="", 23:00)
+→ {"text":"","datetime":"${todayStr}T23:00:00${offsetStr}"}
+
+"Set a reminder for 11pm" (EN, no task → text="", 23:00)
+→ {"text":"","datetime":"${todayStr}T23:00:00${offsetStr}"}
+
+"Stell eine Erinnerung für 11 Uhr abends" (DE, no task → text="", 23:00)
+→ {"text":"","datetime":"${todayStr}T23:00:00${offsetStr}"}
+
+"Mets un rappel à 11h du soir" (FR, no task → text="", 23:00)
+→ {"text":"","datetime":"${todayStr}T23:00:00${offsetStr}"}
+
+"Ponme un recordatorio a las 11 de la noche" (ES, no task → text="", 23:00)
+→ {"text":"","datetime":"${todayStr}T23:00:00${offsetStr}"}
+
+"Przypomnij mi o 23:00" (PL, no task → text="", 23:00)
+→ {"text":"","datetime":"${todayStr}T23:00:00${offsetStr}"}
 
 "Поставь напоминание через 30 минут" (no task in input → text is empty)
 → {"text":"","datetime":"${(() => { const d=new Date(localNow); d.setMinutes(d.getMinutes()+30); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
