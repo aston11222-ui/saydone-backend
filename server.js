@@ -77,12 +77,13 @@ Remove ALL time/date/weekday/interval words. Keep ONLY the actual reminder task.
 Use the same language as the voice input.
 
 STEP 1 — Remove these trigger words (they are NEVER part of the task):
-  RU/UK: поставь, напомни, нагадай, поставь напоминание, нагадування, напоминание, напомни мне, нагадай мені, поставь будильник
-  EN: remind me, set a reminder, set reminder, remember, alert me
-  DE: erinnere mich, erinnerung setzen, erinnere
-  FR: rappelle-moi, rappel, mets un rappel
-  ES: recuérdame, ponme un recordatorio, recordatorio
-  PL: przypomnij mi, ustaw przypomnienie, przypomnij
+  RU: поставь, напомни, поставь напоминание, напоминание, напомни мне, поставь будильник, поставь на, напомни на
+  UK: нагадай, постав, постав нагадування, нагадування, нагадай мені, постав на, нагадай на
+  EN: remind me, set a reminder, set reminder, remember, alert me, set a reminder for, remind me at, remind me in
+  DE: erinnere mich, erinnerung setzen, erinnere, stell eine erinnerung, erinnere mich um, erinnere mich in
+  FR: rappelle-moi, rappel, mets un rappel, rappelle-moi à, rappelle-moi dans
+  ES: recuérdame, ponme un recordatorio, recordatorio, ponme recordatorio, recuérdame a, recuérdame en
+  PL: przypomnij mi, ustaw przypomnienie, przypomnij, przypomnij mi o, przypomnij mi za
 
 STEP 2 — Remove ALL time/date/interval words:
   Intervals: через 30 минут, через час, через N минут/часов, in 30 minutes, in an hour, in N minutes, за N хвилин/годин, dans N minutes, en N minutos, za N minut
@@ -126,9 +127,19 @@ CRITICAL RULE: "text" MUST be empty "" when input contains ONLY trigger+time wor
   PL: "Ustaw przypomnienie na 9 rano" → text: ""
   PL: "Przypomnij mi jutro o 8" → text: ""
   RU: "Поставь напоминание на 11:00 вечера 45 минут" → text: "" (time=23:45)
+  RU: "Поставь напоминание на 1:00 ночи 4 минуты" → text: "" (time=01:04)
+  RU: "Поставь на 2 ночи" → text: ""
+  RU: "Напомни в полночь" → text: ""
   UK: "Постав нагадування на 11:00 вечора 45 хвилин" → text: "" (time=23:45)
+  UK: "Постав на 1:00 ночі 4 хвилини" → text: "" (time=01:04)
   EN: "Remind me at 11pm 45 minutes" → text: "" (time=23:45)
+  EN: "Remind me at 1am" → text: ""
+  EN: "Set reminder for midnight" → text: ""
   DE: "Erinnere mich um 11 Uhr abends 45 Minuten" → text: "" (time=23:45)
+  DE: "Erinnere mich um 1 Uhr nachts" → text: ""
+  FR: "Rappelle-moi à 1h du matin" → text: ""
+  ES: "Recuérdame a la 1 de la madrugada" → text: ""
+  PL: "Przypomnij mi o 1 w nocy" → text: ""
 
 Good examples WITH real task:
   Input RU: "Поставь напоминание в пятницу в 10 утра купить молоко"
@@ -617,6 +628,9 @@ NOTE: "купить хлеб" comes from the input above — extract task from t
 
 "Przypomnij mi w sobotę o 21:00"
 → {"text":"","datetime":"${nextDow(6)}T21:00:00${offsetStr}"}
+
+"Поставь напоминание на 1:00 ночи 4 минуты" (RU, no task → text="", time=01:04)
+→ {"text":"","datetime":"${addD(1)}T01:04:00${offsetStr}"}
 
 "Поставь напоминание на 11:00 вечера 45 минут" (RU, no task, 11:00+12=23 + 45min=23:45)
 → {"text":"","datetime":"${todayStr}T23:45:00${offsetStr}"}
