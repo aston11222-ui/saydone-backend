@@ -125,6 +125,10 @@ CRITICAL RULE: "text" MUST be empty "" when input contains ONLY trigger+time wor
   PL: "Przypomnij mi o 11 wieczorem" → text: ""
   PL: "Ustaw przypomnienie na 9 rano" → text: ""
   PL: "Przypomnij mi jutro o 8" → text: ""
+  RU: "Поставь напоминание на 11:00 вечера 45 минут" → text: "" (time=23:45)
+  UK: "Постав нагадування на 11:00 вечора 45 хвилин" → text: "" (time=23:45)
+  EN: "Remind me at 11pm 45 minutes" → text: "" (time=23:45)
+  DE: "Erinnere mich um 11 Uhr abends 45 Minuten" → text: "" (time=23:45)
 
 Good examples WITH real task:
   Input RU: "Поставь напоминание в пятницу в 10 утра купить молоко"
@@ -369,6 +373,17 @@ RULE for HH:MM + evening word: if HH < 12 → add 12 to get 24h time
   ES: 11:00 + de la noche → 23:00  |  10:00 + de la noche → 22:00
   PL: 11:00 + wieczorem   → 23:00  |  10:00 + wieczorem   → 22:00  |  9:00 + wieczór → 21:00
 
+SPECIAL: "H:MM вечера N минут" or "H часов вечера N минут" — N минут is the minutes part:
+  "11:00 вечера 45 минут" → 23:45  (11+12=23, minutes=45)
+  "10:00 вечера 30 минут" → 22:30  (10+12=22, minutes=30)
+  "9 вечера 15 минут"     → 21:15  (9+12=21,  minutes=15)
+  "11:00 вечора 45 хвилин"→ 23:45
+  "11pm 45 minutes"       → 23:45
+  "11h du soir 45 minutes"→ 23:45
+  "11 de la noche 45 minutos" → 23:45
+  "11 Uhr abends 45 Minuten"  → 23:45
+  "11 wieczorem 45 minut"     → 23:45
+
 ──────────────────────────────────────── 
 3E. NIGHT — context-dependent
 Words meaning "night":
@@ -603,6 +618,9 @@ NOTE: "купить хлеб" comes from the input above — extract task from t
 "Przypomnij mi w sobotę o 21:00"
 → {"text":"","datetime":"${nextDow(6)}T21:00:00${offsetStr}"}
 
+"Поставь напоминание на 11:00 вечера 45 минут" (RU, no task, 11:00+12=23 + 45min=23:45)
+→ {"text":"","datetime":"${todayStr}T23:45:00${offsetStr}"}
+
 "Поставь напоминание на 11:00 вечера" (RU, no task → text="", 11:00+вечера=23:00)
 → {"text":"","datetime":"${todayStr}T23:00:00${offsetStr}"}
 
@@ -761,5 +779,3 @@ app.post("/parse", auth, async (req, res) => {
 
 const port = process.env.PORT || 10000;
 app.listen(port, () => console.log(`SayDone parser v5 on port ${port}`));
-
-
