@@ -76,6 +76,17 @@ OUTPUT — ONLY valid JSON, nothing else:
 Remove ALL time/date/weekday words. Keep only the reminder task.
 Use the same language as the voice input.
 
+CRITICAL: Extract "text" ONLY from the actual voice input — NEVER copy text from examples.
+If the input contains NO task (only time/date words like "поставь на 9 утра", "remind me in 30 minutes", "через час"):
+  → set "text" to "" (empty string)
+
+Examples of inputs with NO task text → text must be "":
+  "Поставь напоминание через 30 минут" → text: ""
+  "Remind me in 30 minutes" → text: ""
+  "Напомни через час" → text: ""
+  "Set a reminder for 9am" → text: ""
+  "Поставь на завтра в 8" → text: ""
+
 Good examples:
   Input RU: "Поставь напоминание в пятницу в 10 утра купить молоко"
   Output:   "купить молоко"
@@ -507,6 +518,7 @@ Examples (current time ${timeStr}):
 
 "Через 30 минут напомни купить хлеб"
 → {"text":"купить хлеб","datetime":"${(() => { const d=new Date(localNow); d.setMinutes(d.getMinutes()+30); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
+NOTE: "купить хлеб" comes from the input above — extract task from the ACTUAL user input, not from this example.
 
 "Через пів години нагадай купити хліб"
 → {"text":"купити хліб","datetime":"${(() => { const d=new Date(localNow); d.setMinutes(d.getMinutes()+30); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
@@ -537,6 +549,12 @@ Examples (current time ${timeStr}):
 
 "Przypomnij mi w sobotę o 21:00"
 → {"text":"","datetime":"${nextDow(6)}T21:00:00${offsetStr}"}
+
+"Поставь напоминание через 30 минут" (no task in input → text is empty)
+→ {"text":"","datetime":"${(() => { const d=new Date(localNow); d.setMinutes(d.getMinutes()+30); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
+
+"Remind me in 30 minutes" (no task → text is empty)
+→ {"text":"","datetime":"${(() => { const d=new Date(localNow); d.setMinutes(d.getMinutes()+30); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
 
 "Через 2 години зустріч"
 → {"text":"зустріч","datetime":"${(() => { const d=new Date(localNow); d.setHours(d.getHours()+2); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
