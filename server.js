@@ -626,6 +626,12 @@ NOTE: "купить хлеб" comes from the input above — extract task from t
 "Recuérdame pasado mañana a las 10"
 → {"text":"","datetime":"${addD(2)}T10:00:00${offsetStr}"}
 
+"Ustaw przypomnienie na 9 rano" (PL, no task → text="")
+→ {"text":"","datetime":"${addD(1)}T09:00:00${offsetStr}"}
+
+"Przypomnij mi o 23:00" (PL, no task → text="")
+→ {"text":"","datetime":"${todayStr}T23:00:00${offsetStr}"}
+
 "Przypomnij mi w sobotę o 21:00"
 → {"text":"","datetime":"${nextDow(6)}T21:00:00${offsetStr}"}
 
