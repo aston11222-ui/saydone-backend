@@ -294,6 +294,8 @@ If no date word is given, compare the stated time to current time ${timeStr}:
     ${timeStr}–23:59 → FUTURE   → use TODAY   ${todayStr}
 
   Concrete examples at current time ${timeStr}:
+
+  PAST → TOMORROW (stated_time ≤ current_time):
     "в 9 утра"  (09:00 ≤ ${timeStr}) → ${addD(1)}T09:00:00${offsetStr}
     "в 10 утра" (10:00 ≤ ${timeStr}) → ${addD(1)}T10:00:00${offsetStr}
     "в 11 утра" (11:00 ≤ ${timeStr}) → ${addD(1)}T11:00:00${offsetStr}
@@ -305,6 +307,16 @@ If no date word is given, compare the stated time to current time ${timeStr}:
     "at 11am"   (11:00 ≤ ${timeStr}) → ${addD(1)}T11:00:00${offsetStr}
     "um 9 Uhr"  (09:00 ≤ ${timeStr}) → ${addD(1)}T09:00:00${offsetStr}
     "à 10h"     (10:00 ≤ ${timeStr}) → ${addD(1)}T10:00:00${offsetStr}
+
+  FUTURE → TODAY (stated_time > current_time):
+    "в ${addH(1)}"  (${addH(1)} > ${timeStr}) → ${todayStr}T${addH(1)}:00${offsetStr}
+    "в ${addH(2)}"  (${addH(2)} > ${timeStr}) → ${todayStr}T${addH(2)}:00${offsetStr}
+    "в ${addH(3)}"  (${addH(3)} > ${timeStr}) → ${todayStr}T${addH(3)}:00${offsetStr}
+    "at ${addH(1)}" (${addH(1)} > ${timeStr}) → ${todayStr}T${addH(1)}:00${offsetStr}
+    "um ${addH(2)}" (${addH(2)} > ${timeStr}) → ${todayStr}T${addH(2)}:00${offsetStr}
+
+  !! CRITICAL: "на 9:45 утра" when now=${timeStr} and 09:45>${timeStr} → ${todayStr}T09:45:00${offsetStr} (TODAY!)
+  !! CRITICAL: "в 15:00" when now=${timeStr} and 15:00>${timeStr} → ${todayStr}T15:00:00${offsetStr} (TODAY!)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 §3. TIME RULES (convert all to 24h HH:MM)
