@@ -771,7 +771,10 @@ app.post("/parse", auth, async (req, res) => {
 
     // ── Moderation check ──────────────────────────────────────────────────────
     try {
-      const modResponse = await client.moderations.create({ input });
+      const modResponse = await Promise.race([
+        client.moderations.create({ input: input }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("moderation timeout")), 3000))
+      ]);
       const modResult = modResponse.results?.[0];
       if (modResult?.flagged) {
         const cats = Object.entries(modResult.categories || {})
