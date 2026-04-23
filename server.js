@@ -768,6 +768,25 @@ app.post("/parse", auth, async (req, res) => {
     const nowIso = toIso(localNow, offsetMinutes);
 
     const input = String(text).replace(/\s+/g, " ").trim();
+
+    // ── Moderation check ──────────────────────────────────────────────────────
+    try {
+      const modResponse = await client.moderations.create({ input });
+      const modResult = modResponse.results?.[0];
+      if (modResult?.flagged) {
+        const cats = Object.entries(modResult.categories || {})
+          .filter(([, v]) => v)
+          .map(([k]) => k)
+          .join(', ');
+        console.warn(`[MODERATION] Flagged: "${input}" — categories: ${cats}`);
+        return res.status(200).json({ ok: false, error: "moderated", categories: cats });
+      }
+    } catch (modErr) {
+      // Если модерация недоступна — продолжаем без неё
+      console.warn("[MODERATION] skipped:", modErr.message);
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     const systemPrompt = buildPrompt(nowIso, offStr(offsetMinutes), localNow);
 
     let result = null;
