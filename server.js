@@ -824,36 +824,35 @@ app.post("/parse", auth, async (req, res) => {
     }
 
     if (result) {
-      // ── Post-processing: fix next-day datetime when same time today is still future ──
+      // ── Post-processing: fix next-day datetime for NIGHT HOURS ONLY ──────────
+      // Only correct when AI returns "tomorrow" but same night time today is still future.
+      // LIMITED to hours 00-05 to avoid breaking explicit "tomorrow at 8am" requests.
       try {
         const resultDt = new Date(result.datetime);
         if (!isNaN(resultDt.getTime())) {
-          // Compare LOCAL date parts only (year/month/day)
-          // Use localNow for "today" and compute result's local date from offset
           const offsetMs = offsetMinutes * 60000;
-          // Result datetime in local time
           const resultLocalMs = resultDt.getTime() + offsetMs;
           const resultLocalDate = new Date(resultLocalMs);
-          const rDay = resultLocalDate.getUTCDate(), rMonth = resultLocalDate.getUTCMonth(), rYear = resultLocalDate.getUTCFullYear();
-          const nDay = localNow.getDate(), nMonth = localNow.getMonth(), nYear = localNow.getFullYear();
+          const rH = resultLocalDate.getUTCHours();
+          const rMin = resultLocalDate.getUTCMinutes();
 
-          const resultDateOnly = new Date(Date.UTC(rYear, rMonth, rDay));
-          const nowDateOnly    = new Date(Date.UTC(nYear, nMonth, nDay));
-          const diffDays = Math.round((resultDateOnly - nowDateOnly) / 86400000);
+          // Only apply fix for night hours 00-05
+          if (rH >= 0 && rH <= 5) {
+            const rDay = resultLocalDate.getUTCDate(), rMonth = resultLocalDate.getUTCMonth(), rYear = resultLocalDate.getUTCFullYear();
+            const nDay = localNow.getDate(), nMonth = localNow.getMonth(), nYear = localNow.getFullYear();
+            const resultDateOnly = new Date(Date.UTC(rYear, rMonth, rDay));
+            const nowDateOnly    = new Date(Date.UTC(nYear, nMonth, nDay));
+            const diffDays = Math.round((resultDateOnly - nowDateOnly) / 86400000);
 
-          if (diffDays === 1) {
-            // AI returned tomorrow — check if same time TODAY (in user's local time) is still future
-            // "Same time today" in user local = today's date + result's HH:MM
-            const rH = resultLocalDate.getUTCHours(), rMin = resultLocalDate.getUTCMinutes();
-            // Build ISO for today at same local time
-            const todayIso = `${String(nYear).padStart(4,'0')}-${p2(nMonth+1)}-${p2(nDay)}T${p2(rH)}:${p2(rMin)}:00${offStr(offsetMinutes)}`;
-            // Compare: is today at rH:rMin still in the future relative to localNow?
-            const nowH = localNow.getHours(), nowMin = localNow.getMinutes();
-            const statedMinutes = rH * 60 + rMin;
-            const currentMinutes = nowH * 60 + nowMin;
-            if (statedMinutes > currentMinutes) {
-              console.log(`[FIX] ${result.datetime} → ${todayIso} (${p2(rH)}:${p2(rMin)} > ${p2(nowH)}:${p2(nowMin)}, today is future)`);
-              result = { ...result, datetime: todayIso };
+            if (diffDays === 1) {
+              const nowH = localNow.getHours(), nowMin = localNow.getMinutes();
+              const statedMinutes  = rH * 60 + rMin;
+              const currentMinutes = nowH * 60 + nowMin;
+              if (statedMinutes > currentMinutes) {
+                const todayIso = `${String(nYear).padStart(4,'0')}-${p2(nMonth+1)}-${p2(nDay)}T${p2(rH)}:${p2(rMin)}:00${offStr(offsetMinutes)}`;
+                console.log(`[FIX] Night hour ${p2(rH)}:${p2(rMin)} > current ${p2(nowH)}:${p2(nowMin)} → today: ${todayIso}`);
+                result = { ...result, datetime: todayIso };
+              }
             }
           }
         }
