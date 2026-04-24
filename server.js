@@ -293,6 +293,13 @@ If no date word is given, compare the stated time to current time ${timeStr}:
     00:00–${timeStr} → ALL PAST → use TOMORROW ${addD(1)}
     ${timeStr}–23:59 → FUTURE   → use TODAY   ${todayStr}
 
+  !! NIGHT HOURS SPECIAL RULE (00:00–05:59):
+  If current time is between 00:00–05:59, night hours 01:00–05:59 that are STILL IN THE FUTURE are TODAY.
+  Example: now=00:05, user says "в 1 ночи" (01:00) → 01:00 > 00:05 → TODAY ${todayStr}T01:00:00${offsetStr}
+  Example: now=00:05, user says "в 2 ночи" (02:00) → 02:00 > 00:05 → TODAY ${todayStr}T02:00:00${offsetStr}
+  Example: now=02:30, user says "в 1 ночи" (01:00) → 01:00 ≤ 02:30 → TOMORROW ${addD(1)}T01:00:00${offsetStr}
+  The rule is the SAME for night hours — compare stated_time to current_time, no exceptions.
+
   Concrete examples at current time ${timeStr}:
 
   PAST → TOMORROW (stated_time ≤ current_time):
@@ -317,6 +324,11 @@ If no date word is given, compare the stated time to current time ${timeStr}:
 
   !! CRITICAL: "на 9:45 утра" when now=${timeStr} and 09:45>${timeStr} → ${todayStr}T09:45:00${offsetStr} (TODAY!)
   !! CRITICAL: "в 15:00" when now=${timeStr} and 15:00>${timeStr} → ${todayStr}T15:00:00${offsetStr} (TODAY!)
+  !! CRITICAL NIGHT HOURS: "в 1 ночи/1 ночі/1am/1h du matin/1 in der Nacht/1 de la madrugada/1 w nocy" when now=${timeStr}:
+     → IF 01:00 > ${timeStr}: use ${todayStr}T01:00:00${offsetStr}  (TONIGHT — still in the future!)
+     → IF 01:00 ≤ ${timeStr}: use ${addD(1)}T01:00:00${offsetStr} (TOMORROW night)
+  !! The comparison rule is IDENTICAL for night hours 01:00–05:59 and daytime hours.
+  !! Do NOT assume night hours always mean "next night". Apply the same stated_time vs current_time comparison.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 §3. TIME RULES (convert all to 24h HH:MM)
