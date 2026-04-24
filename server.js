@@ -317,6 +317,10 @@ ${["01","02","03","04","05"].map(h => {
   const label = isPast ? `≤ ${timeStr} → TOMORROW` : `> ${timeStr} → TODAY`;
   return `    "в ${h}:00 ночи/ночі/${h}am/${h}h du matin" (${hhmm} ${label}) → ${date}T${hhmm}:00${offsetStr}`;
 }).join("\n")}
+  Minutes work the same — "в 1:45 ночи" → time=01:45, compare 01:45 vs ${timeStr}:
+    → ${"01:45" > timeStr ? `01:45 > ${timeStr} → TODAY ${todayStr}T01:45:00${offsetStr}` : `01:45 ≤ ${timeStr} → TOMORROW ${addD(1)}T01:45:00${offsetStr}`}
+  "в 2:30 ночи" → time=02:30, compare 02:30 vs ${timeStr}:
+    → ${"02:30" > timeStr ? `02:30 > ${timeStr} → TODAY ${todayStr}T02:30:00${offsetStr}` : `02:30 ≤ ${timeStr} → TOMORROW ${addD(1)}T02:30:00${offsetStr}`}
 
   !! CRITICAL: \"на 9:45 утра\" when 09:45>${timeStr} → ${todayStr}T09:45:00${offsetStr} (TODAY!)
   !! CRITICAL: \"в 15:00\" when 15:00>${timeStr} → ${todayStr}T15:00:00${offsetStr} (TODAY!)
@@ -821,29 +825,29 @@ app.post("/parse", auth, async (req, res) => {
 
     if (result) {
       // ── Post-processing: fix next-day datetime when same time today is still future ──
-      // This handles the case when AI incorrectly assigns "tomorrow" for night hours
-      // that haven't passed yet (e.g. now=00:05, user says "в 1 ночи" → should be TODAY 01:00)
       try {
         const resultDt = new Date(result.datetime);
         if (!isNaN(resultDt.getTime())) {
-          // Build "same time but today" using localNow date parts
-          const todaySameTime = new Date(
-            localNow.getFullYear(), localNow.getMonth(), localNow.getDate(),
-            resultDt.getHours(), resultDt.getMinutes(), resultDt.getSeconds()
-          );
-          // Check if AI gave us "next day" (exactly 1 day ahead)
-          const diffMs = resultDt - new Date(localNow.getFullYear(), localNow.getMonth(), localNow.getDate(),
-            resultDt.getHours(), resultDt.getMinutes(), resultDt.getSeconds());
-          const diffDays = Math.round(diffMs / 86400000);
-          if (diffDays === 1 && todaySameTime > localNow) {
-            // Same time today is still in the future — use today instead
-            const corrected = toIso(todaySameTime, offsetMinutes);
-            console.log(`[FIX] Corrected next-day to today: ${result.datetime} → ${corrected}`);
-            result = { ...result, datetime: corrected };
+          // Compare dates using local date parts (year/month/day only)
+          const rYear  = resultDt.getFullYear(), rMonth = resultDt.getMonth(), rDay = resultDt.getDate();
+          const nYear  = localNow.getFullYear(), nMonth = localNow.getMonth(), nDay = localNow.getDate();
+          const resultDateOnly = new Date(rYear, rMonth, rDay);
+          const nowDateOnly    = new Date(nYear, nMonth, nDay);
+          const diffDays = Math.round((resultDateOnly - nowDateOnly) / 86400000);
+
+          if (diffDays === 1) {
+            // AI returned tomorrow — check if same time TODAY is still future
+            const todaySameTime = new Date(nYear, nMonth, nDay,
+              resultDt.getHours(), resultDt.getMinutes(), resultDt.getSeconds());
+            if (todaySameTime > localNow) {
+              const corrected = toIso(todaySameTime, offsetMinutes);
+              console.log(`[FIX] ${result.datetime} → ${corrected} (same time today is future)`);
+              result = { ...result, datetime: corrected };
+            }
           }
         }
       } catch (fixErr) {
-        console.warn("[FIX] post-process error:", fixErr.message);
+        console.warn("[FIX] error:", fixErr.message);
       }
       // ─────────────────────────────────────────────────────────────────────────
 
