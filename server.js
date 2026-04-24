@@ -829,6 +829,33 @@ app.post("/parse", auth, async (req, res) => {
     }
 
     if (result) {
+      // ── Post-processing: fix next-day datetime when same time today is still future ──
+      // This handles the case when AI incorrectly assigns "tomorrow" for night hours
+      // that haven't passed yet (e.g. now=00:05, user says "в 1 ночи" → should be TODAY 01:00)
+      try {
+        const resultDt = new Date(result.datetime);
+        if (!isNaN(resultDt.getTime())) {
+          // Build "same time but today" using localNow date parts
+          const todaySameTime = new Date(
+            localNow.getFullYear(), localNow.getMonth(), localNow.getDate(),
+            resultDt.getHours(), resultDt.getMinutes(), resultDt.getSeconds()
+          );
+          // Check if AI gave us "next day" (exactly 1 day ahead)
+          const diffMs = resultDt - new Date(localNow.getFullYear(), localNow.getMonth(), localNow.getDate(),
+            resultDt.getHours(), resultDt.getMinutes(), resultDt.getSeconds());
+          const diffDays = Math.round(diffMs / 86400000);
+          if (diffDays === 1 && todaySameTime > localNow) {
+            // Same time today is still in the future — use today instead
+            const corrected = toIso(todaySameTime, offsetMinutes);
+            console.log(`[FIX] Corrected next-day to today: ${result.datetime} → ${corrected}`);
+            result = { ...result, datetime: corrected };
+          }
+        }
+      } catch (fixErr) {
+        console.warn("[FIX] post-process error:", fixErr.message);
+      }
+      // ─────────────────────────────────────────────────────────────────────────
+
       console.log(`[OK] "${input}" → ${result.datetime}`);
       return res.json({ ok: true, text: result.text || input, datetime: result.datetime, source: "ai" });
     }
