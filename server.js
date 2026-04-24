@@ -84,6 +84,8 @@ STEP 1 — Remove these trigger words (they are NEVER part of the task):
   FR: rappelle-moi, rappel, mets un rappel, rappelle-moi à, rappelle-moi dans
   ES: recuérdame, ponme un recordatorio, recordatorio, ponme recordatorio, recuérdame a, recuérdame en
   PL: przypomnij mi, ustaw przypomnienie, przypomnij, przypomnij mi o, przypomnij mi za
+  IT: ricordami, imposta un promemoria, ricorda, ricordami di, ricordami tra
+  PT: lembra-me, define um lembrete, lembra, lembra-me de, lembra-me em
 
 STEP 2 — Remove ALL time/date/interval words:
   Intervals: через 30 минут, через час, через N минут/часов, in 30 minutes, in an hour, in N minutes, за N хвилин/годин, dans N minutes, en N minutos, za N minut
@@ -181,6 +183,8 @@ All phrases meaning "in N days":
   FR:  dans N jour / dans N jours
   ES:  en N día / en N días
   PL:  za N dzień / za N dni
+  IT:  tra N giorno / tra N giorni / fra N giorno / fra N giorni
+  PT:  em N dia / em N dias / daqui a N dia / daqui a N dias
 
 Examples (today=${todayStr}):
   "через 1 день"  → ${addD(1)}
@@ -195,6 +199,10 @@ Examples (today=${todayStr}):
   "dans 3 jours"  → ${addD(3)}
   "en 2 días"     → ${addD(2)}
   "za 4 dni"      → ${addD(4)}
+  "tra 2 giorni"   → ${addD(2)}
+  "fra 5 giorni"   → ${addD(5)}
+  "em 2 dias"      → ${addD(2)}
+  "daqui a 5 dias" → ${addD(5)}
 
 ──────────────────────────────────────── 
 2B. RELATIVE WEEKS — add N weeks
@@ -207,6 +215,8 @@ All phrases meaning "in N weeks":
   FR:  dans une semaine / dans N semaines
   ES:  en una semana / en N semanas
   PL:  za tydzień / za N tygodnie / za N tygodni
+  IT:  tra una settimana / tra N settimane / fra una settimana / fra N settimane
+  PT:  em uma semana / em N semanas / daqui a uma semana / daqui a N semanas
 
 Examples:
   "через неделю"   → ${addD(7)}
@@ -226,6 +236,8 @@ All words meaning "tomorrow":
   FR: demain
   ES: mañana
   PL: jutro
+  IT: domani
+  PT: amanhã
 
 ──────────────────────────────────────── 
 2D. DAY AFTER TOMORROW — today + 2 days = ${addD(2)}
@@ -238,6 +250,8 @@ All words meaning "day after tomorrow":
   FR: après-demain
   ES: pasado mañana
   PL: pojutrze
+  IT: dopodomani
+  PT: depois de amanhã
 
 ──────────────────────────────────────── 
 2E. TODAY — ${todayStr}
@@ -250,19 +264,21 @@ All words meaning "today":
   FR: aujourd'hui
   ES: hoy
   PL: dzisiaj / dziś
+  IT: oggi
+  PT: hoje
 
 ──────────────────────────────────────── 
 2F. WEEKDAYS — use the NEXT occurrence of that day
 Today is ${dow} (index ${todayDow}). 
 IMPORTANT: if the user says today's weekday name → use NEXT week, NOT today.
 
-Monday    / Понедельник / Понеділок / Montag     / Lundi    / Lunes     / Poniedziałek → ${nextDow(1)}
-Tuesday   / Вторник     / Вівторок  / Dienstag   / Mardi    / Martes    / Wtorek       → ${nextDow(2)}
-Wednesday / Среда       / Середа    / Mittwoch   / Mercredi / Miércoles / Środa        → ${nextDow(3)}
-Thursday  / Четверг     / Четвер    / Donnerstag / Jeudi    / Jueves    / Czwartek     → ${nextDow(4)}
-Friday    / Пятница     / П'ятниця  / Freitag    / Vendredi / Viernes   / Piątek       → ${nextDow(5)}
-Saturday  / Суббота     / Субота    / Samstag    / Samedi   / Sábado    / Sobota       → ${nextDow(6)}
-Sunday    / Воскресенье / Неділя    / Sonntag    / Dimanche / Domingo   / Niedziela    → ${nextDow(0)}
+Monday    / Понедельник / Понеділок / Montag     / Lundi    / Lunes     / Poniedziałek / Lunedì    / Segunda-feira → ${nextDow(1)}
+Tuesday   / Вторник     / Вівторок  / Dienstag   / Mardi    / Martes    / Wtorek       / Martedì   / Terça-feira   → ${nextDow(2)}
+Wednesday / Среда       / Середа    / Mittwoch   / Mercredi / Miércoles / Środa        / Mercoledì / Quarta-feira  → ${nextDow(3)}
+Thursday  / Четверг     / Четвер    / Donnerstag / Jeudi    / Jueves    / Czwartek     / Giovedì   / Quinta-feira  → ${nextDow(4)}
+Friday    / Пятница     / П'ятниця  / Freitag    / Vendredi / Viernes   / Piątek       / Venerdì   / Sexta-feira   → ${nextDow(5)}
+Saturday  / Суббота     / Субота    / Samstag    / Samedi   / Sábado    / Sobota       / Sabato    / Sábado        → ${nextDow(6)}
+Sunday    / Воскресенье / Неділя    / Sonntag    / Dimanche / Domingo   / Niedziela    / Domenica  / Domingo       → ${nextDow(0)}
 
 Also handle declensions:
   RU: понедельник/понедельника, вторник/вторника, среда/среду, четверг/четверга,
@@ -280,6 +296,10 @@ Also handle declensions:
   ES: el lunes, el martes, el miércoles, el jueves, el viernes, el sábado, el domingo
   PL: poniedziałek/w poniedziałek, wtorek/we wtorek, środa/w środę, czwartek/w czwartek,
       piątek/w piątek, sobota/w sobotę, niedziela/w niedzielę
+  IT: lunedì/il lunedì, martedì/il martedì, mercoledì/il mercoledì, giovedì/il giovedì,
+      venerdì/il venerdì, sabato/il sabato, domenica/la domenica
+  PT: segunda-feira/na segunda, terça-feira/na terça, quarta-feira/na quarta,
+      quinta-feira/na quinta, sexta-feira/na sexta, sábado/no sábado, domingo/no domingo
 
 ──────────────────────────────────────── 
 2G. NO DATE STATED — CRITICAL RULE
@@ -344,6 +364,8 @@ Words meaning "morning / am":
   FR: du matin / le matin
   ES: de la mañana / por la mañana
   PL: rano / z rana / rano o / godzinie rano
+  IT: del mattino / di mattina / la mattina
+  PT: da manhã / de manhã
 
 Examples:
   "7 утра"    → 07:00    "7 ранку"    → 07:00    "7am"       → 07:00
@@ -363,6 +385,8 @@ Words meaning "afternoon" (roughly 12:00–17:59):
   FR: de l'après-midi / l'après-midi
   ES: de la tarde (12-17h)
   PL: po południu
+  IT: del pomeriggio / nel pomeriggio
+  PT: da tarde (12-17h)
 
 Examples:
   "1 дня"   → 13:00    "2 дня"   → 14:00    "3 дня"  → 15:00
@@ -381,6 +405,8 @@ Words meaning "evening / pm":
   FR: du soir / le soir / en soirée
   ES: de la tarde (18h+) / de la noche / por la noche
   PL: wieczorem / po południu (18h+) / wieczór / w wieczór
+  IT: di sera / la sera / del pomeriggio (18h+)
+  PT: da tarde (18h+) / da noite / à noite
 
 Examples:
   "6 вечера"   → 18:00    "6 вечора"   → 18:00    "6pm"        → 18:00
@@ -424,6 +450,8 @@ Words meaning "night":
   FR: de nuit / la nuit
   ES: de la noche (late, 22h+)
   PL: w nocy / nocą
+  IT: di notte / la notte / della notte
+  PT: da madrugada / de madrugada / à noite (late)
 
 Rules:
   Hours 1-5 "ночи/ночі/at night" → keep as-is (01:00–05:00)
@@ -452,6 +480,8 @@ Words meaning "in N minutes":
   FR: dans N minute/minutes
   ES: en N minuto/minutos
   PL: za N minutę/minuty/minut
+  IT: tra N minuto/minuti / fra N minuto/minuti
+  PT: em N minuto/minutos / daqui a N minuto/minutos
 
 Words meaning "in N hours":
   RU: через N час/часа/часов
@@ -461,6 +491,8 @@ Words meaning "in N hours":
   FR: dans N heure/heures
   ES: en N hora/horas
   PL: za N godzinę/godziny/godzin
+  IT: tra N ora/ore / fra N ora/ore
+  PT: em N hora/horas / daqui a N hora/horas
 
 Special short forms:
   RU/UK: через полчаса / через пів години → +30 min
