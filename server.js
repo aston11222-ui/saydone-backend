@@ -88,10 +88,10 @@ STEP 1 — Remove these trigger words (they are NEVER part of the task):
   PT: lembra-me, define um lembrete, lembra, lembra-me de, lembra-me em
 
 STEP 2 — Remove ALL time/date/interval words:
-  Intervals: через 30 минут, через час, через N минут/часов, in 30 minutes, in an hour, in N minutes, за N хвилин/годин, dans N minutes, en N minutos, za N minut
-  Dates: сегодня, завтра, послезавтра, today, tomorrow, сьогодні, завтра, nach X Tagen
-  Times: в 9 утра, в 20:00, at 9am, um 9 Uhr, à 9h, a las 9, o 9 rano, о 9 ранку
-  Weekdays: понедельник, вторник, monday, tuesday, Montag, lundi, lunes, poniedziałek
+  Intervals: через 30 минут, через час, через N минут/часов, in 30 minutes, in an hour, in N minutes, за N хвилин/годин, dans N minutes, en N minutos, za N minut, tra N minuti/ore, em N minutos/horas
+  Dates: сегодня, завтра, послезавтра, today, tomorrow, сьогодні, завтра, nach X Tagen, oggi, domani, dopodomani, hoje, amanhã, depois de amanhã
+  Times: в 9 утра, в 20:00, at 9am, um 9 Uhr, à 9h, a las 9, o 9 rano, о 9 ранку, alle 9 del mattino, às 9 da manhã
+  Weekdays: понедельник, вторник, monday, tuesday, Montag, lundi, lunes, poniedziałek, lunedì, martedì, segunda-feira, terça-feira
 
 STEP 3 — What remains is "text". If nothing remains → text = ""
 
@@ -224,6 +224,10 @@ Examples:
   "за тиждень"     → ${addD(7)}
   "in a week"      → ${addD(7)}
   "in 2 weeks"     → ${addD(14)}
+  "tra una settimana" → ${addD(7)}
+  "fra 2 settimane"   → ${addD(14)}
+  "em uma semana"     → ${addD(7)}
+  "em 2 semanas"      → ${addD(14)}
 
 ──────────────────────────────────────── 
 2C. TOMORROW — today + 1 day = ${addD(1)}
