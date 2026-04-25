@@ -603,21 +603,37 @@ Examples (current time ${timeStr}):
   !! CRITICAL: When task exists but NO time reference → return {"text":"task","datetime":""}
   !! Do NOT invent a default time like 09:00 — leave datetime empty so user can pick time manually
 
+  !! DATE WITHOUT TIME — same rule: if user says date word (tomorrow/завтра/morgen etc.) but NO time → datetime=""
+  Examples with date but NO time:
+  "поставь напоминание на завтра" → {"text":"","datetime":""}
+  "напомни завтра купить молоко" → {"text":"купить молоко","datetime":""}
+  "remind me tomorrow to call mom" → {"text":"call mom","datetime":""}
+  "erinnere mich morgen Arzt anrufen" → {"text":"Arzt anrufen","datetime":""}
+  "rappelle-moi demain appeler maman" → {"text":"appeler maman","datetime":""}
+  "recuérdame mañana llamar a mamá" → {"text":"llamar a mamá","datetime":""}
+  "przypomnij mi jutro zadzwonić" → {"text":"zadzwonić","datetime":""}
+  "ricordami domani chiamare" → {"text":"chiamare","datetime":""}
+  "lembra-me amanhã ligar" → {"text":"ligar","datetime":""}
+  "нагадай завтра зателефонувати" → {"text":"зателефонувати","datetime":""}
+  "напомни послезавтра" → {"text":"","datetime":""}
+  "remind me on friday" → {"text":"","datetime":""}
+  "erinnere mich am Montag" → {"text":"","datetime":""}
+
   !! IMPORTANT: "через 10 минут", "in 10 minutes", "tra 10 minuti" etc. ARE time references — use them!
   !! "Поставь напоминание через 10 минут" has NO task but HAS time → datetime=<now+10min>, text=""
   !! "Remind me in 5 minutes" → datetime=<now+5min>, text=""
   !! NEVER return {"ok":false} when there is a time reference (even relative)
 
-  Examples:
-  "купить кота" (no time, has task) → {"text":"купить кота","datetime":""}
-  "поехать к тёще" (no time, has task) → {"text":"поехать к тёще","datetime":""}
-  "call mom" (no time, has task) → {"text":"call mom","datetime":""}
-  "Arzt anrufen" (no time, has task) → {"text":"Arzt anrufen","datetime":""}
-  "appeler maman" (no time, has task) → {"text":"appeler maman","datetime":""}
-  "llamar a mamá" (no time, has task) → {"text":"llamar a mamá","datetime":""}
-  "zadzwonić do mamy" (no time, has task) → {"text":"zadzwonić do mamy","datetime":""}
-  "chiamare la mamma" (no time, has task) → {"text":"chiamare la mamma","datetime":""}
-  "ligar para a mãe" (no time, has task) → {"text":"ligar para a mãe","datetime":""}
+  Examples NO time, has task:
+  "купить кота" → {"text":"купить кота","datetime":""}
+  "поехать к тёще" → {"text":"поехать к тёще","datetime":""}
+  "call mom" → {"text":"call mom","datetime":""}
+  "Arzt anrufen" → {"text":"Arzt anrufen","datetime":""}
+  "appeler maman" → {"text":"appeler maman","datetime":""}
+  "llamar a mamá" → {"text":"llamar a mamá","datetime":""}
+  "zadzwonić do mamy" → {"text":"zadzwonić do mamy","datetime":""}
+  "chiamare la mamma" → {"text":"chiamare la mamma","datetime":""}
+  "ligar para a mãe" → {"text":"ligar para a mãe","datetime":""}
   "поставь напоминание" (no time, no task) → {"ok":false}
   "remind me" (no time, no task) → {"ok":false}
   "set a reminder" (no time, no task) → {"ok":false}
@@ -1363,6 +1379,18 @@ app.post("/parse", auth, async (req, res) => {
         if (triggerOnly) {
           console.log(`[SKIP] trigger-only input, no task: "${input}"`);
           return res.json({ ok: false, reason: 'no_task' });
+        }
+      }
+
+      // If AI returned 09:00 but input had no explicit time → it's a default, show picker
+      const hasTimeRef = /(\d{1,2}[:h]\d{0,2}|\d+\s*(мин|час|хв|min|hour|heure|hora|minuto|ora)|утра|вечера|ночи|дня|утром|вечером|ранку|вечора|am|pm|morning|evening|night|après-midi|matin|tarde|noche|rano|wieczor|mattina|sera|manhã|madrugada)/i.test(input);
+      if (!hasTimeRef && result.datetime) {
+        const rDt = new Date(result.datetime);
+        const rH = rDt.getUTCHours() + Math.round(offsetMinutes / 60);
+        const rMin = rDt.getUTCMinutes();
+        if (rH % 24 === 9 && rMin === 0) {
+          console.log(`[NO TIME] AI defaulted to 09:00 but no time in input → returning empty datetime`);
+          return res.json({ ok: true, text: result.text || input, datetime: '', source: 'unparsed' });
         }
       }
 
