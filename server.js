@@ -931,6 +931,7 @@ app.post("/parse", auth, async (req, res) => {
         max_tokens: 120,
       });
       const raw = response.choices?.[0]?.message?.content;
+      console.log(`[AI RAW] "${input}" → ${raw}`);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed.datetime) {
