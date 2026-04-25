@@ -597,20 +597,27 @@ Examples (current time ${timeStr}):
 
 ──────────────────────────────────────── 
 3H. NO TIME STATED
-  If no time is mentioned AND there IS a real task → default to 09:00 tomorrow
+  If no time is mentioned AND there IS a real task → return datetime="" (empty string) so app can ask user for time
   If no time is mentioned AND there is NO real task (only trigger words) → return {"ok":false}
 
-  !! IMPORTANT: "через 10 минут", "in 10 minutes", "tra 10 minuti" etc. ARE time references.
+  !! CRITICAL: When task exists but NO time reference → return {"text":"task","datetime":""}
+  !! Do NOT invent a default time like 09:00 — leave datetime empty so user can pick time manually
+
+  !! IMPORTANT: "через 10 минут", "in 10 minutes", "tra 10 minuti" etc. ARE time references — use them!
   !! "Поставь напоминание через 10 минут" has NO task but HAS time → datetime=<now+10min>, text=""
   !! "Remind me in 5 minutes" → datetime=<now+5min>, text=""
-  !! "Erinnere mich in 10 Minuten" → datetime=<now+10min>, text=""
-  !! "Rappelle-moi dans 5 minutes" → datetime=<now+5min>, text=""
-  !! "Ricordami tra 10 minuti" → datetime=<now+10min>, text=""
-  !! "Lembra-me em 5 minutos" → datetime=<now+5min>, text=""
   !! NEVER return {"ok":false} when there is a time reference (even relative)
-  
+
   Examples:
-  "купить кота" (no time, has task) → {"text":"купить кота","datetime":"${addD(1)}T09:00:00${offsetStr}"}
+  "купить кота" (no time, has task) → {"text":"купить кота","datetime":""}
+  "поехать к тёще" (no time, has task) → {"text":"поехать к тёще","datetime":""}
+  "call mom" (no time, has task) → {"text":"call mom","datetime":""}
+  "Arzt anrufen" (no time, has task) → {"text":"Arzt anrufen","datetime":""}
+  "appeler maman" (no time, has task) → {"text":"appeler maman","datetime":""}
+  "llamar a mamá" (no time, has task) → {"text":"llamar a mamá","datetime":""}
+  "zadzwonić do mamy" (no time, has task) → {"text":"zadzwonić do mamy","datetime":""}
+  "chiamare la mamma" (no time, has task) → {"text":"chiamare la mamma","datetime":""}
+  "ligar para a mãe" (no time, has task) → {"text":"ligar para a mãe","datetime":""}
   "поставь напоминание" (no time, no task) → {"ok":false}
   "remind me" (no time, no task) → {"ok":false}
   "set a reminder" (no time, no task) → {"ok":false}
@@ -1219,6 +1226,10 @@ app.post("/parse", auth, async (req, res) => {
         if (parsed.datetime) {
           const dt = new Date(parsed.datetime);
           if (!isNaN(dt.getTime())) result = parsed;
+        } else if (parsed.text !== undefined && parsed.datetime === '') {
+          // AI returned task with no time — will show time picker with cleaned text
+          console.log(`[NO TIME] "${input}" → task: "${parsed.text}"`);
+          return res.json({ ok: true, text: parsed.text || input, datetime: '', source: 'unparsed' });
         }
       }
     } catch (err) {
