@@ -860,37 +860,38 @@ app.post("/parse", auth, async (req, res) => {
     }
 
     if (result) {
-      // ── Post-processing: fix next-day datetime for NIGHT HOURS ONLY ──────────
-      // Only correct when AI returns "tomorrow" but same night time today is still future.
-      // LIMITED to hours 00-05 to avoid breaking explicit "tomorrow at 8am" requests.
+      // ── Post-processing: fix next-day datetime when same time today is still future ──
+      // Skip fix if user explicitly said "tomorrow/завтра/morgen/demain/mañana/jutro/domani/amanhã"
+      const tomorrowWords = /\b(завтра|tomorrow|morgen|demain|mañana|jutro|domani|amanhã|завтра|manh[aã]|nach einem tag|overmorgen)\b/i;
+      const hasExplicitTomorrow = tomorrowWords.test(input);
+
       try {
         const resultDt = new Date(result.datetime);
-        if (!isNaN(resultDt.getTime())) {
+        if (!isNaN(resultDt.getTime()) && !hasExplicitTomorrow) {
           const offsetMs = offsetMinutes * 60000;
           const resultLocalMs = resultDt.getTime() + offsetMs;
           const resultLocalDate = new Date(resultLocalMs);
           const rH = resultLocalDate.getUTCHours();
           const rMin = resultLocalDate.getUTCMinutes();
 
-          // Only apply fix for night hours 00-05
-          if (rH >= 0 && rH <= 5) {
-            const rDay = resultLocalDate.getUTCDate(), rMonth = resultLocalDate.getUTCMonth(), rYear = resultLocalDate.getUTCFullYear();
-            const nDay = localNow.getDate(), nMonth = localNow.getMonth(), nYear = localNow.getFullYear();
-            const resultDateOnly = new Date(Date.UTC(rYear, rMonth, rDay));
-            const nowDateOnly    = new Date(Date.UTC(nYear, nMonth, nDay));
-            const diffDays = Math.round((resultDateOnly - nowDateOnly) / 86400000);
+          const rDay = resultLocalDate.getUTCDate(), rMonth = resultLocalDate.getUTCMonth(), rYear = resultLocalDate.getUTCFullYear();
+          const nDay = localNow.getDate(), nMonth = localNow.getMonth(), nYear = localNow.getFullYear();
+          const resultDateOnly = new Date(Date.UTC(rYear, rMonth, rDay));
+          const nowDateOnly    = new Date(Date.UTC(nYear, nMonth, nDay));
+          const diffDays = Math.round((resultDateOnly - nowDateOnly) / 86400000);
 
-            if (diffDays === 1) {
-              const nowH = localNow.getHours(), nowMin = localNow.getMinutes();
-              const statedMinutes  = rH * 60 + rMin;
-              const currentMinutes = nowH * 60 + nowMin;
-              if (statedMinutes > currentMinutes) {
-                const todayIso = `${String(nYear).padStart(4,'0')}-${p2(nMonth+1)}-${p2(nDay)}T${p2(rH)}:${p2(rMin)}:00${offStr(offsetMinutes)}`;
-                console.log(`[FIX] Night hour ${p2(rH)}:${p2(rMin)} > current ${p2(nowH)}:${p2(nowMin)} → today: ${todayIso}`);
-                result = { ...result, datetime: todayIso };
-              }
+          if (diffDays === 1) {
+            const nowH = localNow.getHours(), nowMin = localNow.getMinutes();
+            const statedMinutes  = rH * 60 + rMin;
+            const currentMinutes = nowH * 60 + nowMin;
+            if (statedMinutes > currentMinutes) {
+              const todayIso = `${String(nYear).padStart(4,'0')}-${p2(nMonth+1)}-${p2(nDay)}T${p2(rH)}:${p2(rMin)}:00${offStr(offsetMinutes)}`;
+              console.log(`[FIX] ${p2(rH)}:${p2(rMin)} > ${p2(nowH)}:${p2(nowMin)}, no explicit tomorrow → today: ${todayIso}`);
+              result = { ...result, datetime: todayIso };
             }
           }
+        } else if (hasExplicitTomorrow) {
+          console.log(`[FIX] skipped — explicit tomorrow word detected in: "${input}"`);
         }
       } catch (fixErr) {
         console.warn("[FIX] error:", fixErr.message);
