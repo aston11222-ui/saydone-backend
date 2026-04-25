@@ -153,6 +153,10 @@ CRITICAL RULE: "text" MUST be empty "" when input contains ONLY trigger+time wor
   FR: "Rappelle-moi à 1h du matin" → text: ""
   ES: "Recuérdame a la 1 de la madrugada" → text: ""
   PL: "Przypomnij mi o 1 w nocy" → text: ""
+  IT: "Ricordami all'1 di notte" → text: ""
+  IT: "Imposta un promemoria all'1:00 di notte" → text: ""
+  PT: "Lembra-me à 1 da madrugada" → text: ""
+  PT: "Define um lembrete para a 1h da manhã" → text: ""
 
 Good examples WITH real task:
   Input RU: "Поставь напоминание в пятницу в 10 утра купить молоко"
@@ -178,6 +182,18 @@ Good examples WITH real task:
 
   Input PL: "Przypomnij mi w poniedziałek o 10 zadzwonić do mamy"
   Output:   "zadzwonić do mamy"
+
+  Input IT: "Ricordami venerdì alle 10 di mattina comprare il latte"
+  Output:   "comprare il latte"
+
+  Input IT: "Ricordami tra un'ora chiamare la mamma"
+  Output:   "chiamare la mamma"
+
+  Input PT: "Lembra-me sexta às 10 da manhã comprar leite"
+  Output:   "comprar leite"
+
+  Input PT: "Lembra-me em uma hora ligar para a mãe"
+  Output:   "ligar para a mãe"
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 §2. DATE RULES
@@ -640,6 +656,18 @@ Examples (current time ${timeStr}):
 "Lembra-me amanhã às 8 da manhã cumprimentar o amigo"
 → {"text":"cumprimentar o amigo","datetime":"${addD(1)}T08:00:00${offsetStr}"}
 
+"Ricordami tra 20 minuti chiamare il medico"
+→ {"text":"chiamare il medico","datetime":"${addM(20)}"}
+
+"Lembra-me em 20 minutos ligar para o médico"
+→ {"text":"ligar para o médico","datetime":"${addM(20)}"}
+
+"Ricordami venerdì alle 10 di mattina comprare il latte"
+→ {"text":"comprare il latte","datetime":"${nextDow(5)}T10:00:00${offsetStr}"}
+
+"Lembra-me sexta às 10 da manhã comprar leite"
+→ {"text":"comprar leite","datetime":"${nextDow(5)}T10:00:00${offsetStr}"}
+
 "Нагадай завтра в 8 ранку привітати друга"
 → {"text":"привітати друга","datetime":"${addD(1)}T08:00:00${offsetStr}"}
 
@@ -906,11 +934,15 @@ app.post("/parse", auth, async (req, res) => {
       ) || input.match(
         /\bdans\s+(\d+(?:[.,]\d+)?)\s*(?:min(?:ute)?s?)\b/i
       ) || input.match(
+        /\bin\s+(\d+(?:[.,]\d+)?)\s*(?:Minute[n]?)\b/i
+      ) || input.match(
         /\ben\s+(\d+(?:[.,]\d+)?)\s*(?:min(?:uto)?s?)\b/i
       ) || input.match(
         /\bza\s+(\d+(?:[.,]\d+)?)\s*(?:minut[aey]?|min)\b/i
       ) || input.match(
         /\btra\s+(\d+(?:[.,]\d+)?)\s*(?:minut[oi]|min)\b/i
+      ) || input.match(
+        /\bfra\s+(\d+(?:[.,]\d+)?)\s*(?:minut[oi]|min)\b/i
       ) || input.match(
         /\bem\s+(\d+(?:[.,]\d+)?)\s*(?:minuto?s?)\b/i
       );
@@ -920,6 +952,8 @@ app.post("/parse", auth, async (req, res) => {
       ) || input.match(
         /\bin\s+(\d+(?:[.,]\d+)?)\s*(?:hours?|h)\b/i
       ) || input.match(
+        /\bin\s+(\d+(?:[.,]\d+)?)\s*(?:Stunden?)\b/i
+      ) || input.match(
         /\bdans\s+(\d+(?:[.,]\d+)?)\s*(?:heures?)\b/i
       ) || input.match(
         /\ben\s+(\d+(?:[.,]\d+)?)\s*(?:horas?)\b/i
@@ -927,6 +961,8 @@ app.post("/parse", auth, async (req, res) => {
         /\bza\s+(\d+(?:[.,]\d+)?)\s*(?:godzin[aey]?|godz)\b/i
       ) || input.match(
         /\btra\s+(\d+(?:[.,]\d+)?)\s*(?:ora[e]?|ore)\b/i
+      ) || input.match(
+        /\bfra\s+(\d+(?:[.,]\d+)?)\s*(?:ora[e]?|ore)\b/i
       ) || input.match(
         /\bem\s+(\d+(?:[.,]\d+)?)\s*(?:horas?)\b/i
       );
@@ -960,21 +996,76 @@ app.post("/parse", auth, async (req, res) => {
 
       if (preResult) {
         // Extract task: remove trigger + interval words, keep the rest
+        // ── Remove interval words (all languages) ────────────────────────────
         let taskText = input
-          .replace(/через\s+полчаса|через\s+пів\s+год\S*/i, '')
-          .replace(/in\s+half\s+an\s+hour|in\s+an?\s+hour/i, '')
-          .replace(/через\s+час|через\s+годину/i, '')
+          // RU/UK special short forms
+          .replace(/через\s+полчаса/i, '')
+          .replace(/через\s+пів\s+год\S*/i, '')
+          .replace(/через\s+час/i, '')
+          .replace(/через\s+годину/i, '')
+          // EN special
+          .replace(/in\s+half\s+an\s+hour/i, '')
+          .replace(/in\s+an?\s+hour/i, '')
+          // DE special
+          .replace(/in\s+einer\s+halben\s+Stunde/i, '')
+          .replace(/in\s+einer\s+Stunde/i, '')
+          // FR special
+          .replace(/dans\s+une\s+demi-heure/i, '')
+          .replace(/dans\s+une\s+heure/i, '')
+          // ES special
+          .replace(/en\s+media\s+hora/i, '')
+          .replace(/en\s+una\s+hora/i, '')
+          // PL special
+          .replace(/za\s+pół\s+godziny/i, '')
+          .replace(/za\s+godzinę/i, '')
+          // IT special
+          .replace(/tra\s+mezz['']ora/i, '')
+          .replace(/tra\s+un['']ora/i, '')
+          .replace(/fra\s+mezz['']ora/i, '')
+          .replace(/fra\s+un['']ora/i, '')
+          // PT special
+          .replace(/em\s+meia\s+hora/i, '')
+          .replace(/em\s+uma\s+hora/i, '')
+          .replace(/daqui\s+a\s+meia\s+hora/i, '')
+          // N minutes/hours (all languages)
           .replace(/через\s+\d+[.,]?\d*\s*\S+/i, '')
           .replace(/за\s+\d+[.,]?\d*\s*\S+/i, '')
+          .replace(/fra\s+\d+[.,]?\d*\s*\S+/i, '')
           .replace(/in\s+\d+[.,]?\d*\s*\S+/i, '')
           .replace(/dans\s+\d+[.,]?\d*\s*\S+/i, '')
           .replace(/en\s+\d+[.,]?\d*\s*\S+/i, '')
           .replace(/za\s+\d+[.,]?\d*\s*\S+/i, '')
           .replace(/tra\s+\d+[.,]?\d*\s*\S+/i, '')
+          .replace(/fra\s+\d+[.,]?\d*\s*\S+/i, '')
           .replace(/em\s+\d+[.,]?\d*\s*\S+/i, '')
-          .replace(/\b(поставь\s+напоминание|напомни\s+мне?|нагадай\s+мені?|постав\s+нагадування|remind\s+me|set\s+a?\s+reminder|erinnere\s+mich|rappelle-moi|recuérdame|przypomnij\s+mi|ricordami|lembra-me)\b/i, '')
-          .replace(/\s+/g, ' ')
-          .trim();
+          .replace(/daqui\s+a\s+\d+[.,]?\d*\s*\S*/i, '')
+
+        // ── Remove trigger words (all languages) ─────────────────────────────
+        const triggers = [
+          // RU
+          'поставь\\s+напоминание', 'напомни\\s+мне', 'напомни', 'поставь',
+          // UK
+          'постав\\s+нагадування', 'нагадай\\s+мені', 'нагадай', 'постав',
+          // EN
+          'set\\s+a\\s+reminder\\s+for', 'set\\s+a\\s+reminder', 'set\\s+reminder', 'remind\\s+me', 'remember',
+          // DE
+          'stell\\s+eine\\s+erinnerung', 'erinnere\\s+mich', 'erinnere',
+          // FR
+          'mets\\s+un\\s+rappel', 'rappelle-moi', 'rappelle\\s+moi',
+          // ES
+          'ponme\\s+un\\s+recordatorio', 'recuérdame', 'recuerdame',
+          // PL
+          'ustaw\\s+przypomnienie', 'przypomnij\\s+mi', 'przypomnij',
+          // IT
+          'imposta\\s+un\\s+promemoria', 'ricordami\\s+di', 'ricordami\\s+tra', 'ricordami', 'ricorda',
+          // PT
+          'define\\s+um\\s+lembrete', 'lembra-me\\s+de', 'lembra-me', 'lembra',
+        ];
+        for (const t of triggers) {
+          taskText = taskText.replace(new RegExp('(?:^|\\s)' + t + '(?:\\s|$)', 'i'), ' ');
+        }
+
+        taskText = taskText.replace(/\s+/g, ' ').trim();
 
         const datetime = toIso(preResult.dt, offsetMinutes);
         console.log(`[PRE] "${input}" → ${datetime} (task: "${taskText}")`);
