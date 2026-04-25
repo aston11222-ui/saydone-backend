@@ -1095,42 +1095,58 @@ app.post("/parse", auth, async (req, res) => {
       }
 
       if (preResult) {
-        // Extract task: remove trigger + interval words, keep the rest
-        // ── Remove interval words (all languages) ────────────────────────────
+        // ── Extract task: remove triggers + intervals (all 9 languages) ─────
+        const triggers = [
+          // RU — longest patterns first
+          'поставь\s+напоминание', 'напомни\s+мне', 'напомни', 'напоминание', 'поставь',
+          // UK
+          'постав\s+нагадування', 'нагадай\s+мені', 'нагадай', 'нагадування', 'постав',
+          // EN
+          'set\s+a\s+reminder\s+for', 'set\s+a\s+reminder', 'set\s+reminder', 'remind\s+me', 'remind', 'remember',
+          // DE
+          'stell\s+eine\s+erinnerung', 'erinnere\s+mich', 'erinnere',
+          // FR
+          'mets\s+un\s+rappel', 'rappelle-moi', 'rappelle\s+moi', 'rappelle',
+          // ES
+          'ponme\s+un\s+recordatorio', 'recu[eé]rdame',
+          // PL
+          'ustaw\s+przypomnienie', 'przypomnij\s+mi', 'przypomnij',
+          // IT
+          'imposta\s+un\s+promemoria', 'ricordami\s+di', 'ricordami\s+tra', 'ricordami', 'ricorda',
+          // PT
+          'define\s+um\s+lembrete', 'lembra-me\s+de', 'lembra-me', 'lembra',
+        ];
+
+        // Leftover particles left after trigger removal (мне/мені/me/mich/mi/moi)
+        const leftoverRe = /^(мне|мені|me|mich|mi|moi)\s+/i;
+
+        function removeTriggers(t) {
+          for (const tr of triggers) {
+            t = t.replace(new RegExp('^' + tr + '\s*', 'i'), '');
+            t = t.replace(new RegExp('\s+' + tr + '(\s|$)', 'gi'), ' ');
+          }
+          t = t.replace(leftoverRe, '');
+          return t.replace(/\s+/g, ' ').trim();
+        }
+
         let taskText = input
-          // RU/UK special short forms
+          // Special short forms (no \b needed — use context)
           .replace(/через\s+полчаса/i, '')
           .replace(/через\s+пів\s+год\S*/i, '')
-          .replace(/через\s+час/i, '')
+          .replace(/через\s+(?:один\s+)?час(?!\S)/i, '')
           .replace(/через\s+годину/i, '')
-          // EN special
-          .replace(/in\s+half\s+an\s+hour/i, '')
-          .replace(/in\s+an?\s+hour/i, '')
-          // DE special
-          .replace(/in\s+einer\s+halben\s+Stunde/i, '')
-          .replace(/in\s+einer\s+Stunde/i, '')
-          // FR special
-          .replace(/dans\s+une\s+demi-heure/i, '')
-          .replace(/dans\s+une\s+heure/i, '')
-          // ES special
-          .replace(/en\s+media\s+hora/i, '')
-          .replace(/en\s+una\s+hora/i, '')
-          // PL special
-          .replace(/za\s+pół\s+godziny/i, '')
-          .replace(/za\s+godzinę/i, '')
-          // IT special
-          .replace(/tra\s+mezz['']ora/i, '')
-          .replace(/tra\s+un['']ora/i, '')
-          .replace(/fra\s+mezz['']ora/i, '')
-          .replace(/fra\s+un['']ora/i, '')
-          // PT special
-          .replace(/em\s+meia\s+hora/i, '')
-          .replace(/em\s+uma\s+hora/i, '')
+          .replace(/in\s+half\s+an\s+hour/i, '').replace(/in\s+an?\s+hour/i, '')
+          .replace(/in\s+einer\s+halben\s+Stunde/i, '').replace(/in\s+einer\s+Stunde/i, '')
+          .replace(/dans\s+une\s+demi-heure/i, '').replace(/dans\s+une\s+heure/i, '')
+          .replace(/en\s+media\s+hora/i, '').replace(/en\s+una\s+hora/i, '')
+          .replace(/za\s+pół\s+godziny/i, '').replace(/za\s+godzinę/i, '')
+          .replace(/tra\s+mezz[''\u2019]ora/i, '').replace(/tra\s+un[''\u2019]ora/i, '')
+          .replace(/fra\s+mezz[''\u2019]ora/i, '').replace(/fra\s+un[''\u2019]ora/i, '')
+          .replace(/em\s+meia\s+hora/i, '').replace(/em\s+uma\s+hora/i, '')
           .replace(/daqui\s+a\s+meia\s+hora/i, '')
-          // N minutes/hours (all languages)
+          // N minutes/hours all languages
           .replace(/через\s+\d+[.,]?\d*\s*\S+/i, '')
           .replace(/за\s+\d+[.,]?\d*\s*\S+/i, '')
-          .replace(/fra\s+\d+[.,]?\d*\s*\S+/i, '')
           .replace(/in\s+\d+[.,]?\d*\s*\S+/i, '')
           .replace(/dans\s+\d+[.,]?\d*\s*\S+/i, '')
           .replace(/en\s+\d+[.,]?\d*\s*\S+/i, '')
@@ -1138,34 +1154,10 @@ app.post("/parse", auth, async (req, res) => {
           .replace(/tra\s+\d+[.,]?\d*\s*\S+/i, '')
           .replace(/fra\s+\d+[.,]?\d*\s*\S+/i, '')
           .replace(/em\s+\d+[.,]?\d*\s*\S+/i, '')
-          .replace(/daqui\s+a\s+\d+[.,]?\d*\s*\S*/i, '')
+          .replace(/daqui\s+a\s+\d+[.,]?\d*\s*\S*/i, '');
 
-        // ── Remove trigger words (all languages) ─────────────────────────────
-        const triggers = [
-          // RU
-          'поставь\\s+напоминание', 'напомни\\s+мне', 'напомни', 'поставь',
-          // UK
-          'постав\\s+нагадування', 'нагадай\\s+мені', 'нагадай', 'постав',
-          // EN
-          'set\\s+a\\s+reminder\\s+for', 'set\\s+a\\s+reminder', 'set\\s+reminder', 'remind\\s+me', 'remember',
-          // DE
-          'stell\\s+eine\\s+erinnerung', 'erinnere\\s+mich', 'erinnere',
-          // FR
-          'mets\\s+un\\s+rappel', 'rappelle-moi', 'rappelle\\s+moi',
-          // ES
-          'ponme\\s+un\\s+recordatorio', 'recuérdame', 'recuerdame',
-          // PL
-          'ustaw\\s+przypomnienie', 'przypomnij\\s+mi', 'przypomnij',
-          // IT
-          'imposta\\s+un\\s+promemoria', 'ricordami\\s+di', 'ricordami\\s+tra', 'ricordami', 'ricorda',
-          // PT
-          'define\\s+um\\s+lembrete', 'lembra-me\\s+de', 'lembra-me', 'lembra',
-        ];
-        for (const t of triggers) {
-          taskText = taskText.replace(new RegExp('(?:^|\\s)' + t + '(?:\\s|$)', 'i'), ' ');
-        }
-
-        taskText = taskText.replace(/\s+/g, ' ').trim();
+        taskText = removeTriggers(taskText);
+        taskText = removeTriggers(taskText); // second pass catches leftovers
 
         const datetime = toIso(preResult.dt, offsetMinutes);
         console.log(`[PRE] "${input}" → ${datetime} (task: "${taskText}")`);
@@ -1176,7 +1168,7 @@ app.post("/parse", auth, async (req, res) => {
 
     // ── Moderation check ──────────────────────────────────────────────────────
     // Whitelist: medical/everyday words that trigger false positives
-    const medicalWhitelist = /таблетк|таблет|пігулк|пілюл|ліки|лікарств|препарат|вітамін|витамин|аспірин|аспирин|ібупрофен|ибупрофен|парацетамол|антибіотик|антибиотик|краплі|капли|сироп|\bpill|\btablet|\bmedicine|\bmedication|\bvitamin|\baspirin|\bibuprofen|\bparacetamol|\bantibiotic|\bdrops|\bsyrup|\bTablette|\bMedikament|\bVitamin|\bPille|\bmédicament|\bcomprimé|\bvitamine|\bmedicamento|\bpastilla|\bvitamina|\btabletka|\blek\b|\bwitamina|\bmedicin|\bcompress|\bremédio|\bcomprimido/i;
+    const medicalWhitelist = /таблетк|таблет|пігулк|пілюл|ліки|лікарств|лекарств|препарат|вітамін|витамин|аспірин|аспирин|ібупрофен|ибупрофен|парацетамол|антибіотик|антибиотик|краплі|капли|сироп|укол|укол|ін'єкц|инъекц|мазь|порошок|микстур|настойк|настоянк|\bpill|\btablet|\bmedicine|\bmedication|\bvitamin|\baspirin|\bibuprofen|\bparacetamol|\bantibiotic|\bdrops|\bsyrup|\bdrug\b|\bdose\b|\bTablette|\bMedikament|\bVitamin|\bPille|\bKapsel|\bSalbe|\bTropfen|\bmédicament|\bcomprimé|\bvitamine|\bgélule|\bsirop|\bmedicamento|\bpastilla|\bvitamina|\bcápsula|\bjarabe|\btabletk|\bwitamin|\blek\b|\bleku\b|\bleki\b|\bleków\b|\bmaść\b|\bkrople\b|\bmedicin|\bcompress|\bvitamin|\bcapsul|\bsciroppo|\bpastiglie|\bfiala|\bremédio|\bcomprimido|\bvitamina|\bcápsula|\bxarope|\bdose\b/i;
     const isMedicalContext = medicalWhitelist.test(input);
 
     try {
