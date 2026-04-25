@@ -987,8 +987,9 @@ app.post("/parse", auth, async (req, res) => {
       // App will show "Almost ready" sheet to pick time
       const resultText = (result.text || '').trim();
       if (!resultText || resultText === input.trim()) {
-        // Check if input is just trigger words with no real content
-        const triggerOnly = /^[\s\p{P}]*(поставь|напомни|нагадай|remind|set a reminder|erinnere|rappelle|recuérdame|przypomnij|ricordami|lembra)[\s\p{P}]*мне?[\s\p{P}]*$/iu.test(input.trim());
+        // Only skip if input has NO time references at all
+        const hasTimeRef = /(\d{1,2}[:h]\d{0,2}|\d+\s*(мин|час|хв|min|hour|heure|hora|minuto|ora)|утра|вечера|ночи|дня|утром|вечером|ранку|вечора|am|pm|morning|evening|night|après-midi|matin|mañana\s+\d|tarde|noche|rano|wieczor|mattina|sera|manhã|tarde)/i.test(input);
+        const triggerOnly = !hasTimeRef && /^[\s\p{P}]*(поставь|напомни|нагадай|remind|set a reminder|erinnere|rappelle|recuérdame|przypomnij|ricordami|lembra)[\s\p{P}]*мне?[\s\p{P}]*$/iu.test(input.trim());
         if (triggerOnly) {
           console.log(`[SKIP] trigger-only input, no task: "${input}"`);
           return res.json({ ok: false, reason: 'no_task' });
