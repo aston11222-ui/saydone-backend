@@ -58,8 +58,11 @@ function buildPrompt(nowIso, offsetStr, localNow) {
     return d.toISOString().slice(0, 10);
   };
   const addD = n => { const d = new Date(localNow); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); };
-  const addM = n => { const d = new Date(localNow); d.setMinutes(d.getMinutes()+n); return d.toTimeString().slice(0,5); };
-  const addH = n => { const d = new Date(localNow); d.setHours(d.getHours()+n); return d.toTimeString().slice(0,5); };
+  const addM = n => { const d = new Date(localNow); d.setMinutes(d.getMinutes()+n); return toIso(d, offsetMinutes); };
+  const addH = n => { const d = new Date(localNow); d.setHours(d.getHours()+n); return toIso(d, offsetMinutes); };
+  // Display-only: just HH:MM for showing in examples
+  const addHStr = n => { const d = new Date(localNow); d.setHours(d.getHours()+n); return d.toTimeString().slice(0,5); };
+  const addMStr = n => { const d = new Date(localNow); d.setMinutes(d.getMinutes()+n); return d.toTimeString().slice(0,5); };
 
   return `You are a multilingual voice reminder parser. Your ONLY job: extract the task and exact datetime.
 
@@ -335,11 +338,11 @@ If no date word is given, compare the stated time to current time ${timeStr}:
     \"à 10h\"     (10:00 ≤ ${timeStr}) → ${addD(1)}T10:00:00${offsetStr}
 
   FUTURE → TODAY (stated_time > ${timeStr}):
-    \"в ${addH(1)}\"  (${addH(1)} > ${timeStr}) → ${todayStr}T${addH(1)}:00${offsetStr}
-    \"в ${addH(2)}\"  (${addH(2)} > ${timeStr}) → ${todayStr}T${addH(2)}:00${offsetStr}
-    \"в ${addH(3)}\"  (${addH(3)} > ${timeStr}) → ${todayStr}T${addH(3)}:00${offsetStr}
-    \"at ${addH(1)}\" (${addH(1)} > ${timeStr}) → ${todayStr}T${addH(1)}:00${offsetStr}
-    \"um ${addH(2)}\" (${addH(2)} > ${timeStr}) → ${todayStr}T${addH(2)}:00${offsetStr}
+    \"в ${addHStr(1)}\"  (${addHStr(1)} > ${timeStr}) → ${todayStr}T${addHStr(1)}:00${offsetStr}
+    \"в ${addHStr(2)}\"  (${addHStr(2)} > ${timeStr}) → ${todayStr}T${addHStr(2)}:00${offsetStr}
+    \"в ${addHStr(3)}\"  (${addHStr(3)} > ${timeStr}) → ${todayStr}T${addHStr(3)}:00${offsetStr}
+    \"at ${addHStr(1)}\" (${addHStr(1)} > ${timeStr}) → ${todayStr}T${addHStr(1)}:00${offsetStr}
+    \"um ${addHStr(2)}\" (${addHStr(2)} > ${timeStr}) → ${todayStr}T${addHStr(2)}:00${offsetStr}
 
   NIGHT HOURS — same rule, no exceptions:
 ${["01","02","03","04","05"].map(h => {
@@ -528,10 +531,10 @@ Special short forms:
   PT:    em meia hora → +30 min | em uma hora → +1 hour | daqui a meia hora → +30 min
 
 Examples (current time ${timeStr}):
-  "через 15 минут"    → ${addM(15)}    "через 30 хвилин" → ${addM(30)}
-  "через полчаса"     → ${addM(30)}    "через пів години"→ ${addM(30)}
-  "through 1 hour"    → ${addH(1)}     "in 2 hours"      → ${addH(2)}
-  "в 1 Stunde"        → ${addH(1)}     "dans 30 minutes" → ${addM(30)}
+  "через 15 минут"    → ${addMStr(15)}    "через 30 хвилин" → ${addMStr(30)}
+  "через полчаса"     → ${addMStr(30)}    "через пів години"→ ${addMStr(30)}
+  "through 1 hour"    → ${addHStr(1)}     "in 2 hours"      → ${addHStr(2)}
+  "в 1 Stunde"        → ${addHStr(1)}     "dans 30 minutes" → ${addMStr(30)}
 
 ──────────────────────────────────────── 
 3H. NO TIME STATED
@@ -539,12 +542,12 @@ Examples (current time ${timeStr}):
   If no time is mentioned AND there is NO real task (only trigger words) → return {"ok":false}
 
   !! IMPORTANT: "через 10 минут", "in 10 minutes", "tra 10 minuti" etc. ARE time references.
-  !! "Поставь напоминание через 10 минут" has NO task but HAS time → datetime=${addM(10)}, text=""
-  !! "Remind me in 5 minutes" → datetime=${addM(5)}, text=""
-  !! "Erinnere mich in 10 Minuten" → datetime=${addM(10)}, text=""
-  !! "Rappelle-moi dans 5 minutes" → datetime=${addM(5)}, text=""
-  !! "Ricordami tra 10 minuti" → datetime=${addM(10)}, text=""
-  !! "Lembra-me em 5 minutos" → datetime=${addM(5)}, text=""
+  !! "Поставь напоминание через 10 минут" has NO task but HAS time → datetime=<now+10min>, text=""
+  !! "Remind me in 5 minutes" → datetime=<now+5min>, text=""
+  !! "Erinnere mich in 10 Minuten" → datetime=<now+10min>, text=""
+  !! "Rappelle-moi dans 5 minutes" → datetime=<now+5min>, text=""
+  !! "Ricordami tra 10 minuti" → datetime=<now+10min>, text=""
+  !! "Lembra-me em 5 minutos" → datetime=<now+5min>, text=""
   !! NEVER return {"ok":false} when there is a time reference (even relative)
   
   Examples:
@@ -731,11 +734,11 @@ Examples (current time ${timeStr}):
 → {"text":"","datetime":"${addD(1)}T10:00:00${offsetStr}"}
 
 "Через 30 минут напомни купить хлеб"
-→ {"text":"купить хлеб","datetime":"${(() => { const d=new Date(localNow); d.setMinutes(d.getMinutes()+30); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
+→ {"text":"купить хлеб","datetime":"${addM(30)}"}
 NOTE: "купить хлеб" comes from the input above — extract task from the ACTUAL user input, not from this example.
 
 "Через пів години нагадай купити хліб"
-→ {"text":"купити хліб","datetime":"${(() => { const d=new Date(localNow); d.setMinutes(d.getMinutes()+30); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
+→ {"text":"купити хліб","datetime":"${addM(30)}"}
 
 "Нагадай у середу о 15:00"
 → {"text":"","datetime":"${nextDow(3)}T15:00:00${offsetStr}"}
@@ -798,13 +801,13 @@ NOTE: "купить хлеб" comes from the input above — extract task from t
 → {"text":"","datetime":"${todayStr}T23:00:00${offsetStr}"}
 
 "Поставь напоминание через 30 минут" (no task in input → text is empty)
-→ {"text":"","datetime":"${(() => { const d=new Date(localNow); d.setMinutes(d.getMinutes()+30); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
+→ {"text":"","datetime":"${addM(30)}"}
 
 "Remind me in 30 minutes" (no task → text is empty)
-→ {"text":"","datetime":"${(() => { const d=new Date(localNow); d.setMinutes(d.getMinutes()+30); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
+→ {"text":"","datetime":"${addM(30)}"}
 
 "Через 2 години зустріч"
-→ {"text":"зустріч","datetime":"${(() => { const d=new Date(localNow); d.setHours(d.getHours()+2); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
+→ {"text":"зустріч","datetime":"${addH(2)}"}
 
 "Нагадай о 6 ранку" (06:00 ≤ ${timeStr} → tomorrow)
 → {"text":"","datetime":"${addD(1)}T06:00:00${offsetStr}"}
@@ -853,25 +856,25 @@ NOTE: "купить хлеб" comes from the input above — extract task from t
 
 ── Через N минут/часов (all languages) ──
 "In 30 minutes buy bread"
-→ {"text":"buy bread","datetime":"${(() => { const d=new Date(localNow); d.setMinutes(d.getMinutes()+30); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
+→ {"text":"buy bread","datetime":"${addM(30)}"}
 
 "In 2 hours call"
-→ {"text":"call","datetime":"${(() => { const d=new Date(localNow); d.setHours(d.getHours()+2); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
+→ {"text":"call","datetime":"${addH(2)}"}
 
 "In 2 Stunden anrufen"
-→ {"text":"anrufen","datetime":"${(() => { const d=new Date(localNow); d.setHours(d.getHours()+2); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
+→ {"text":"anrufen","datetime":"${addH(2)}"}
 
 "Dans 30 minutes acheter du pain"
-→ {"text":"acheter du pain","datetime":"${(() => { const d=new Date(localNow); d.setMinutes(d.getMinutes()+30); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
+→ {"text":"acheter du pain","datetime":"${addM(30)}"}
 
 "En 30 minutos comprar pan"
-→ {"text":"comprar pan","datetime":"${(() => { const d=new Date(localNow); d.setMinutes(d.getMinutes()+30); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
+→ {"text":"comprar pan","datetime":"${addM(30)}"}
 
 "Za 30 minut kupić chleb"
-→ {"text":"kupić chleb","datetime":"${(() => { const d=new Date(localNow); d.setMinutes(d.getMinutes()+30); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
+→ {"text":"kupić chleb","datetime":"${addM(30)}"}
 
 "Через 2 часа позвонить"
-→ {"text":"позвонить","datetime":"${(() => { const d=new Date(localNow); d.setHours(d.getHours()+2); return toIso(d, getOffset(nowIso)); })().slice(0,-6)}:00${offsetStr}"}
+→ {"text":"позвонить","datetime":"${addH(2)}"}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Remember: output ONLY the JSON object. No explanation, no markdown.`;
