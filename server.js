@@ -900,35 +900,35 @@ app.post("/parse", auth, async (req, res) => {
     // This runs BEFORE the AI to avoid hallucinations for any N value
     {
       const relMatch = input.match(
-        /(?:через|за)\s+(\d+(?:[.,]\d+)?)\s*(минут[аыу]?|хвилин[аиу]?|хв|мин|min(?:ute)?s?|minut[eyi]?|minutes?|minuto?s?|minuti|Minute[n]?)\b/i
+        /(?:через|за)\s+(\d+(?:[.,]\d+)?)\s*(?:минут[аыу]?|минут\b|хвилин[аиу]?|хвилин\b|хв\.?|мин\.?)/i
       ) || input.match(
-        /\bin\s+(\d+(?:[.,]\d+)?)\s*(min(?:ute)?s?)\b/i
+        /\bin\s+(\d+(?:[.,]\d+)?)\s*(?:min(?:ute)?s?)\b/i
       ) || input.match(
-        /\bdans\s+(\d+(?:[.,]\d+)?)\s*(min(?:ute)?s?)\b/i
+        /\bdans\s+(\d+(?:[.,]\d+)?)\s*(?:min(?:ute)?s?)\b/i
       ) || input.match(
-        /\ben\s+(\d+(?:[.,]\d+)?)\s*(min(?:uto)?s?)\b/i
+        /\ben\s+(\d+(?:[.,]\d+)?)\s*(?:min(?:uto)?s?)\b/i
       ) || input.match(
-        /\bza\s+(\d+(?:[.,]\d+)?)\s*(minut[aey]?|min)\b/i
+        /\bza\s+(\d+(?:[.,]\d+)?)\s*(?:minut[aey]?|min)\b/i
       ) || input.match(
-        /\btra\s+(\d+(?:[.,]\d+)?)\s*(minut[oi]|min)\b/i
+        /\btra\s+(\d+(?:[.,]\d+)?)\s*(?:minut[oi]|min)\b/i
       ) || input.match(
-        /\bem\s+(\d+(?:[.,]\d+)?)\s*(minuto?s?)\b/i
+        /\bem\s+(\d+(?:[.,]\d+)?)\s*(?:minuto?s?)\b/i
       );
 
       const hourMatch = input.match(
-        /(?:через|за)\s+(\d+(?:[.,]\d+)?)\s*(час[аов]?|годин[аиу]?|год)\b/i
+        /(?:через|за)\s+(\d+(?:[.,]\d+)?)\s*(?:час[аов]?|час\b|годин[аиу]?|годин\b|год\.?)/i
       ) || input.match(
-        /\bin\s+(\d+(?:[.,]\d+)?)\s*(hours?|h)\b/i
+        /\bin\s+(\d+(?:[.,]\d+)?)\s*(?:hours?|h)\b/i
       ) || input.match(
-        /\bdans\s+(\d+(?:[.,]\d+)?)\s*(heures?)\b/i
+        /\bdans\s+(\d+(?:[.,]\d+)?)\s*(?:heures?)\b/i
       ) || input.match(
-        /\ben\s+(\d+(?:[.,]\d+)?)\s*(horas?)\b/i
+        /\ben\s+(\d+(?:[.,]\d+)?)\s*(?:horas?)\b/i
       ) || input.match(
-        /\bza\s+(\d+(?:[.,]\d+)?)\s*(godzin[aey]?|godz)\b/i
+        /\bza\s+(\d+(?:[.,]\d+)?)\s*(?:godzin[aey]?|godz)\b/i
       ) || input.match(
-        /\btra\s+(\d+(?:[.,]\d+)?)\s*(ora[e]?|ore)\b/i
+        /\btra\s+(\d+(?:[.,]\d+)?)\s*(?:ora[e]?|ore)\b/i
       ) || input.match(
-        /\bem\s+(\d+(?:[.,]\d+)?)\s*(horas?)\b/i
+        /\bem\s+(\d+(?:[.,]\d+)?)\s*(?:horas?)\b/i
       );
 
       // Special: через полчаса / через пів години / in half an hour
