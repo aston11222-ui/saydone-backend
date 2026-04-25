@@ -92,7 +92,7 @@ STEP 1 — Remove these trigger words (they are NEVER part of the task):
 
 STEP 2 — Remove ALL time/date/interval words:
   Intervals: через 30 минут, через час, через N минут/часов, in 30 minutes, in an hour, in N minutes, за N хвилин/годин, dans N minutes, en N minutos, za N minut, tra N minuti/ore, em N minutos/horas
-  Dates: сегодня, завтра, послезавтра, today, tomorrow, сьогодні, завтра, nach X Tagen, oggi, domani, dopodomani, hoje, amanhã, depois de amanhã
+  Dates: сегодня, завтра, послезавтра, today, tomorrow, сьогодні, завтра, nach X Tagen, heute, aujourd'hui, hoy, dzisiaj, oggi, domani, dopodomani, hoje, amanhã, depois de amanhã
   Times: в 9 утра, в 20:00, at 9am, um 9 Uhr, à 9h, a las 9, o 9 rano, о 9 ранку, alle 9 del mattino, às 9 da manhã
   Weekdays: понедельник, вторник, monday, tuesday, Montag, lundi, lunes, poniedziałek, lunedì, martedì, segunda-feira, terça-feira
 
@@ -344,6 +344,8 @@ If no date word is given, compare the stated time to current time ${timeStr}:
   Concrete examples at CURRENT TIME ${timeStr}:
 
   PAST → TOMORROW (stated_time ≤ ${timeStr}):
+    NOTE: "сьогодні/сегодня/heute/aujourd'hui/hoy/dzisiaj/oggi/hoje" + past time → STILL use TOMORROW
+    \"сьогодні о 9 ранку\" (09:00 ≤ ${timeStr}) → ${addD(1)}T09:00:00${offsetStr}
     \"в 9 утра\"  (09:00 ≤ ${timeStr}) → ${addD(1)}T09:00:00${offsetStr}
     \"в 10 утра\" (10:00 ≤ ${timeStr}) → ${addD(1)}T10:00:00${offsetStr}
     \"в 11 утра\" (11:00 ≤ ${timeStr}) → ${addD(1)}T11:00:00${offsetStr}
@@ -354,6 +356,8 @@ If no date word is given, compare the stated time to current time ${timeStr}:
     \"à 10h\"     (10:00 ≤ ${timeStr}) → ${addD(1)}T10:00:00${offsetStr}
 
   FUTURE → TODAY (stated_time > ${timeStr}):
+    \"сьогодні о ${addHStr(1)}\" (${addHStr(1)} > ${timeStr}) → ${todayStr}T${addHStr(1)}:00${offsetStr}
+    \"сегодня в ${addHStr(1)}\" (${addHStr(1)} > ${timeStr}) → ${todayStr}T${addHStr(1)}:00${offsetStr}
     \"в ${addHStr(1)}\"  (${addHStr(1)} > ${timeStr}) → ${todayStr}T${addHStr(1)}:00${offsetStr}
     \"в ${addHStr(2)}\"  (${addHStr(2)} > ${timeStr}) → ${todayStr}T${addHStr(2)}:00${offsetStr}
     \"в ${addHStr(3)}\"  (${addHStr(3)} > ${timeStr}) → ${todayStr}T${addHStr(3)}:00${offsetStr}
@@ -439,7 +443,8 @@ Examples:
 Words meaning "evening / pm":
   RU: вечера / вечером / ввечері
   UK: вечора / увечері / ввечері / вечором / о вечорі / звечора / надвечір / вечірнього
-  NOTE UK: ordinal forms "о 7-й", "о 8-й", "о 9-й" etc. = regular hours (о 7-й вечора = 19:00)
+  NOTE UK: ordinal forms "о 7-й", "о 8-й", "о 9-й вечора/ранку" = regular hours (о 7-й вечора = 19:00, о 8-й ранку = 08:00)
+  NOTE RU: ordinal forms "в 7-й", "в 8-й вечера" = regular hours (в 7-й вечера = 19:00)
   EN: pm / in the evening / evening
   DE: abends / am Abend / Uhr abends / Uhr am Abend / abends um X Uhr
   NOTE DE: "um X Uhr" without period = 24h as stated (e.g. "um 10 Uhr" = 10:00, "um 21 Uhr" = 21:00)
@@ -679,6 +684,36 @@ Examples (current time ${timeStr}):
 
 "сьогодні о 15:00 зустріч"
 → {"text":"зустріч","datetime":"${todayStr}T15:00:00${offsetStr}"}
+
+"сьогодні о 7-й вечора нагадай випити таблетки"
+→ {"text":"випити таблетки","datetime":"${todayStr}T19:00:00${offsetStr}"}
+
+"сегодня в 8 вечера выпить таблетки"
+→ {"text":"выпить таблетки","datetime":"${todayStr}T20:00:00${offsetStr}"}
+
+"сегодня в 9 утра позвонить маме"
+→ {"text":"позвонить маме","datetime":"${todayStr}T09:00:00${offsetStr}"}
+
+"heute um 20 Uhr Tabletten nehmen"
+→ {"text":"Tabletten nehmen","datetime":"${todayStr}T20:00:00${offsetStr}"}
+
+"heute Abend um 8 Tabletten nehmen"
+→ {"text":"Tabletten nehmen","datetime":"${todayStr}T20:00:00${offsetStr}"}
+
+"aujourd'hui à 20h prendre les médicaments"
+→ {"text":"prendre les médicaments","datetime":"${todayStr}T20:00:00${offsetStr}"}
+
+"hoy a las 8 de la noche tomar pastillas"
+→ {"text":"tomar pastillas","datetime":"${todayStr}T20:00:00${offsetStr}"}
+
+"dzisiaj o 20:00 wziąć tabletki"
+→ {"text":"wziąć tabletki","datetime":"${todayStr}T20:00:00${offsetStr}"}
+
+"oggi alle 20 prendere le medicine"
+→ {"text":"prendere le medicine","datetime":"${todayStr}T20:00:00${offsetStr}"}
+
+"hoje às 20h tomar os remédios"
+→ {"text":"tomar os remédios","datetime":"${todayStr}T20:00:00${offsetStr}"}
 
 "Нагадай завтра в 8 ранку привітати друга"
 → {"text":"привітати друга","datetime":"${addD(1)}T08:00:00${offsetStr}"}
