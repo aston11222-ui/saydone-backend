@@ -961,18 +961,19 @@ app.post("/parse", auth, async (req, res) => {
       if (preResult) {
         // Extract task: remove trigger + interval words, keep the rest
         let taskText = input
-          .replace(/^(поставь\s+напоминание|напомни\s+мне?|нагадай\s+мені?|постав\s+нагадування|remind\s+me|set\s+a?\s+reminder|erinnere\s+mich|rappelle-moi|recuérdame|przypomnij\s+mi|ricordami|lembra-me)\s*/i, '')
-          .replace(/через\s+\d+[.,]?\d*\s*\w+/i, '')
-          .replace(/за\s+\d+[.,]?\d*\s*\w+/i, '')
-          .replace(/in\s+\d+[.,]?\d*\s*\w+/i, '')
-          .replace(/dans\s+\d+[.,]?\d*\s*\w+/i, '')
-          .replace(/en\s+\d+[.,]?\d*\s*\w+/i, '')
-          .replace(/za\s+\d+[.,]?\d*\s*\w+/i, '')
-          .replace(/tra\s+\d+[.,]?\d*\s*\w+/i, '')
-          .replace(/em\s+\d+[.,]?\d*\s*\w+/i, '')
-          .replace(/через\s+полчаса|через\s+пів\s+год\w*/i, '')
+          .replace(/через\s+полчаса|через\s+пів\s+год\S*/i, '')
           .replace(/in\s+half\s+an\s+hour|in\s+an?\s+hour/i, '')
           .replace(/через\s+час|через\s+годину/i, '')
+          .replace(/через\s+\d+[.,]?\d*\s*\S+/i, '')
+          .replace(/за\s+\d+[.,]?\d*\s*\S+/i, '')
+          .replace(/in\s+\d+[.,]?\d*\s*\S+/i, '')
+          .replace(/dans\s+\d+[.,]?\d*\s*\S+/i, '')
+          .replace(/en\s+\d+[.,]?\d*\s*\S+/i, '')
+          .replace(/za\s+\d+[.,]?\d*\s*\S+/i, '')
+          .replace(/tra\s+\d+[.,]?\d*\s*\S+/i, '')
+          .replace(/em\s+\d+[.,]?\d*\s*\S+/i, '')
+          .replace(/\b(поставь\s+напоминание|напомни\s+мне?|нагадай\s+мені?|постав\s+нагадування|remind\s+me|set\s+a?\s+reminder|erinnere\s+mich|rappelle-moi|recuérdame|przypomnij\s+mi|ricordami|lembra-me)\b/i, '')
+          .replace(/\s+/g, ' ')
           .trim();
 
         const datetime = toIso(preResult.dt, offsetMinutes);
