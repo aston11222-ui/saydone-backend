@@ -895,6 +895,93 @@ app.post("/parse", auth, async (req, res) => {
 
     const input = String(text).replace(/\s+/g, " ").trim();
 
+    // ── Deterministic pre-parser for relative intervals ───────────────────────
+    // Handle "через N минут/часов" and equivalents in all languages
+    // This runs BEFORE the AI to avoid hallucinations for any N value
+    {
+      const relMatch = input.match(
+        /(?:через|за)\s+(\d+(?:[.,]\d+)?)\s*(минут[аыу]?|хвилин[аиу]?|хв|мин|min(?:ute)?s?|minut[eyi]?|minutes?|minuto?s?|minuti|Minute[n]?)\b/i
+      ) || input.match(
+        /\bin\s+(\d+(?:[.,]\d+)?)\s*(min(?:ute)?s?)\b/i
+      ) || input.match(
+        /\bdans\s+(\d+(?:[.,]\d+)?)\s*(min(?:ute)?s?)\b/i
+      ) || input.match(
+        /\ben\s+(\d+(?:[.,]\d+)?)\s*(min(?:uto)?s?)\b/i
+      ) || input.match(
+        /\bza\s+(\d+(?:[.,]\d+)?)\s*(minut[aey]?|min)\b/i
+      ) || input.match(
+        /\btra\s+(\d+(?:[.,]\d+)?)\s*(minut[oi]|min)\b/i
+      ) || input.match(
+        /\bem\s+(\d+(?:[.,]\d+)?)\s*(minuto?s?)\b/i
+      );
+
+      const hourMatch = input.match(
+        /(?:через|за)\s+(\d+(?:[.,]\d+)?)\s*(час[аов]?|годин[аиу]?|год)\b/i
+      ) || input.match(
+        /\bin\s+(\d+(?:[.,]\d+)?)\s*(hours?|h)\b/i
+      ) || input.match(
+        /\bdans\s+(\d+(?:[.,]\d+)?)\s*(heures?)\b/i
+      ) || input.match(
+        /\ben\s+(\d+(?:[.,]\d+)?)\s*(horas?)\b/i
+      ) || input.match(
+        /\bza\s+(\d+(?:[.,]\d+)?)\s*(godzin[aey]?|godz)\b/i
+      ) || input.match(
+        /\btra\s+(\d+(?:[.,]\d+)?)\s*(ora[e]?|ore)\b/i
+      ) || input.match(
+        /\bem\s+(\d+(?:[.,]\d+)?)\s*(horas?)\b/i
+      );
+
+      // Special: через полчаса / через пів години / in half an hour
+      const halfHourMatch = /через\s+полчаса|через\s+пів\s+год|in\s+half\s+an\s+hour|dans\s+une\s+demi|en\s+media\s+hora|za\s+pół\s+godziny|tra\s+mezz['']ora|em\s+meia\s+hora/i.test(input);
+      // через час / through 1 hour / in an hour
+      const oneHourMatch = /^(?:поставь\s+напоминание\s+)?через\s+час\b|^нагадай\s+через\s+годину|^remind\s+me\s+in\s+an?\s+hour|^in\s+an?\s+hour|^dans\s+une\s+heure|^en\s+una\s+hora|^za\s+godzinę|^tra\s+un['']?ora/i.test(input);
+
+      let preResult = null;
+
+      if (halfHourMatch) {
+        const d = new Date(localNow); d.setMinutes(d.getMinutes() + 30);
+        preResult = { minutes: 30, dt: d };
+      } else if (oneHourMatch) {
+        const d = new Date(localNow); d.setHours(d.getHours() + 1);
+        preResult = { hours: 1, dt: d };
+      } else if (relMatch) {
+        const n = parseFloat(relMatch[1].replace(',', '.'));
+        if (!isNaN(n) && n > 0 && n <= 1440) {
+          const d = new Date(localNow); d.setMinutes(d.getMinutes() + Math.round(n));
+          preResult = { minutes: Math.round(n), dt: d };
+        }
+      } else if (hourMatch) {
+        const n = parseFloat(hourMatch[1].replace(',', '.'));
+        if (!isNaN(n) && n > 0 && n <= 168) {
+          const d = new Date(localNow); d.setMinutes(d.getMinutes() + Math.round(n * 60));
+          preResult = { hours: n, dt: d };
+        }
+      }
+
+      if (preResult) {
+        // Extract task: remove trigger + interval words, keep the rest
+        let taskText = input
+          .replace(/^(поставь\s+напоминание|напомни\s+мне?|нагадай\s+мені?|постав\s+нагадування|remind\s+me|set\s+a?\s+reminder|erinnere\s+mich|rappelle-moi|recuérdame|przypomnij\s+mi|ricordami|lembra-me)\s*/i, '')
+          .replace(/через\s+\d+[.,]?\d*\s*\w+/i, '')
+          .replace(/за\s+\d+[.,]?\d*\s*\w+/i, '')
+          .replace(/in\s+\d+[.,]?\d*\s*\w+/i, '')
+          .replace(/dans\s+\d+[.,]?\d*\s*\w+/i, '')
+          .replace(/en\s+\d+[.,]?\d*\s*\w+/i, '')
+          .replace(/za\s+\d+[.,]?\d*\s*\w+/i, '')
+          .replace(/tra\s+\d+[.,]?\d*\s*\w+/i, '')
+          .replace(/em\s+\d+[.,]?\d*\s*\w+/i, '')
+          .replace(/через\s+полчаса|через\s+пів\s+год\w*/i, '')
+          .replace(/in\s+half\s+an\s+hour|in\s+an?\s+hour/i, '')
+          .replace(/через\s+час|через\s+годину/i, '')
+          .trim();
+
+        const datetime = toIso(preResult.dt, offsetMinutes);
+        console.log(`[PRE] "${input}" → ${datetime} (task: "${taskText}")`);
+        return res.json({ ok: true, text: taskText, datetime, source: 'pre' });
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     // ── Moderation check ──────────────────────────────────────────────────────
     try {
       const modResponse = await Promise.race([
