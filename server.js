@@ -168,6 +168,12 @@ Good examples WITH real task:
   Input UK: "Нагадай у п'ятницю о 10 ранку купити молоко"
   Output:   "купити молоко"
 
+  Input UK: "сьогодні о 8 вечора випити таблетки"
+  Output:   "випити таблетки"
+
+  Input UK: "Нагадай о 7-й вечора подзвонити мамі"
+  Output:   "подзвонити мамі"
+
   Input EN: "Remind me tomorrow at 9am to call mom"
   Output:   "call mom"
 
@@ -346,23 +352,33 @@ If no date word is given, compare the stated time to current time ${timeStr}:
   PAST → TOMORROW (stated_time ≤ ${timeStr}):
     NOTE: "сьогодні/сегодня/heute/aujourd'hui/hoy/dzisiaj/oggi/hoje" + past time → STILL use TOMORROW
     \"сьогодні о 9 ранку\" (09:00 ≤ ${timeStr}) → ${addD(1)}T09:00:00${offsetStr}
-    \"в 9 утра\"  (09:00 ≤ ${timeStr}) → ${addD(1)}T09:00:00${offsetStr}
-    \"в 10 утра\" (10:00 ≤ ${timeStr}) → ${addD(1)}T10:00:00${offsetStr}
-    \"в 11 утра\" (11:00 ≤ ${timeStr}) → ${addD(1)}T11:00:00${offsetStr}
-    \"в 12:00\"   (12:00 ≤ ${timeStr}) → ${addD(1)}T12:00:00${offsetStr}
-    \"в 9 ранку\" (09:00 ≤ ${timeStr}) → ${addD(1)}T09:00:00${offsetStr}
-    \"at 9am\"    (09:00 ≤ ${timeStr}) → ${addD(1)}T09:00:00${offsetStr}
-    \"um 9 Uhr\"  (09:00 ≤ ${timeStr}) → ${addD(1)}T09:00:00${offsetStr}
-    \"à 10h\"     (10:00 ≤ ${timeStr}) → ${addD(1)}T10:00:00${offsetStr}
+    \"в 9 утра\"   (09:00 ≤ ${timeStr}) → ${addD(1)}T09:00:00${offsetStr}
+    \"в 10 утра\"  (10:00 ≤ ${timeStr}) → ${addD(1)}T10:00:00${offsetStr}
+    \"в 11 утра\"  (11:00 ≤ ${timeStr}) → ${addD(1)}T11:00:00${offsetStr}
+    \"в 12:00\"    (12:00 ≤ ${timeStr}) → ${addD(1)}T12:00:00${offsetStr}
+    \"в 9 ранку\"  (09:00 ≤ ${timeStr}) → ${addD(1)}T09:00:00${offsetStr}
+    \"at 9am\"     (09:00 ≤ ${timeStr}) → ${addD(1)}T09:00:00${offsetStr}
+    \"um 9 Uhr\"   (09:00 ≤ ${timeStr}) → ${addD(1)}T09:00:00${offsetStr}
+    \"à 9h\"       (09:00 ≤ ${timeStr}) → ${addD(1)}T09:00:00${offsetStr}
+    \"a las 9\"    (09:00 ≤ ${timeStr}) → ${addD(1)}T09:00:00${offsetStr}
+    \"o 9 rano\"   (09:00 ≤ ${timeStr}) → ${addD(1)}T09:00:00${offsetStr}
+    \"alle 9\"     (09:00 ≤ ${timeStr}) → ${addD(1)}T09:00:00${offsetStr}
+    \"às 9h\"      (09:00 ≤ ${timeStr}) → ${addD(1)}T09:00:00${offsetStr}
+    \"à 10h\"      (10:00 ≤ ${timeStr}) → ${addD(1)}T10:00:00${offsetStr}
 
   FUTURE → TODAY (stated_time > ${timeStr}):
     \"сьогодні о ${addHStr(1)}\" (${addHStr(1)} > ${timeStr}) → ${todayStr}T${addHStr(1)}:00${offsetStr}
     \"сегодня в ${addHStr(1)}\" (${addHStr(1)} > ${timeStr}) → ${todayStr}T${addHStr(1)}:00${offsetStr}
-    \"в ${addHStr(1)}\"  (${addHStr(1)} > ${timeStr}) → ${todayStr}T${addHStr(1)}:00${offsetStr}
-    \"в ${addHStr(2)}\"  (${addHStr(2)} > ${timeStr}) → ${todayStr}T${addHStr(2)}:00${offsetStr}
-    \"в ${addHStr(3)}\"  (${addHStr(3)} > ${timeStr}) → ${todayStr}T${addHStr(3)}:00${offsetStr}
-    \"at ${addHStr(1)}\" (${addHStr(1)} > ${timeStr}) → ${todayStr}T${addHStr(1)}:00${offsetStr}
-    \"um ${addHStr(2)}\" (${addHStr(2)} > ${timeStr}) → ${todayStr}T${addHStr(2)}:00${offsetStr}
+    \"в ${addHStr(1)}\"     (${addHStr(1)} > ${timeStr}) → ${todayStr}T${addHStr(1)}:00${offsetStr}
+    \"в ${addHStr(2)}\"     (${addHStr(2)} > ${timeStr}) → ${todayStr}T${addHStr(2)}:00${offsetStr}
+    \"в ${addHStr(3)}\"     (${addHStr(3)} > ${timeStr}) → ${todayStr}T${addHStr(3)}:00${offsetStr}
+    \"at ${addHStr(1)}\"    (${addHStr(1)} > ${timeStr}) → ${todayStr}T${addHStr(1)}:00${offsetStr}
+    \"um ${addHStr(2)}\"    (${addHStr(2)} > ${timeStr}) → ${todayStr}T${addHStr(2)}:00${offsetStr}
+    \"à ${addHStr(1)}h\"   (${addHStr(1)} > ${timeStr}) → ${todayStr}T${addHStr(1)}:00${offsetStr}
+    \"a las ${addHStr(1)}\" (${addHStr(1)} > ${timeStr}) → ${todayStr}T${addHStr(1)}:00${offsetStr}
+    \"o ${addHStr(1)}\"    (${addHStr(1)} > ${timeStr}) → ${todayStr}T${addHStr(1)}:00${offsetStr}
+    \"alle ${addHStr(1)}\" (${addHStr(1)} > ${timeStr}) → ${todayStr}T${addHStr(1)}:00${offsetStr}
+    \"às ${addHStr(1)}h\"  (${addHStr(1)} > ${timeStr}) → ${todayStr}T${addHStr(1)}:00${offsetStr}
 
   NIGHT HOURS — same rule, no exceptions:
 ${["01","02","03","04","05"].map(h => {
@@ -436,6 +452,8 @@ Examples:
   "1:43 de la tarde" → 13:43  "2:30 de l'après-midi" → 14:30
   "1:43 del pomeriggio" → 13:43  "1:43 da tarde" → 13:43
   "1:43 po południu" → 13:43  "1:43 nachmittags" → 13:43
+  "1:43 Uhr nachmittags" → 13:43  "2:30 am Nachmittag" → 14:30
+  "1:43 del pomeriggio" → 13:43  "2:30 da tarde" → 14:30
   RULE: ANY time X:MM + afternoon word → if X < 12 then result = (X+12):MM
 
 ──────────────────────────────────────── 
@@ -476,6 +494,8 @@ RULE for HH:MM + evening word: if HH < 12 → add 12 to get 24h time
   FR: 11:00 + du soir→ 23:00  |  10:00 + du soir→ 22:00  |  9:30 + soir   → 21:30
   ES: 11:00 + de la noche → 23:00  |  10:00 + de la noche → 22:00
   PL: 11:00 + wieczorem   → 23:00  |  10:00 + wieczorem   → 22:00  |  9:00 + wieczór → 21:00
+  IT: 11:00 + di sera     → 23:00  |  10:00 + di sera     → 22:00  |  9:00 + sera    → 21:00
+  PT: 11:00 + da noite    → 23:00  |  10:00 + da noite    → 22:00  |  9:30 + à noite → 21:30
 
 SPECIAL: "H:MM вечера N минут" or "H часов вечера N минут" — N минут is the minutes part:
   "11:00 вечера 45 минут" → 23:45  (11+12=23, minutes=45)
@@ -487,6 +507,8 @@ SPECIAL: "H:MM вечера N минут" or "H часов вечера N мин
   "11 de la noche 45 minutos" → 23:45
   "11 Uhr abends 45 Minuten"  → 23:45
   "11 wieczorem 45 minut"     → 23:45
+  "11 di sera 45 minuti"      → 23:45
+  "11 da noite 45 minutos"    → 23:45
 
 ──────────────────────────────────────── 
 3E. NIGHT — context-dependent
@@ -513,9 +535,9 @@ Examples:
 
 ──────────────────────────────────────── 
 3F. SPECIAL TIMES
-  полдень / полудень / полуденна / noon / midi / mediodía / południe → 12:00
-  полночь / опівніч / midnight / minuit / medianoche / północ      → 00:00
-  обед / обід / lunch → 13:00 (default lunch time)
+  полдень / полудень / полуденна / noon / midi / mediodía / południe / mezzogiorno / meio-dia → 12:00
+  полночь / опівніч / midnight / minuit / medianoche / północ / mezzanotte / meia-noite      → 00:00
+  обед / обід / lunch / Mittagessen / déjeuner / almuerzo / obiad / pranzo / almoço → 13:00
   утренняя / вечерняя → keep context
 
 ──────────────────────────────────────── 
@@ -555,10 +577,15 @@ Special short forms:
   PT:    em meia hora → +30 min | em uma hora → +1 hour | daqui a meia hora → +30 min
 
 Examples (current time ${timeStr}):
-  "через 15 минут"    → ${addMStr(15)}    "через 30 хвилин" → ${addMStr(30)}
-  "через полчаса"     → ${addMStr(30)}    "через пів години"→ ${addMStr(30)}
-  "through 1 hour"    → ${addHStr(1)}     "in 2 hours"      → ${addHStr(2)}
-  "в 1 Stunde"        → ${addHStr(1)}     "dans 30 minutes" → ${addMStr(30)}
+  "через 15 минут"       → ${addMStr(15)}   "через 30 хвилин"   → ${addMStr(30)}
+  "через полчаса"        → ${addMStr(30)}   "через пів години"  → ${addMStr(30)}
+  "in 15 minutes"        → ${addMStr(15)}   "in 2 hours"        → ${addHStr(2)}
+  "in 15 Minuten"        → ${addMStr(15)}   "in 1 Stunde"       → ${addHStr(1)}
+  "dans 15 minutes"      → ${addMStr(15)}   "dans 2 heures"     → ${addHStr(2)}
+  "en 15 minutos"        → ${addMStr(15)}   "en 2 horas"        → ${addHStr(2)}
+  "za 15 minut"          → ${addMStr(15)}   "za 2 godziny"      → ${addHStr(2)}
+  "tra 15 minuti"        → ${addMStr(15)}   "tra 2 ore"         → ${addHStr(2)}
+  "em 15 minutos"        → ${addMStr(15)}   "em 2 horas"        → ${addHStr(2)}
 
 ──────────────────────────────────────── 
 3H. NO TIME STATED
