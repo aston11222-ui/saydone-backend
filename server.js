@@ -439,6 +439,7 @@ Examples:
 Words meaning "evening / pm":
   RU: вечера / вечером / ввечері
   UK: вечора / увечері / ввечері / вечором / о вечорі / звечора / надвечір / вечірнього
+  NOTE UK: ordinal forms "о 7-й", "о 8-й", "о 9-й" etc. = regular hours (о 7-й вечора = 19:00)
   EN: pm / in the evening / evening
   DE: abends / am Abend / Uhr abends / Uhr am Abend / abends um X Uhr
   NOTE DE: "um X Uhr" without period = 24h as stated (e.g. "um 10 Uhr" = 10:00, "um 21 Uhr" = 21:00)
@@ -452,6 +453,8 @@ Examples:
   "6 вечера"   → 18:00    "6 вечора"   → 18:00    "6pm"        → 18:00
   "7 вечера"   → 19:00    "7 вечора"   → 19:00    "7 abends"   → 19:00
   "8 вечера"   → 20:00    "8 вечора"   → 20:00    "8 du soir"  → 20:00
+  "о 7-й вечора" → 19:00   "о 8-й вечора" → 20:00   "о 9-й вечора" → 21:00
+  "о 7-й ранку"  → 07:00   "о 8-й ранку"  → 08:00
   "9 вечера"   → 21:00    "9 вечора"   → 21:00    "9pm"        → 21:00
   "10 вечера"  → 22:00    "10 вечора"  → 22:00    "10 abends"  → 22:00
   "11 вечера"  → 23:00    "11 вечора"  → 23:00    "11pm"       → 23:00
@@ -667,6 +670,15 @@ Examples (current time ${timeStr}):
 
 "Lembra-me sexta às 10 da manhã comprar leite"
 → {"text":"comprar leite","datetime":"${nextDow(5)}T10:00:00${offsetStr}"}
+
+"сьогодні о 8 вечора випити таблетки"
+→ {"text":"випити таблетки","datetime":"${todayStr}T20:00:00${offsetStr}"}
+
+"сьогодні о 9 ранку зателефонувати мамі"
+→ {"text":"зателефонувати мамі","datetime":"${todayStr}T09:00:00${offsetStr}"}
+
+"сьогодні о 15:00 зустріч"
+→ {"text":"зустріч","datetime":"${todayStr}T15:00:00${offsetStr}"}
 
 "Нагадай завтра в 8 ранку привітати друга"
 → {"text":"привітати друга","datetime":"${addD(1)}T08:00:00${offsetStr}"}
