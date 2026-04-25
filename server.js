@@ -404,6 +404,8 @@ ${["01","02","03","04","05"].map(h => {
   "21:00" → 21:00
   "08:30" → 08:30
   "00:00" → 00:00
+  NOTE: speech recognition may write time with dash instead of colon:
+  "8-12" = "8:12", "20-30" = "20:30", "9-45" = "9:45" — treat H-MM as H:MM
 
 ──────────────────────────────────────── 
 3B. MORNING — keep hour as-is (1-11 → same, 12 → 0)
@@ -705,6 +707,15 @@ Examples (current time ${timeStr}):
 
 "сьогодні о 8 вечора випити таблетки"
 → {"text":"випити таблетки","datetime":"${todayStr}T20:00:00${offsetStr}"}
+
+"сьогодні у 8-12 вечора покататися на санях"
+→ {"text":"покататися на санях","datetime":"${todayStr}T20:12:00${offsetStr}"}
+
+"нагадай о 9-30 ранку зателефонувати"
+→ {"text":"зателефонувати","datetime":"${addD(1)}T09:30:00${offsetStr}"}
+
+"remind me at 8-45 am to call"
+→ {"text":"call","datetime":"${addD(1)}T08:45:00${offsetStr}"}
 
 "сьогодні о 9 ранку зателефонувати мамі"
 → {"text":"зателефонувати мамі","datetime":"${todayStr}T09:00:00${offsetStr}"}
@@ -1165,8 +1176,8 @@ app.post("/parse", auth, async (req, res) => {
           .map(([k]) => k)
           .join(', ');
         // Skip self-harm flag if input contains medical/medication words (false positive)
-        const onlySelfHarm = cats === 'self-harm' || cats === 'self_harm' ||
-          cats.split(',').map(s=>s.trim()).every(c => c.startsWith('self'));
+        const onlySelfHarm = cats.split(',').map(s=>s.trim())
+          .every(c => c.startsWith('self-harm') || c.startsWith('self_harm'));
         if (isMedicalContext && onlySelfHarm) {
           console.log(`[MODERATION] False positive skipped for medical context: "${input}"`);
         } else {
