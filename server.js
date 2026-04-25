@@ -537,6 +537,15 @@ Examples (current time ${timeStr}):
 3H. NO TIME STATED
   If no time is mentioned AND there IS a real task → default to 09:00 tomorrow
   If no time is mentioned AND there is NO real task (only trigger words) → return {"ok":false}
+
+  !! IMPORTANT: "через 10 минут", "in 10 minutes", "tra 10 minuti" etc. ARE time references.
+  !! "Поставь напоминание через 10 минут" has NO task but HAS time → datetime=${addM(10)}, text=""
+  !! "Remind me in 5 minutes" → datetime=${addM(5)}, text=""
+  !! "Erinnere mich in 10 Minuten" → datetime=${addM(10)}, text=""
+  !! "Rappelle-moi dans 5 minutes" → datetime=${addM(5)}, text=""
+  !! "Ricordami tra 10 minuti" → datetime=${addM(10)}, text=""
+  !! "Lembra-me em 5 minutos" → datetime=${addM(5)}, text=""
+  !! NEVER return {"ok":false} when there is a time reference (even relative)
   
   Examples:
   "купить кота" (no time, has task) → {"text":"купить кота","datetime":"${addD(1)}T09:00:00${offsetStr}"}
@@ -564,6 +573,33 @@ Examples (current time ${timeStr}):
 
 "Нагадай у суботу о 8:00 ранку зателефонувати"
 → {"text":"зателефонувати","datetime":"${nextDow(6)}T08:00:00${offsetStr}"}
+
+"Поставь напоминание через 10 минут"
+→ {"text":"","datetime":"${addM(10)}"}
+
+"Напомни через час"
+→ {"text":"","datetime":"${addH(1)}"}
+
+"Remind me in 10 minutes"
+→ {"text":"","datetime":"${addM(10)}"}
+
+"Erinnere mich in 30 Minuten"
+→ {"text":"","datetime":"${addM(30)}"}
+
+"Rappelle-moi dans 10 minutes"
+→ {"text":"","datetime":"${addM(10)}"}
+
+"Recuérdame en 10 minutos"
+→ {"text":"","datetime":"${addM(10)}"}
+
+"Przypomnij mi za 10 minut"
+→ {"text":"","datetime":"${addM(10)}"}
+
+"Ricordami tra 10 minuti"
+→ {"text":"","datetime":"${addM(10)}"}
+
+"Lembra-me em 10 minutos"
+→ {"text":"","datetime":"${addM(10)}"}
 
 "Напомни через 3 дня в 9 вечера позвонить маме"
 → {"text":"позвонить маме","datetime":"${addD(3)}T21:00:00${offsetStr}"}
