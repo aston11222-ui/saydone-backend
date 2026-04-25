@@ -395,6 +395,12 @@ ${["01","02","03","04","05"].map(h => {
 
   !! CRITICAL: \"на 9:45 утра\" when 09:45>${timeStr} → ${todayStr}T09:45:00${offsetStr} (TODAY!)
   !! CRITICAL: \"в 15:00\" when 15:00>${timeStr} → ${todayStr}T15:00:00${offsetStr} (TODAY!)
+  !! CRITICAL BARE HOUR RULE: If user says bare hour (e.g. "о 8", "в 8", "at 8") with NO am/pm/morning/evening word:
+     - Current time is ${timeStr}
+     - If bare hour H < 12 AND current time > 12:00 → assume PM: use H+12
+     - Example: now=18:58, user says "о 8" → 8 < 12 AND 18:58 > 12:00 → use 20:00 (8pm)
+     - Example: now=09:00, user says "о 8" → 8 < 12 AND 09:00 < 12:00 → use 08:00 (8am, but past → tomorrow)
+     - Example: now=07:00, user says "о 8" → 8 < 12 AND 07:00 < 12:00 → use 08:00 (8am today)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 §3. TIME RULES (convert all to 24h HH:MM)
@@ -710,6 +716,15 @@ Examples (current time ${timeStr}):
 
 "сьогодні у 8-12 вечора покататися на санях"
 → {"text":"покататися на санях","datetime":"${todayStr}T20:12:00${offsetStr}"}
+
+"нагадай сьогодні о 8 випити таблетки" (now=${timeStr}, 8 < 12 AND ${timeStr} > 12:00 → 8pm=20:00)
+→ {"text":"випити таблетки","datetime":"${todayStr}T20:00:00${offsetStr}"}
+
+"нагадай о 8 позвонить маме" (now=${timeStr}, 8 < 12 AND ${timeStr} > 12:00 → 8pm=20:00)
+→ {"text":"позвонить маме","datetime":"${todayStr}T20:00:00${offsetStr}"}
+
+"remind me at 8 to call" (now=${timeStr}, 8 < 12 AND ${timeStr} > 12:00 → 8pm=20:00)
+→ {"text":"call","datetime":"${todayStr}T20:00:00${offsetStr}"}
 
 "нагадай о 9-30 ранку зателефонувати"
 → {"text":"зателефонувати","datetime":"${addD(1)}T09:30:00${offsetStr}"}
