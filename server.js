@@ -43,7 +43,7 @@ function getOffset(s) {
 
 const DOW_EN = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 
-function buildPrompt(nowIso, offsetStr, localNow) {
+function buildPrompt(nowIso, offsetStr, localNow, offsetMinutes) {
   const dow = DOW_EN[localNow.getDay()];
   const todayStr = nowIso.slice(0, 10);
   const timeStr  = nowIso.slice(11, 16);
@@ -916,7 +916,7 @@ app.post("/parse", auth, async (req, res) => {
     }
     // ─────────────────────────────────────────────────────────────────────────
 
-    const systemPrompt = buildPrompt(nowIso, offStr(offsetMinutes), localNow);
+    const systemPrompt = buildPrompt(nowIso, offStr(offsetMinutes), localNow, offsetMinutes);
 
     let result = null;
     try {
