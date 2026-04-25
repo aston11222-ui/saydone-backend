@@ -128,6 +128,14 @@ CRITICAL RULE: "text" MUST be empty "" when input contains ONLY trigger+time wor
   PL: "Przypomnij mi o 11 wieczorem" → text: ""
   PL: "Ustaw przypomnienie na 9 rano" → text: ""
   PL: "Przypomnij mi jutro o 8" → text: ""
+  IT: "Ricordami tra 30 minuti" → text: ""
+  IT: "Ricordami alle 11 di sera" → text: ""
+  IT: "Imposta un promemoria per le 9 del mattino" → text: ""
+  IT: "Ricordami domani alle 8" → text: ""
+  PT: "Lembra-me em 30 minutos" → text: ""
+  PT: "Lembra-me às 11 da noite" → text: ""
+  PT: "Define um lembrete para as 9 da manhã" → text: ""
+  PT: "Lembra-me amanhã às 8" → text: ""
   RU: "Поставь напоминание на 11:00 вечера 45 минут" → text: "" (time=23:45)
   RU: "Поставь напоминание на 1:00 ночи 4 минуты" → text: "" (time=01:04)
   RU: "Поставь на 2 ночи" → text: ""
@@ -516,6 +524,8 @@ Special short forms:
   FR:    dans une demi-heure → +30 min | dans une heure → +1 hour
   ES:    en media hora → +30 min | en una hora → +1 hour
   PL:    za pół godziny → +30 min | za godzinę → +1 hour
+  IT:    tra mezz'ora → +30 min | tra un'ora → +1 hour | fra mezz'ora → +30 min
+  PT:    em meia hora → +30 min | em uma hora → +1 hour | daqui a meia hora → +30 min
 
 Examples (current time ${timeStr}):
   "через 15 минут"    → ${addM(15)}    "через 30 хвилин" → ${addM(30)}
@@ -535,6 +545,10 @@ Examples (current time ${timeStr}):
   "set a reminder" (no time, no task) → {"ok":false}
   "erinnere mich" (no time, no task) → {"ok":false}
   "rappelle-moi" (no time, no task) → {"ok":false}
+  "recuérdame" (no time, no task) → {"ok":false}
+  "przypomnij mi" (no time, no task) → {"ok":false}
+  "ricordami" (no time, no task) → {"ok":false}
+  "lembra-me" (no time, no task) → {"ok":false}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 §4. COMPLETE EXAMPLES (today=${todayStr}, now=${timeStr})
@@ -574,6 +588,18 @@ Examples (current time ${timeStr}):
 
 "Przypomnij mi za 3 dni o 21:00 zadzwonić do mamy"
 → {"text":"zadzwonić do mamy","datetime":"${addD(3)}T21:00:00${offsetStr}"}
+
+"Ricordami tra 3 giorni alle 21 chiamare la mamma"
+→ {"text":"chiamare la mamma","datetime":"${addD(3)}T21:00:00${offsetStr}"}
+
+"Lembra-me em 3 dias às 21h ligar para a mãe"
+→ {"text":"ligar para a mãe","datetime":"${addD(3)}T21:00:00${offsetStr}"}
+
+"Ricordami domani alle 8 di mattina salutare l'amico"
+→ {"text":"salutare l'amico","datetime":"${addD(1)}T08:00:00${offsetStr}"}
+
+"Lembra-me amanhã às 8 da manhã cumprimentar o amigo"
+→ {"text":"cumprimentar o amigo","datetime":"${addD(1)}T08:00:00${offsetStr}"}
 
 "Нагадай завтра в 8 ранку привітати друга"
 → {"text":"привітати друга","datetime":"${addD(1)}T08:00:00${offsetStr}"}
