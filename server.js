@@ -398,6 +398,15 @@ Examples:
   "3 дня"   UK → 15:00  "2 дня"  UK → 14:00
   "3pm"     → 15:00    "3 nachmittags" → 15:00
 
+  !! WITH MINUTES — afternoon word means +12h to hour if hour < 12:
+  "1:43 дня"  → 13:43   "2:30 дня"  → 14:30   "3:15 дня"  → 15:15
+  "1:43 дня"  UK → 13:43  "2:30 дня" UK → 14:30
+  "1:43pm"    → 13:43   "2:30pm"    → 14:30   "3:15pm"    → 15:15
+  "1:43 de la tarde" → 13:43  "2:30 de l'après-midi" → 14:30
+  "1:43 del pomeriggio" → 13:43  "1:43 da tarde" → 13:43
+  "1:43 po południu" → 13:43  "1:43 nachmittags" → 13:43
+  RULE: ANY time X:MM + afternoon word → if X < 12 then result = (X+12):MM
+
 ──────────────────────────────────────── 
 3D. EVENING / PM — add 12 if hour < 12 (12 stays 12)
 Words meaning "evening / pm":
@@ -862,12 +871,77 @@ app.post("/parse", auth, async (req, res) => {
     if (result) {
       // ── Post-processing: fix next-day datetime when same time today is still future ──
       // Skip fix if user explicitly said "tomorrow/завтра/morgen/demain/mañana/jutro/domani/amanhã"
-      const tomorrowWords = /\b(завтра|tomorrow|morgen|demain|mañana|jutro|domani|amanhã|завтра|manh[aã]|nach einem tag|overmorgen)\b/i;
-      const hasExplicitTomorrow = tomorrowWords.test(input);
+      // ── Pre-fix: correct AM time when afternoon word is present ─────────────
+      // "1:43 дня" → AI may return 01:43 instead of 13:43
+      const afternoonWords = /\b(дня|дні|de\s*la\s*tarde|de\s*l[''']après-midi|del\s*pomeriggio|da\s*tarde|po\s*południu|nachmittags|am\s*nachmittag|in\s*the\s*afternoon|de\s*la\s*soir[ée]e?)\b/i;
+      if (afternoonWords.test(input) && result) {
+        try {
+          const rDt = new Date(result.datetime);
+          const offsetMs2 = offsetMinutes * 60000;
+          const rLocal = new Date(rDt.getTime() + offsetMs2);
+          const rHour = rLocal.getUTCHours();
+          if (rHour >= 1 && rHour <= 5) {
+            // Clearly wrong — afternoon hour should be 13-17, not 1-5
+            const correctedH = rHour + 12;
+            const rMin2 = rLocal.getUTCMinutes();
+            const nYear2 = localNow.getFullYear(), nMonth2 = localNow.getMonth(), nDay2 = localNow.getDate();
+            const rYear2 = rLocal.getUTCFullYear(), rMonth2 = rLocal.getUTCMonth(), rDay2 = rLocal.getUTCDate();
+            // Use the AI's date but correct the hour
+            const correctedIso = `${String(rYear2).padStart(4,'0')}-${p2(rMonth2+1)}-${p2(rDay2)}T${p2(correctedH)}:${p2(rMin2)}:00${offStr(offsetMinutes)}`;
+            console.log(`[AFTERNOON FIX] ${p2(rHour)}:${p2(rMin2)} + afternoon word → ${p2(correctedH)}:${p2(rMin2)}: ${correctedIso}`);
+            result = { ...result, datetime: correctedIso };
+          }
+        } catch (e) { console.warn('[AFTERNOON FIX] error:', e.message); }
+      }
+      // ─────────────────────────────────────────────────────────────────────────
+
+      // Explicit date/day words in all 9 app languages — if present, skip the "today" fix
+      const _ew = [
+        // Tomorrow
+        'завтра','tomorrow','morgen','demain','ma[nñ]ana','jutro','domani','amanh[aã]',
+        // Day after tomorrow
+        'послезавтра','після\\s*завтра','позавтра','післязавтра',
+        'day\\s*after\\s*tomorrow','übermorgen','uebermorgen',
+        'après-demain','apres-demain','pasado\\s*ma[nñ]ana',
+        'pojutrze','dopodomani','depois\\s*de\\s*amanh[aã]',
+        // Weekdays RU
+        'в\\s*понедельник','в\\s*вторник','в\\s*среду','в\\s*четверг','в\\s*пятницу','в\\s*субботу','в\\s*воскресенье',
+        // Weekdays UK
+        'у\\s*понедiлок','у\\s*вiвторок','у\\s*середу','у\\s*четвер','у\\s*п.ятницю','у\\s*суботу','у\\s*недiлю',
+        'в\\s*понедiлок','в\\s*вiвторок',
+        // Weekdays EN
+        'on\\s*(monday|tuesday|wednesday|thursday|friday|saturday|sunday)',
+        '(monday|tuesday|wednesday|thursday|friday|saturday|sunday)',
+        // Weekdays DE
+        'am\\s*(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)',
+        // Weekdays FR
+        'lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche',
+        // Weekdays ES
+        'el\\s*(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)',
+        // Weekdays PL
+        'w\\s*poniedzia[lł]ek','we\\s*wtorek','w\\s*[sś]rod[eę]','w\\s*czwartek','w\\s*pi[aą]tek','w\\s*sobot[eę]','w\\s*niedziel[eę]',
+        // Weekdays IT
+        'il\\s*(luned[iì]|marted[iì]|mercoled[iì]|gioved[iì]|venerd[iì]|sabato)','la\\s*domenica',
+        'luned[iì]','marted[iì]','mercoled[iì]','gioved[iì]','venerd[iì]',
+        // Weekdays PT
+        'na\\s*segunda','na\\s*ter[cç]a','na\\s*quarta','na\\s*quinta','na\\s*sexta','no\\s*s[aá]bado','no\\s*domingo',
+        // In N days/weeks
+        'через\\s*\\d+\\s*(день|дня|дней|тиждень|тижнi|тижнiв|неделю|недели|недель)',
+        'за\\s*\\d+\\s*(день|дня|днiв|тиждень)',
+        'in\\s*\\d+\\s*(day|days|week|weeks)',
+        'in\\s*\\d+\\s*(tag|tagen|woche|wochen)',
+        'dans\\s*\\d+\\s*(jour|jours|semaine|semaines)',
+        'en\\s*\\d+\\s*(d[ií]a|d[ií]as|semana|semanas)',
+        'za\\s*\\d+\\s*(dzie[nń]|dni|tydzie[nń]|tygodnie|tygodni)',
+        'tra\\s*\\d+\\s*(giorn[oi]|settiman[ae])','fra\\s*\\d+\\s*(giorn[oi]|settiman[ae])',
+        'em\\s*\\d+\\s*(dia|dias|semana|semanas)','daqui\\s*a\\s*\\d+',
+      ];
+      const explicitDateRe = new RegExp('(^|\\s|\\b)(' + _ew.join('|') + ')(\\s|\\b|$)', 'iu');
+      const hasExplicitDate = explicitDateRe.test(input);
 
       try {
         const resultDt = new Date(result.datetime);
-        if (!isNaN(resultDt.getTime()) && !hasExplicitTomorrow) {
+        if (!isNaN(resultDt.getTime()) && !hasExplicitDate) {
           const offsetMs = offsetMinutes * 60000;
           const resultLocalMs = resultDt.getTime() + offsetMs;
           const resultLocalDate = new Date(resultLocalMs);
@@ -890,8 +964,8 @@ app.post("/parse", auth, async (req, res) => {
               result = { ...result, datetime: todayIso };
             }
           }
-        } else if (hasExplicitTomorrow) {
-          console.log(`[FIX] skipped — explicit tomorrow word detected in: "${input}"`);
+        } else if (hasExplicitDate) {
+          console.log(`[FIX] skipped — explicit date word detected in: "${input}"`);
         }
       } catch (fixErr) {
         console.warn("[FIX] error:", fixErr.message);
