@@ -1376,8 +1376,8 @@ app.post("/parse", auth, async (req, res) => {
       const resultText = (result.text || '').trim();
       if (!resultText || resultText === input.trim()) {
         // Only skip if input has NO time references at all
-        const hasTimeRef = /(\d{1,2}[:h]\d{0,2}|\d+\s*(мин|час|хв|min|hour|heure|hora|minuto|ora|Minute|Stunde)|утра|вечера|ночи|дня|утром|вечером|ранку|вечора|am|pm|morning|evening|night|après-midi|matin|mañana\s+\d|tarde|noche|rano|wieczor|mattina|sera|manhã|madrugada|\bo\s+\d|\bà\s+\d|\bàs\s+\d|\baos\s+\d|\balle\s+\d|\bum\s+\d|\bza\s+\d|\bo\s+godzinie\b)/i.test(input);
-        const triggerOnly = !hasTimeRef && /^[\s\p{P}]*(поставь|напомни|нагадай|remind|set a reminder|erinnere|rappelle|recuérdame|przypomnij|ricordami|lembra)[\s\p{P}]*мне?[\s\p{P}]*$/iu.test(input.trim());
+        const hasTimeRefTrigger = /(\d{1,2}[:h]\d{0,2}|\d+\s*(мин|час|хв|min|hour|heure|hora|minuto|ora|Minute|Stunde|minut|godzin)|утра|вечера|ночи|дня|утром|вечером|ранку|вечора|am\b|pm\b|morning|evening|night|après-midi|matin|tarde|noche|rano|wieczor|mattina|sera|manhã|madrugada|\bo\s+\d|\bo\s+godzinie|\bà\s+\d|\bàs\s+\d|\baos\s+\d|\balle\s+\d|\bum\s+\d|\ba\s+las\s+\d|\bat\s+\d|\bdziewiąt|\bósm|\bsiódm|\bdziesięt|\bjeden[aą]st|\bdwunast|\btrzyn|\bcztern|\bpiętn|\bszesn|\bsiedemn|\bosiem|\bdziewiętn|\bdwudzie)/i.test(input);
+        const triggerOnly = !hasTimeRefTrigger && /^[\s\p{P}]*(поставь|напомни|нагадай|remind|set a reminder|erinnere|rappelle|recuérdame|przypomnij|ricordami|lembra)[\s\p{P}]*мне?[\s\p{P}]*$/iu.test(input.trim());
         if (triggerOnly) {
           console.log(`[SKIP] trigger-only input, no task: "${input}"`);
           return res.json({ ok: false, reason: 'no_task' });
@@ -1385,7 +1385,7 @@ app.post("/parse", auth, async (req, res) => {
       }
 
       // If AI returned 09:00 but input had no explicit time → it's a default, show picker
-      const hasTimeRef = /(\d{1,2}[:h]\d{0,2}|\d+\s*(мин|час|хв|min|hour|heure|hora|minuto|ora|Minute|Stunde)|утра|вечера|ночи|дня|утром|вечером|ранку|вечора|am|pm|morning|evening|night|après-midi|matin|tarde|noche|rano|wieczor|mattina|sera|manhã|madrugada|\bo\s+\d|\bà\s+\d|\bàs\s+\d|\baos\s+\d|\balle\s+\d|\bum\s+\d|\bza\s+\d|\bo\s+godzinie\b)/i.test(input);
+      const hasTimeRef = /(\d{1,2}[:h]\d{0,2}|\d+\s*(мин|час|хв|min|hour|heure|hora|minuto|ora|Minute|Stunde|minut|godzin)|утра|вечера|ночи|дня|утром|вечером|ранку|вечора|am\b|pm\b|morning|evening|night|après-midi|matin|tarde|noche|rano|wieczor|mattina|sera|manhã|madrugada|\bo\s+\d|\bo\s+godzinie|\bà\s+\d|\bàs\s+\d|\baos\s+\d|\balle\s+\d|\bum\s+\d|\ba\s+las\s+\d|\bat\s+\d|\bdziewiąt|\bósm|\bsiódm|\bdziesięt|\bjeden[aą]st|\bdwunast|\btrzyn|\bcztern|\bpiętn|\bszesn|\bsiedemn|\bosiem|\bdziewiętn|\bdwudzie)/i.test(input);
       if (!hasTimeRef && result.datetime) {
         const rDt = new Date(result.datetime);
         const rH = rDt.getUTCHours() + Math.round(offsetMinutes / 60);
