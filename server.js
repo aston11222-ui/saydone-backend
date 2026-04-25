@@ -1149,6 +1149,10 @@ app.post("/parse", auth, async (req, res) => {
     // ─────────────────────────────────────────────────────────────────────────
 
     // ── Moderation check ──────────────────────────────────────────────────────
+    // Whitelist: medical/everyday words that trigger false positives
+    const medicalWhitelist = /\b(таблетк|таблет|пігулк|пілюл|ліки|лікарство|препарат|вітамін|витамин|аспірин|аспирин|ібупрофен|ибупрофен|парацетамол|антибіотик|антибиотик|капли|краплі|мазь|сироп|укол|ін'єкц|инъекц|pill|tablet|medicine|medication|vitamin|aspirin|ibuprofen|paracetamol|antibiotic|drops|syrup|Tablette|Medikament|Vitamin|Pille|médicament|comprimé|vitamine|medicamento|pastilla|vitamina|tabletka|lek|witamina|medicina|compressa|vitamina|remédio|comprimido)\b/i;
+    const isMedicalContext = medicalWhitelist.test(input);
+
     try {
       const modResponse = await Promise.race([
         client.moderations.create({ input: input }),
@@ -1160,8 +1164,15 @@ app.post("/parse", auth, async (req, res) => {
           .filter(([, v]) => v)
           .map(([k]) => k)
           .join(', ');
-        console.warn(`[MODERATION] Flagged: "${input}" — categories: ${cats}`);
-        return res.status(200).json({ ok: false, error: "moderated", categories: cats });
+        // Skip self-harm flag if input contains medical/medication words (false positive)
+        const onlySelfHarm = cats === 'self-harm' || cats === 'self_harm' ||
+          cats.split(',').map(s=>s.trim()).every(c => c.startsWith('self'));
+        if (isMedicalContext && onlySelfHarm) {
+          console.log(`[MODERATION] False positive skipped for medical context: "${input}"`);
+        } else {
+          console.warn(`[MODERATION] Flagged: "${input}" — categories: ${cats}`);
+          return res.status(200).json({ ok: false, error: "moderated", categories: cats });
+        }
       }
     } catch (modErr) {
       // Если модерация недоступна — продолжаем без неё
@@ -1290,6 +1301,17 @@ app.post("/parse", auth, async (req, res) => {
               const todayIso = `${String(nYear).padStart(4,'0')}-${p2(nMonth+1)}-${p2(nDay)}T${p2(rH)}:${p2(rMin)}:00${offStr(offsetMinutes)}`;
               console.log(`[FIX] ${p2(rH)}:${p2(rMin)} > ${p2(nowH)}:${p2(nowMin)}, no explicit tomorrow → today: ${todayIso}`);
               result = { ...result, datetime: todayIso };
+            }
+          } else if (diffDays === 0) {
+            // AI returned today but time has already passed → move to tomorrow
+            const nowH = localNow.getHours(), nowMin = localNow.getMinutes();
+            const statedMinutes  = rH * 60 + rMin;
+            const currentMinutes = nowH * 60 + nowMin;
+            if (statedMinutes <= currentMinutes) {
+              // Check if input had explicit "today" word — if so still move to tomorrow (time passed)
+              const tomorrowIso = `${addD(1)}T${p2(rH)}:${p2(rMin)}:00${offStr(offsetMinutes)}`;
+              console.log(`[FIX] ${p2(rH)}:${p2(rMin)} ≤ ${p2(nowH)}:${p2(nowMin)}, today but past → tomorrow: ${tomorrowIso}`);
+              result = { ...result, datetime: tomorrowIso };
             }
           }
         } else if (hasExplicitDate) {
