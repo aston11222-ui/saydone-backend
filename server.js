@@ -525,7 +525,16 @@ Examples (current time ${timeStr}):
 
 ──────────────────────────────────────── 
 3H. NO TIME STATED
-  If no time is mentioned → default to 09:00
+  If no time is mentioned AND there IS a real task → default to 09:00 tomorrow
+  If no time is mentioned AND there is NO real task (only trigger words) → return {"ok":false}
+  
+  Examples:
+  "купить кота" (no time, has task) → {"text":"купить кота","datetime":"${addD(1)}T09:00:00${offsetStr}"}
+  "поставь напоминание" (no time, no task) → {"ok":false}
+  "remind me" (no time, no task) → {"ok":false}
+  "set a reminder" (no time, no task) → {"ok":false}
+  "erinnere mich" (no time, no task) → {"ok":false}
+  "rappelle-moi" (no time, no task) → {"ok":false}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 §4. COMPLETE EXAMPLES (today=${todayStr}, now=${timeStr})
@@ -973,6 +982,19 @@ app.post("/parse", auth, async (req, res) => {
       // ─────────────────────────────────────────────────────────────────────────
 
       console.log(`[OK] "${input}" → ${result.datetime}`);
+
+      // If AI returned empty text (only trigger words, no real task) → ok:false
+      // App will show "Almost ready" sheet to pick time
+      const resultText = (result.text || '').trim();
+      if (!resultText || resultText === input.trim()) {
+        // Check if input is just trigger words with no real content
+        const triggerOnly = /^[\s\p{P}]*(поставь|напомни|нагадай|remind|set a reminder|erinnere|rappelle|recuérdame|przypomnij|ricordami|lembra)[\s\p{P}]*мне?[\s\p{P}]*$/iu.test(input.trim());
+        if (triggerOnly) {
+          console.log(`[SKIP] trigger-only input, no task: "${input}"`);
+          return res.json({ ok: false, reason: 'no_task' });
+        }
+      }
+
       return res.json({ ok: true, text: result.text || input, datetime: result.datetime, source: "ai" });
     }
 
