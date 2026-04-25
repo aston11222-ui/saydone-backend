@@ -1176,7 +1176,7 @@ app.post("/parse", auth, async (req, res) => {
 
     // ── Moderation check ──────────────────────────────────────────────────────
     // Whitelist: medical/everyday words that trigger false positives
-    const medicalWhitelist = /\b(таблетк|таблет|пігулк|пілюл|ліки|лікарство|препарат|вітамін|витамин|аспірин|аспирин|ібупрофен|ибупрофен|парацетамол|антибіотик|антибиотик|капли|краплі|мазь|сироп|укол|ін'єкц|инъекц|pill|tablet|medicine|medication|vitamin|aspirin|ibuprofen|paracetamol|antibiotic|drops|syrup|Tablette|Medikament|Vitamin|Pille|médicament|comprimé|vitamine|medicamento|pastilla|vitamina|tabletka|lek|witamina|medicina|compressa|vitamina|remédio|comprimido)\b/i;
+    const medicalWhitelist = /таблетк|таблет|пігулк|пілюл|ліки|лікарств|препарат|вітамін|витамин|аспірин|аспирин|ібупрофен|ибупрофен|парацетамол|антибіотик|антибиотик|краплі|капли|сироп|\bpill|\btablet|\bmedicine|\bmedication|\bvitamin|\baspirin|\bibuprofen|\bparacetamol|\bantibiotic|\bdrops|\bsyrup|\bTablette|\bMedikament|\bVitamin|\bPille|\bmédicament|\bcomprimé|\bvitamine|\bmedicamento|\bpastilla|\bvitamina|\btabletka|\blek\b|\bwitamina|\bmedicin|\bcompress|\bremédio|\bcomprimido/i;
     const isMedicalContext = medicalWhitelist.test(input);
 
     try {
