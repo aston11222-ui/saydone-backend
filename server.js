@@ -1354,7 +1354,9 @@ app.post("/parse", auth, async (req, res) => {
             const currentMinutes = nowH * 60 + nowMin;
             if (statedMinutes <= currentMinutes) {
               // Check if input had explicit "today" word — if so still move to tomorrow (time passed)
-              const tomorrowIso = `${addD(1)}T${p2(rH)}:${p2(rMin)}:00${offStr(offsetMinutes)}`;
+              const tomorrowDt = new Date(localNow);
+              tomorrowDt.setDate(tomorrowDt.getDate() + 1);
+              const tomorrowIso = `${String(tomorrowDt.getFullYear()).padStart(4,'0')}-${p2(tomorrowDt.getMonth()+1)}-${p2(tomorrowDt.getDate())}T${p2(rH)}:${p2(rMin)}:00${offStr(offsetMinutes)}`;
               console.log(`[FIX] ${p2(rH)}:${p2(rMin)} ≤ ${p2(nowH)}:${p2(nowMin)}, today but past → tomorrow: ${tomorrowIso}`);
               result = { ...result, datetime: tomorrowIso };
             }
@@ -1374,7 +1376,7 @@ app.post("/parse", auth, async (req, res) => {
       const resultText = (result.text || '').trim();
       if (!resultText || resultText === input.trim()) {
         // Only skip if input has NO time references at all
-        const hasTimeRef = /(\d{1,2}[:h]\d{0,2}|\d+\s*(мин|час|хв|min|hour|heure|hora|minuto|ora)|утра|вечера|ночи|дня|утром|вечером|ранку|вечора|am|pm|morning|evening|night|après-midi|matin|mañana\s+\d|tarde|noche|rano|wieczor|mattina|sera|manhã|tarde)/i.test(input);
+        const hasTimeRef = /(\d{1,2}[:h]\d{0,2}|\d+\s*(мин|час|хв|min|hour|heure|hora|minuto|ora|Minute|Stunde)|утра|вечера|ночи|дня|утром|вечером|ранку|вечора|am|pm|morning|evening|night|après-midi|matin|mañana\s+\d|tarde|noche|rano|wieczor|mattina|sera|manhã|madrugada|\bo\s+\d|\bà\s+\d|\bàs\s+\d|\baos\s+\d|\balle\s+\d|\bum\s+\d|\bza\s+\d|\bo\s+godzinie\b)/i.test(input);
         const triggerOnly = !hasTimeRef && /^[\s\p{P}]*(поставь|напомни|нагадай|remind|set a reminder|erinnere|rappelle|recuérdame|przypomnij|ricordami|lembra)[\s\p{P}]*мне?[\s\p{P}]*$/iu.test(input.trim());
         if (triggerOnly) {
           console.log(`[SKIP] trigger-only input, no task: "${input}"`);
@@ -1383,7 +1385,7 @@ app.post("/parse", auth, async (req, res) => {
       }
 
       // If AI returned 09:00 but input had no explicit time → it's a default, show picker
-      const hasTimeRef = /(\d{1,2}[:h]\d{0,2}|\d+\s*(мин|час|хв|min|hour|heure|hora|minuto|ora)|утра|вечера|ночи|дня|утром|вечером|ранку|вечора|am|pm|morning|evening|night|après-midi|matin|tarde|noche|rano|wieczor|mattina|sera|manhã|madrugada)/i.test(input);
+      const hasTimeRef = /(\d{1,2}[:h]\d{0,2}|\d+\s*(мин|час|хв|min|hour|heure|hora|minuto|ora|Minute|Stunde)|утра|вечера|ночи|дня|утром|вечером|ранку|вечора|am|pm|morning|evening|night|après-midi|matin|tarde|noche|rano|wieczor|mattina|sera|manhã|madrugada|\bo\s+\d|\bà\s+\d|\bàs\s+\d|\baos\s+\d|\balle\s+\d|\bum\s+\d|\bza\s+\d|\bo\s+godzinie\b)/i.test(input);
       if (!hasTimeRef && result.datetime) {
         const rDt = new Date(result.datetime);
         const rH = rDt.getUTCHours() + Math.round(offsetMinutes / 60);
