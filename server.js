@@ -1057,32 +1057,40 @@ app.post("/parse", auth, async (req, res) => {
         // RU
         'один':'1','два':'2','три':'3','четыре':'4','пять':'5',
         'шесть':'6','семь':'7','восемь':'8','девять':'9','десять':'10',
-        'одного':'1','двух':'2','трёх':'3','четырёх':'4',
+        'одного':'1','двух':'2','трёх':'3','четырёх':'4','две':'2',
+        'тридцать':'30','двадцать':'20','пятнадцать':'15',
         // UK
-        'одна':'1','один':'1','дві':'2','два':'2','две':'2','три':'3','чотири':'4','чотирьох':'4','трёх':'3','четыре':'4',
+        'одна':'1','один':'1','дві':'2','два':'2','три':'3','чотири':'4',
         'п’ять':'5','шість':'6','сім':'7','вісім':'8','дев’ять':'9','десять':'10',
+        'тридцять':'30','двадцять':'20','п’ятнадцять':'15',
         // EN
         'one':'1','two':'2','three':'3','four':'4','five':'5',
         'six':'6','seven':'7','eight':'8','nine':'9','ten':'10',
+        'eleven':'11','twelve':'12','fifteen':'15','twenty':'20','thirty':'30','forty':'40','fifty':'50',
         // DE
         'ein':'1','eine':'1','zwei':'2','drei':'3','vier':'4','fünf':'5',
         'sechs':'6','sieben':'7','acht':'8','neun':'9','zehn':'10',
+        'elf':'11','zwölf':'12','fünfzehn':'15','zwanzig':'20','dreißig':'30','vierzig':'40','fünfzig':'50',
         // FR
         'un':'1','une':'1','deux':'2','trois':'3','quatre':'4','cinq':'5',
         'six':'6','sept':'7','huit':'8','neuf':'9','dix':'10',
+        'onze':'11','douze':'12','quinze':'15','vingt':'20','trente':'30','quarante':'40','cinquante':'50',
         // ES
         'uno':'1','una':'1','dos':'2','tres':'3','cuatro':'4','cinco':'5',
         'seis':'6','siete':'7','ocho':'8','nueve':'9','diez':'10',
+        'once':'11','doce':'12','quince':'15','veinte':'20','treinta':'30','cuarenta':'40','cincuenta':'50',
         // PL
         'jeden':'1','jedna':'1','jedno':'1','dwa':'2','dwie':'2','trzy':'3',
         'cztery':'4','pięć':'5','sześć':'6','siedem':'7','osiem':'8',
-        'dziewięć':'9','dziesięć':'10',
+        'dziewięć':'9','dziesięć':'10','piętnaście':'15','dwaście':'20','trzydzieści':'30',
         // IT
         'uno':'1','una':'1','due':'2','tre':'3','quattro':'4','cinque':'5',
         'sei':'6','sette':'7','otto':'8','nove':'9','dieci':'10',
+        'undici':'11','dodici':'12','quindici':'15','venti':'20','trenta':'30','quaranta':'40','cinquanta':'50',
         // PT
         'um':'1','uma':'1','dois':'2','duas':'2','três':'3','quatro':'4',
         'cinco':'5','seis':'6','sete':'7','oito':'8','nove':'9','dez':'10',
+        'onze':'11','doze':'12','quinze':'15','vinte':'20','trinta':'30','quarenta':'40','cinquenta':'50',
       };
       for (const [w, d] of Object.entries(map)) {
         s = s.replace(new RegExp('(?:^|\\s)' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?=\\s|$)', 'gi'), m => m.replace(new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'), d));
@@ -1179,9 +1187,9 @@ app.post("/parse", auth, async (req, res) => {
         /\btra\s+un['']?ora\b/i.test(input) ||
         /\bfra\s+un['']?ora\b/i.test(input) ||
         /\bem\s+uma\s+hora\b/i.test(normInputGlobal) ||
-        /\bdentro\s+de\s+una\s+hora\b/i.test(normInputGlobal) ||
-        /\bdaqui\s+a\s+uma\s+hora\b/i.test(normInputGlobal) ||
-        /\bpara\s+uma\s+hora\b/i.test(normInputGlobal)
+        /\bdentro\s+de\s+(?:una?|1)\s+hora\b/i.test(normInputGlobal) ||
+        /\bdaqui\s+a\s+(?:uma?|1)\s+hora\b/i.test(normInputGlobal) ||
+        /\bpara\s+(?:uma?|1)\s+hora\b/i.test(normInputGlobal)
       );
 
       let preResult = null;
@@ -1283,6 +1291,10 @@ app.post("/parse", auth, async (req, res) => {
           .replace(/через\s+полчаса/gi, '')
           .replace(/через\s+пів\s+год\S*/gi, '')
           .replace(/\s+/g, ' ').trim();
+        // Remove connector words at start (FR d', ES que, PL że/żeby, IT di, PT de/da)
+        taskText = taskText
+          .replace(/^(d['\u2019]|que\s+|co\s+|\u017ce\s+|\u017ceby\s+|\u017cebym\s+|di\s+|de\s+|da\s+|do\s+)/i, '')
+          .trim();
         // Remove today/tomorrow date words that might remain
         taskText = taskText
           .replace(/(сьогодні|сегодня|today|heute|aujourd'hui|hoy|dzisiaj|oggi|hoje)/gi, '')
@@ -1391,8 +1403,11 @@ app.post("/parse", auth, async (req, res) => {
             // Remove period phrases (FR/ES/IT/PT)
             .replace(/\b(de\s+la\s+(?:mañana|tarde|noche)|du\s+(?:soir|matin)|di\s+(?:sera|mattina)|da\s+(?:manhã|noite|tarde))\b/gi, '')
             .replace(/\b(horas?|heures?|Stunden?|hours?|ore\b)/gi, '')
-            // Remove connector words
-            .replace(/\b(que|di|de|al)\b/gi, '')
+            // Remove connector words (all languages)
+            .replace(/\b(que|di|de|al|że|żeby|żebym|co)\b/gi, '')
+            // Remove standalone preposition 'o' (PL) at end
+            .replace(/\s+o$/i, '')
+            .replace(/\bo\s*$/i, '')
             // Remove leftover prepositions at start
             .replace(/^(на|в|о|у|a|le|o|à)\s+/i, '')
             .replace(/\s+/g, ' ').trim();
@@ -1426,21 +1441,23 @@ app.post("/parse", auth, async (req, res) => {
       ];
 
       // Exact time: HH:MM or H Uhr or Hh or bare H + pm/am or ordinal (9-ту, 8-му etc.)
-      const timeMatch24 = input.match(/\b(\d{1,2}):(\d{2})\b/) ||
-                          input.match(/\b(\d{1,2})\s*Uhr\b/i) ||
-                          input.match(/\b(\d{1,2})h\b(?!eure)/i) ||
-                          input.match(/\bat\s+(\d{1,2})\s*(pm|am)\b/i) ||
-                          input.match(/\bo\s+(\d{1,2})\s*(pm|am)?\b/i) ||
-                          // Ordinal: 9-ту, 8-му, 7-му etc. (UK/RU) — no \b needed
-                          input.match(/(\d{1,2})-[а-яіїєА-ЯІЇЄa-z]+/) ||
+      const timeMatch24 = normInputGlobal.match(/\b(\d{1,2}):(\d{2})\b/) ||
+                          normInputGlobal.match(/\b(\d{1,2})\s*Uhr\b/i) ||
+                          normInputGlobal.match(/\b(\d{1,2})h\b(?!eure)/i) ||
+                          normInputGlobal.match(/\bat\s+(\d{1,2})\s*(pm|am)\b/i) ||
+                          normInputGlobal.match(/\bo\s+(\d{1,2})\s*(pm|am)?\b/i) ||
+                          // Ordinal: 9-ту, 8-му etc. (UK/RU)
+                          normInputGlobal.match(/(\d{1,2})-[а-яіїєА-ЯІЇЄa-z]+/) ||
+                          // FR "8h45" format
+                          normInputGlobal.match(/(?:à|a)\s+(\d{1,2})h(\d{2})\b/i) ||
                           // Bare hour + Cyrillic period word
-                          input.match(/на\s+(\d{1,2})\s+(?:вечора|вечера|ранку|утра|ночи|ночі)/i) ||
-                          input.match(/о\s+(\d{1,2})\s+(?:вечора|вечера|ранку|утра)/i) ||
+                          normInputGlobal.match(/на\s+(\d{1,2})\s+(?:вечора|вечера|ранку|утра|ночи|ночі)/i) ||
+                          normInputGlobal.match(/о\s+(\d{1,2})\s+(?:вечора|вечера|ранку|утра)/i) ||
                           // Bare hour + Latin period/preposition
-                          input.match(/\balle\s+(\d{1,2})\b/i) ||
-                          input.match(/(?:^|\s)à\s+(\d{1,2})\b/i) ||
-                          input.match(/(?:^|\s)às\s+(\d{1,2})\b/i) ||
-                          input.match(/\ba\s+las\s+(\d{1,2})\b/i);
+                          normInputGlobal.match(/\balle\s+(\d{1,2})\b/i) ||
+                          normInputGlobal.match(/(?:^|\s)à\s+(\d{1,2})\b/i) ||
+                          normInputGlobal.match(/(?:^|\s)às\s+(\d{1,2})\b/i) ||
+                          normInputGlobal.match(/\ba\s+las\s+(\d{1,2})\b/i);
       // PM words
       const hasPM = /(\d(pm)\b|\bp\.m\.\b|вечера|вечора|увечері|ввечері|\babends\b|\bdu\s+soir\b|\bde\s+la\s+noche\b|\bdi\s+sera\b|\bda\s+noite\b|wieczore?m?\b|\bsera\b|\bnoche\b)/i.test(input);
       const hasAM = /(\d(am)\b|\ba\.m\.\b|утра|ранку|вранці|зранку|\bmorgens\b|\bdu\s+matin\b|\bde\s+la\s+mañana\b|\bdi\s+mattina\b|\bda\s+manhã\b|\brano\b|\bmattina\b|\bmatin\b|\bmorning\b)/i.test(input);
@@ -1563,6 +1580,8 @@ app.post("/parse", auth, async (req, res) => {
             // Remove period words (all languages)
             .replace(/(вечора|вечера|вечором|увечері|ввечері|ранку|вранці|зранку|утра|ночи|дня)/gi, '')
             .replace(/\b(evening|morning|night|afternoon|noon|pm|am|abends|morgens|soir|matin|noche|tarde|sera|mattina|manhã|noite|rano|wieczorem?)\b/gi, '')
+            // Remove connector words at start (FR d', ES que, PL że, IT di, PT de)
+            .replace(/^(d['\u2019]|que\s+|\u017ce\s+|\u017ceby\s+|di\s+|de\s+|da\s+)/i, '')
             // Remove leftover single prepositions at start
             .replace(/^(на|в|о|у|o)\s+/i, '')
             .replace(/\s+/g, ' ').trim();
