@@ -1252,10 +1252,15 @@ app.post("/parse", auth, async (req, res) => {
 
           // Extract task text
           const taskText = removeTriggerWords(input)
+            // Remove time with preceding preposition (all languages)
+            .replace(/(?:на|в|о|у|at|on|um|à|às|aos|alle|a\s+las|o\s+godzinie)\s+\d{1,2}:\d{2}/gi, '')
             .replace(/\d{1,2}:\d{2}/g, '')
+            // Remove date words
             .replace(/(завтра|tomorrow|morgen|demain|ma[nñ]ana|jutro|domani|amanh[aã])/gi, '')
-            .replace(/(послезавтра|після\s*завтра|позавтра|übermorgen|après-demain|pojutrze|dopodomani)/gi, '')
+            .replace(/(послезавтра|після\s*завтра|позавтра|übermorgen|après-demain|pojutrze|dopodomani|depois\s*de\s*amanh[aã])/gi, '')
             .replace(/(сегодня|сьогодні|today|heute|aujourd'hui|hoy|dzisiaj|oggi|hoje)/gi, '')
+            // Remove leftover single prepositions at start
+            .replace(/^(на|в|о|у|o)\s+/i, '')
             .replace(/\s+/g, ' ').trim();
 
           console.log(`[PRE24] "${input}" → ${datetime} (task: "${taskText}")`);
