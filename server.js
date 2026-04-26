@@ -1257,6 +1257,21 @@ app.post("/parse", auth, async (req, res) => {
         taskText = removeTriggers(taskText); // second pass catches leftovers
         // Remove single-letter particles/pronouns at start (Я, я etc.)
         taskText = taskText.replace(/^[а-яіїєА-ЯІЇЄ]\s+/u, '').trim();
+        // Remove "через час/годину/hour" and half-hour expressions that may now be exposed
+        taskText = taskText
+          .replace(/(?:через|за)\s+(?:один\s+)?час(?!\S)/gi, '')
+          .replace(/(?:через|за)\s+годину/gi, '')
+          .replace(/\bin\s+an?\s+hour\b/gi, '')
+          .replace(/\bin\s+einer\s+Stunde\b/gi, '')
+          .replace(/\bdans\s+une\s+heure\b/gi, '')
+          .replace(/\ben\s+una\s+hora\b/gi, '')
+          .replace(/через\s+полчаса/gi, '')
+          .replace(/через\s+пів\s+год\S*/gi, '')
+          .replace(/\s+/g, ' ').trim();
+        // Remove today/tomorrow date words that might remain
+        taskText = taskText
+          .replace(/(сьогодні|сегодня|today|heute|aujourd'hui|hoy|dzisiaj|oggi|hoje)/gi, '')
+          .replace(/\s+/g, ' ').trim();
         // Remove word-number interval expressions that survived (second pass after letter removal)
         taskText = taskText
           .replace(/(?:через|за)\s+\d+\s*\S+/gi, '')
@@ -1514,10 +1529,13 @@ app.post("/parse", auth, async (req, res) => {
             // Remove time with preceding preposition (all languages)
             .replace(/(?:на|в|о|у|at|on|um|à|às|aos|alle|a\s+las|o\s+godzinie)\s+\d{1,2}:\d{2}/gi, '')
             .replace(/\d{1,2}:\d{2}/g, '')
-            // Remove date words
+            // Remove date words (all 9 languages)
             .replace(/(завтра|tomorrow|morgen|demain|ma[nñ]ana|jutro|domani|amanh[aã])/gi, '')
             .replace(/(послезавтра|після\s*завтра|позавтра|übermorgen|après-demain|pojutrze|dopodomani|depois\s*de\s*amanh[aã])/gi, '')
             .replace(/(сегодня|сьогодні|today|heute|aujourd'hui|hoy|dzisiaj|oggi|hoje)/gi, '')
+            // Remove period words (all languages)
+            .replace(/(вечора|вечера|вечором|увечері|ввечері|ранку|вранці|зранку|утра|ночи|дня)/gi, '')
+            .replace(/\b(evening|morning|night|afternoon|noon|pm|am|abends|morgens|soir|matin|noche|tarde|sera|mattina|manhã|noite|rano|wieczorem?)\b/gi, '')
             // Remove leftover single prepositions at start
             .replace(/^(на|в|о|у|o)\s+/i, '')
             .replace(/\s+/g, ' ').trim();
