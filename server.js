@@ -1234,8 +1234,8 @@ app.post("/parse", auth, async (req, res) => {
                           input.match(/\bat\s+(\d{1,2})\s*(pm|am)\b/i) ||
                           input.match(/\bo\s+(\d{1,2})\s*(pm|am)?\b/i);
       // PM words
-      const hasPM = /\b(pm|p\.m\.|вечера|вечора|abends|du\s+soir|de\s+la\s+noche|di\s+sera|da\s+noite|wieczor|sera)\b/i.test(input);
-      const hasAM = /\b(am\b|a\.m\.|утра|ранку|morgens|du\s+matin|de\s+la\s+mañana|di\s+mattina|da\s+manhã|rano|mattina)\b/i.test(input);
+      const hasPM = /(\d(pm)\b|\bp\.m\.\b|вечера|вечора|увечері|ввечері|\babends\b|\bdu\s+soir\b|\bde\s+la\s+noche\b|\bdi\s+sera\b|\bda\s+noite\b|wieczore?m?\b|\bsera\b|\bnoche\b)/i.test(input);
+      const hasAM = /(\d(am)\b|\ba\.m\.\b|утра|ранку|вранці|зранку|\bmorgens\b|\bdu\s+matin\b|\bde\s+la\s+mañana\b|\bdi\s+mattina\b|\bda\s+manhã\b|\brano\b|\bmattina\b|\bmatin\b|\bmorning\b)/i.test(input);
 
       if (timeMatch24) {
         let h = parseInt(timeMatch24[1]);
@@ -1251,10 +1251,10 @@ app.post("/parse", auth, async (req, res) => {
         }
 
         if (targetDow >= 0 && h >= 0 && h <= 23 && m >= 0 && m <= 59) {
-          // Calculate next occurrence of that weekday
-          const todayDow2 = localNow.getDay();
-          let diff = targetDow - todayDow2;
-          if (diff <= 0) diff += 7; // always future
+          // Calculate next occurrence — if diff < 0 → already passed, add 7; if diff === 0 → same weekday today, use next week
+          let diff = targetDow - localNow.getDay();
+          if (diff < 0) diff += 7;   // past day this week → next week
+          if (diff === 0) diff = 7;  // same weekday today → next week
           const targetDate = new Date(localNow);
           targetDate.setDate(localNow.getDate() + diff);
           const dateStr = targetDate.toISOString().slice(0, 10);
@@ -1267,8 +1267,13 @@ app.post("/parse", auth, async (req, res) => {
             .replace(/\d{1,2}:\d{2}/g, '')
             .replace(/\d{1,2}\s*Uhr\b/gi, '').replace(/\d{1,2}h\b/gi, '')
             .replace(/(pm|p\.m\.|am\b|a\.m\.|abends|morgens|Uhr)/gi, '')
-            .replace(/(вечера|вечором|ранку|утра)/gi, '')
+            // Cyrillic period words (no \b needed)
+            .replace(/(вечера|вечора|вечором|увечері|ввечері|ранку|вранці|зранку|утра|ночи|дня)/gi, '')
+            // Latin period words
+            .replace(/\b(evening|morning|night|afternoon|noon|midnight|soir|matin|noche|mañana|tarde|sera|mattina|manhã|noite|rano|wieczorem?|wieczór)\b/gi, '')
             .replace(/\b(daran|zurück)\b/gi, '')
+            // Remove leftover prepositions at start
+            .replace(/^(на|в|о|у|o|a|le|el)\s+/i, '')
             .replace(/\s+/g, ' ').trim();
 
           console.log(`[PRE-DOW] "${input}" → ${datetime} (task: "${taskText}")`);
