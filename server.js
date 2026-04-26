@@ -1049,6 +1049,28 @@ app.post("/parse", auth, async (req, res) => {
     // ── Deterministic pre-parser for relative intervals ───────────────────────
     // Handle "через N минут/часов" and equivalents in all languages
     // This runs BEFORE the AI to avoid hallucinations for any N value
+
+    // Helper: remove trigger words from input
+    const _triggers = [
+      'поставь\\s+напоминание', 'напомни\\s+мне', 'напомни', 'напоминание', 'поставь',
+      'постав\\s+нагадування', 'нагадай\\s+мені', 'нагадай', 'нагадування', 'постав',
+      'set\\s+a\\s+reminder\\s+for', 'set\\s+a\\s+reminder', 'set\\s+reminder', 'remind\\s+me', 'remind', 'remember',
+      'stell\\s+eine\\s+erinnerung', 'erinnere\\s+mich', 'erinnere',
+      'mets\\s+un\\s+rappel', 'rappelle-moi', 'rappelle\\s+moi', 'rappelle',
+      'ponme\\s+un\\s+recordatorio', 'recu[eé]rdame',
+      'ustaw\\s+przypomnienie', 'przypomnij\\s+mi', 'przypomnij',
+      'imposta\\s+un\\s+promemoria', 'ricordami\\s+di', 'ricordami\\s+tra', 'ricordami', 'ricorda',
+      'define\\s+um\\s+lembrete', 'lembra-me\\s+de', 'lembra-me', 'lembra',
+    ];
+    const _leftoverRe = /^(мне|мені|me|mich|mi|moi)\s+/i;
+    function removeTriggerWords(t) {
+      for (const tr of _triggers) {
+        t = t.replace(new RegExp('^' + tr + '\\s*', 'i'), '');
+        t = t.replace(new RegExp('\\s+' + tr + '(\\s|$)', 'gi'), ' ');
+      }
+      return t.replace(_leftoverRe, '').replace(/\s+/g, ' ').trim();
+    }
+
     {
       const relMatch = input.match(
         /(?:через|за)\s+(\d+(?:[.,]\d+)?)\s*(?:минут[аыу]?|минут\b|хвилин[аиу]?|хвилин\b|хв\.?|мин\.?)/i
@@ -1189,7 +1211,59 @@ app.post("/parse", auth, async (req, res) => {
     }
     // ─────────────────────────────────────────────────────────────────────────
 
-    // ── Moderation check ──────────────────────────────────────────────────────
+    // ── Safe deterministic parser for exact HH:MM time + simple date ─────────
+    // Only handles 100% unambiguous patterns to avoid AI cost
+    {
+      // Extract exact time: HH:MM or H:MM (24h)
+      const timeMatch = input.match(/\b(\d{1,2}):(\d{2})\b/);
+
+      if (timeMatch) {
+        const h = parseInt(timeMatch[1]);
+        const m = parseInt(timeMatch[2]);
+
+        // Only handle unambiguous 24h times (13-23 = clearly PM, or explicit context)
+        if (h >= 13 && h <= 23 && m >= 0 && m <= 59) {
+          // Clear 24h time — determine date
+          const statedMinutes = h * 60 + m;
+          const nowMinutes = localNow.getHours() * 60 + localNow.getMinutes();
+
+          // Check for tomorrow/послезавтра/day-after words
+          const hasTomorrow = /(завтра|tomorrow|morgen|demain|ma[nñ]ana|jutro|domani|amanh[aã])/i.test(input);
+          const hasDayAfter = /(послезавтра|після\s*завтра|позавтра|day\s*after\s*tomorrow|übermorgen|après-demain|pasado\s*ma[nñ]ana|pojutrze|dopodomani|depois\s*de\s*amanh[aã])/i.test(input);
+          const hasToday = /(сегодня|сьогодні|today|heute|aujourd'hui|hoy|dzisiaj|oggi|hoje)/i.test(input);
+
+          let dateStr;
+          if (hasDayAfter) {
+            const d = new Date(localNow); d.setDate(d.getDate() + 2);
+            dateStr = d.toISOString().slice(0, 10);
+          } else if (hasTomorrow) {
+            const d = new Date(localNow); d.setDate(d.getDate() + 1);
+            dateStr = d.toISOString().slice(0, 10);
+          } else if (hasToday) {
+            dateStr = localNow.toISOString().slice(0, 10);
+          } else {
+            // No date word — use today if future, tomorrow if past
+            const d = new Date(localNow);
+            if (statedMinutes <= nowMinutes) d.setDate(d.getDate() + 1);
+            dateStr = d.toISOString().slice(0, 10);
+          }
+
+          const datetime = `${dateStr}T${p2(h)}:${p2(m)}:00${offStr(offsetMinutes)}`;
+
+          // Extract task text
+          const taskText = removeTriggerWords(input)
+            .replace(/\d{1,2}:\d{2}/g, '')
+            .replace(/(завтра|tomorrow|morgen|demain|ma[nñ]ana|jutro|domani|amanh[aã])/gi, '')
+            .replace(/(послезавтра|після\s*завтра|позавтра|übermorgen|après-demain|pojutrze|dopodomani)/gi, '')
+            .replace(/(сегодня|сьогодні|today|heute|aujourd'hui|hoy|dzisiaj|oggi|hoje)/gi, '')
+            .replace(/\s+/g, ' ').trim();
+
+          console.log(`[PRE24] "${input}" → ${datetime} (task: "${taskText}")`);
+          return res.json({ ok: true, text: taskText, datetime, source: 'pre' });
+        }
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
     // Whitelist: medical/everyday words that trigger false positives
     const medicalWhitelist = /таблетк|таблет|пігулк|пілюл|ліки|лікарств|лекарств|препарат|вітамін|витамин|аспірин|аспирин|ібупрофен|ибупрофен|парацетамол|антибіотик|антибиотик|краплі|капли|сироп|укол|укол|ін'єкц|инъекц|мазь|порошок|микстур|настойк|настоянк|\bpill|\btablet|\bmedicine|\bmedication|\bvitamin|\baspirin|\bibuprofen|\bparacetamol|\bantibiotic|\bdrops|\bsyrup|\bdrug\b|\bdose\b|\bTablette|\bMedikament|\bVitamin|\bPille|\bKapsel|\bSalbe|\bTropfen|\bmédicament|\bcomprimé|\bvitamine|\bgélule|\bsirop|\bmedicamento|\bpastilla|\bvitamina|\bcápsula|\bjarabe|\btabletk|\bwitamin|\blek\b|\bleku\b|\bleki\b|\bleków\b|\bmaść\b|\bkrople\b|\bmedicin|\bcompress|\bvitamin|\bcapsul|\bsciroppo|\bpastiglie|\bfiala|\bremédio|\bcomprimido|\bvitamina|\bcápsula|\bxarope|\bdose\b/i;
     const isMedicalContext = medicalWhitelist.test(input);
