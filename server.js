@@ -1212,6 +1212,90 @@ app.post("/parse", auth, async (req, res) => {
     }
     // ─────────────────────────────────────────────────────────────────────────
 
+    // ── Deterministic N days/weeks parser ────────────────────────────────────
+    // Handles: "через 3 дня", "in 3 days", "dans 3 jours", "za 3 dni" etc.
+    {
+      const daysMatch = input.match(/(?:через|за)\s+(\d+)\s*(?:день|дня|дней|дні|днів|днів)/i) ||
+        input.match(/\bin\s+(\d+)\s*days?\b/i) ||
+        input.match(/\bin\s+(\d+)\s*Tagen?\b/i) ||
+        input.match(/\bdans\s+(\d+)\s*jours?\b/i) ||
+        input.match(/\ben\s+(\d+)\s*d[íi]as?\b/i) ||
+        input.match(/\bza\s+(\d+)\s*dni\b/i) ||
+        input.match(/\bza\s+(\d+)\s*dzie[nń]\b/i) ||
+        input.match(/\btra\s+(\d+)\s*giorni\b/i) ||
+        input.match(/\bfra\s+(\d+)\s*giorni\b/i) ||
+        input.match(/\bem\s+(\d+)\s*dias?\b/i) ||
+        input.match(/\bdaqui\s+a\s+(\d+)\s*dias?\b/i);
+
+      const weeksMatch = !daysMatch && (
+        input.match(/(?:через|за)\s+(\d+)\s*(?:тижн[іьея]|тижнів|неділь|тижде?нь)/i) ||
+        input.match(/(?:через|за)\s+(\d+)\s*(?:недел[иьюя]|недель)/i) ||
+        input.match(/\bin\s+(\d+)\s*weeks?\b/i) ||
+        input.match(/\bin\s+(\d+)\s*Wochen?\b/i) ||
+        input.match(/\bdans\s+(\d+)\s*semaines?\b/i) ||
+        input.match(/\ben\s+(\d+)\s*semanas?\b/i) ||
+        input.match(/\bza\s+(\d+)\s*tygodni[aey]?\b/i) ||
+        input.match(/\btra\s+(\d+)\s*settimane?\b/i) ||
+        input.match(/\bfra\s+(\d+)\s*settimane?\b/i) ||
+        input.match(/\bem\s+(\d+)\s*semanas?\b/i) ||
+        input.match(/\bdaqui\s+a\s+(\d+)\s*semanas?\b/i)
+      );
+
+      const nMatch = daysMatch || weeksMatch;
+      if (nMatch) {
+        const n = parseInt(nMatch[1]);
+        const days = daysMatch ? n : n * 7;
+        if (days > 0 && days <= 365) {
+          const targetDate = new Date(localNow);
+          targetDate.setDate(localNow.getDate() + days);
+
+          // Check if there's also a time specified
+          const timeInInput = input.match(/\b(\d{1,2}):(\d{2})\b/) ||
+                              input.match(/\b(\d{1,2})\s*Uhr\b/i);
+          let h = 0, m = 0, hasTime = false;
+          if (timeInInput) {
+            h = parseInt(timeInInput[1]);
+            m = timeInInput[2] ? parseInt(timeInInput[2]) : 0;
+            const hasPMd = /(вечора|вечера|вечером|abends|du\s+soir|de\s+la\s+noche|di\s+sera|da\s+noite|pm\b)/i.test(input);
+            if (hasPMd && h < 12) h += 12;
+            hasTime = true;
+          }
+
+          const dateStr = targetDate.toISOString().slice(0, 10);
+          const datetime = hasTime
+            ? `${dateStr}T${p2(h)}:${p2(m)}:00${offStr(offsetMinutes)}`
+            : `${dateStr}T00:00:00${offStr(offsetMinutes)}`;
+
+          // Extract task
+          const taskText = removeTriggerWords(input)
+            .replace(/(?:через|за)\s+\d+\s*\S+/i, '')
+            .replace(/\bin\s+\d+\s*\S+/i, '')
+            .replace(/\bdans\s+\d+\s*\S+/i, '')
+            .replace(/\ben\s+\d+\s*\S+/i, '')
+            .replace(/\bza\s+\d+\s*\S+/i, '')
+            .replace(/\btra\s+\d+\s*\S+/i, '')
+            .replace(/\bfra\s+\d+\s*\S+/i, '')
+            .replace(/\bem\s+\d+\s*\S+/i, '')
+            .replace(/\bdaqui\s+a\s+\d+\s*\S+/i, '')
+            .replace(/\d{1,2}:\d{2}/g, '')
+            .replace(/\b(Uhr|pm|am)\b/gi, '')
+            .replace(/(вечора|вечера|ранку|утра)/gi, '')
+            .replace(/^(на|в|о|у)\s+/i, '')
+            .replace(/\s+/g, ' ').trim();
+
+          // If no time → return empty datetime so user picks time
+          if (!hasTime) {
+            console.log(`[PRE-DAYS] "${input}" → task:"${taskText}" date:${dateStr} (no time → picker)`);
+            return res.json({ ok: true, text: taskText, datetime: '', source: 'unparsed' });
+          }
+
+          console.log(`[PRE-DAYS] "${input}" → ${datetime} (task: "${taskText}")`);
+          return res.json({ ok: true, text: taskText, datetime, source: 'pre' });
+        }
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     // ── Deterministic weekday + time parser ──────────────────────────────────
     // Handles: "on Friday at 21:00", "am Freitag um 21 Uhr", "vendredi à 21h" etc.
     // Only fires when BOTH weekday AND unambiguous time are present
