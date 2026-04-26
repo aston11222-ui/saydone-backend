@@ -83,7 +83,7 @@ STEP 1 — Remove these trigger words (they are NEVER part of the task):
   RU: поставь, напомни, поставь напоминание, напоминание, напомни мне, поставь будильник, поставь на, напомни на
   UK: нагадай, постав, постав нагадування, нагадування, нагадай мені, постав на, нагадай на
   EN: remind me, set a reminder, set reminder, remember, alert me, set a reminder for, remind me at, remind me in
-  DE: erinnere mich, erinnerung setzen, erinnere, stell eine erinnerung, erinnere mich um, erinnere mich in
+  DE: erinnere mich, erinnere mich daran, erinnerung setzen, erinnere, stell eine erinnerung, erinnere mich um, erinnere mich in
   FR: rappelle-moi, rappel, mets un rappel, rappelle-moi à, rappelle-moi dans
   ES: recuérdame, ponme un recordatorio, recordatorio, ponme recordatorio, recuérdame a, recuérdame en
   PL: przypomnij mi, ustaw przypomnienie, przypomnij, przypomnij mi o, przypomnij mi za
@@ -307,7 +307,8 @@ All words meaning "today":
 ──────────────────────────────────────── 
 2F. WEEKDAYS — use the NEXT occurrence of that day
 Today is ${dow} (index ${todayDow}). 
-IMPORTANT: if the user says today's weekday name → use NEXT week, NOT today.
+IMPORTANT: ALWAYS use the NEXT future occurrence. NEVER return a past date for weekday names.
+CRITICAL: The result date MUST be ≥ today (${todayStr}). If calculated date < today → add 7 days.
 
 Monday    / Понедельник / Понеділок / Montag     / Lundi    / Lunes     / Poniedziałek / Lunedì    / Segunda-feira → ${nextDow(1)}
 Tuesday   / Вторник     / Вівторок  / Dienstag   / Mardi    / Martes    / Wtorek       / Martedì   / Terça-feira   → ${nextDow(2)}
@@ -1446,6 +1447,20 @@ app.post("/parse", auth, async (req, res) => {
           }
         } else if (hasExplicitDate) {
           console.log(`[FIX] skipped — explicit date word detected in: "${input}"`);
+          // But still check: if AI returned a PAST date with weekday → fix to future
+          try {
+            const resultDt2 = new Date(result.datetime);
+            const nowDateOnly2 = new Date(Date.UTC(localNow.getFullYear(), localNow.getMonth(), localNow.getDate()));
+            const resultDateOnly2 = new Date(Date.UTC(resultDt2.getFullYear(), resultDt2.getMonth(), resultDt2.getDate()));
+            if (resultDateOnly2 < nowDateOnly2) {
+              // Past date — add 7 days to make it future
+              const fixedDt = new Date(resultDt2);
+              fixedDt.setDate(fixedDt.getDate() + 7);
+              const fixedIso = fixedDt.toISOString().replace('Z', offStr(offsetMinutes)).slice(0, 19) + offStr(offsetMinutes);
+              console.log(`[FIX] Past weekday date ${result.datetime} → ${fixedIso}`);
+              result = { ...result, datetime: fixedIso };
+            }
+          } catch(e) { console.warn('[FIX weekday] error:', e.message); }
         }
       } catch (fixErr) {
         console.warn("[FIX] error:", fixErr.message);
