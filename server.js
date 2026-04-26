@@ -1251,7 +1251,14 @@ app.post("/parse", auth, async (req, res) => {
 
           // Check if there's also a time specified
           const timeInInput = input.match(/\b(\d{1,2}):(\d{2})\b/) ||
-                              input.match(/\b(\d{1,2})\s*Uhr\b/i);
+                              input.match(/\b(\d{1,2})\s*Uhr\b/i) ||
+                              input.match(/(\d{1,2})-[а-яіїєА-ЯІЇЄa-z]+/) ||
+                              input.match(/в\s+(\d{1,2})\s+(?:вечера|вечора|ранку|утра|ночи|ночі)/i) ||
+                              input.match(/о\s+(\d{1,2})\s+(?:вечора|вечера|ранку|утра)/i) ||
+                              input.match(/\bat\s+(\d{1,2})\s*(pm|am)\b/i) ||
+                              input.match(/\balle\s+(\d{1,2})\b/i) ||
+                              input.match(/(?:^|\s)à\s+(\d{1,2})\b/i) ||
+                              input.match(/\ba\s+las\s+(\d{1,2})\b/i);
           let h = 0, m = 0, hasTime = false;
           if (timeInInput) {
             h = parseInt(timeInInput[1]);
