@@ -1385,16 +1385,21 @@ app.post("/parse", auth, async (req, res) => {
           targetDate.setDate(localNow.getDate() + days);
 
           // Check if there's also a time specified
-          const timeInInput = input.match(/\b(\d{1,2}):(\d{2})\b/) ||
-                              input.match(/\b(\d{1,2})\s*Uhr\b/i) ||
-                              input.match(/(\d{1,2})-[а-яіїєА-ЯІЇЄa-z]+/) ||
-                              input.match(/в\s+(\d{1,2})\s+(?:вечера|вечора|ранку|утра|ночи|ночі)/i) ||
-                              input.match(/о\s+(\d{1,2})\s+(?:вечора|вечера|ранку|утра)/i) ||
-                              input.match(/на\s+(\d{1,2})\s+(?:годин\s+)?(?:вечора|вечера|ранку|утра|ночи|ночі)/i) ||
-                              input.match(/\bat\s+(\d{1,2})\s*(pm|am)\b/i) ||
-                              input.match(/\balle\s+(\d{1,2})\b/i) ||
-                              input.match(/(?:^|\s)à\s+(\d{1,2})\b/i) ||
-                              input.match(/\ba\s+las\s+(\d{1,2})\b/i);
+          const timeInInput = normInputGlobal.match(/\b(\d{1,2}):(\d{2})\b/) ||
+                              normInputGlobal.match(/\b(\d{1,2})\s*Uhr\b/i) ||
+                              normInputGlobal.match(/(\d{1,2})-[а-яіїєА-ЯІЇЄa-z]+/) ||
+                              normInputGlobal.match(/в\s+(\d{1,2})\s+(?:вечера|вечора|ранку|утра|ночи|ночі)/i) ||
+                              normInputGlobal.match(/о\s+(\d{1,2})\s+(?:вечора|вечера|ранку|утра)/i) ||
+                              normInputGlobal.match(/на\s+(\d{1,2})\s+(?:годин\s+)?(?:вечора|вечера|ранку|утра|ночи|ночі)/i) ||
+                              normInputGlobal.match(/\bat\s+(\d{1,2})\s*(pm|am)\b/i) ||
+                              normInputGlobal.match(/[ap]\.m\./) ||
+                              normInputGlobal.match(/\balle\s+(\d{1,2})\b/i) ||
+                              normInputGlobal.match(/(?:à|a)\s+(\d{1,2})h\b/i) ||
+                              normInputGlobal.match(/(?:^|\s)à\s+(\d{1,2})\b/i) ||
+                              normInputGlobal.match(/(?:^|\s)às\s+(\d{1,2})\b/i) ||
+                              normInputGlobal.match(/às\s+(\d{1,2})\s+horas?\b/i) ||
+                              normInputGlobal.match(/alle?\s+(\d{1,2})\s+(?:horas?|Uhr)\b/i) ||
+                              normInputGlobal.match(/\ba\s+las\s+(\d{1,2})\b/i);
           let h = 0, m = 0, hasTime = false;
           if (timeInInput) {
             h = parseInt(timeInInput[1]);
@@ -1435,11 +1440,20 @@ app.post("/parse", auth, async (req, res) => {
             .replace(/\b(horas?|heures?|Stunden?|hours?|ore\b)/gi, '')
             // Remove connector words (all languages)
             .replace(/\b(que|di|de|al|że|żeby|żebym|co)\b/gi, '')
-            // Remove standalone preposition 'o' (PL) at end
-            .replace(/\s+o$/i, '')
+            // Remove standalone prepositions at end
+            .replace(/\s+(o|we|à|às|al|di|del|d)\s*$/i, '')
             .replace(/\bo\s*$/i, '')
+            // Remove bare number+h leftovers (à 20h → "20" or "h" remains)
+            .replace(/\b\d{1,2}h\b/gi, '')
+            .replace(/(?:^|\s)\d{1,2}\s*$/g, '')
+            // Remove "del mattino/sera" leftovers
+            .replace(/\b(mattino|sera|matin|soir|mañana|noche|manhã|noite|rano|horas?)\b/gi, '')
+            // Remove leftover time parts (FR/PT/IT bare hour remnants)
+            .replace(/(?:^|\s)(à|às|alle)\s+\d+\s*/gi, ' ')
+            .replace(/\b(horas?|heures?|Stunden?|Uhr)\b/gi, '')
+            .replace(/[ap]\.m\./gi, '')
             // Remove leftover prepositions at start
-            .replace(/^(на|в|о|у|a|le|o|à)\s+/i, '')
+            .replace(/^(на|в|о|у|a|le|o|à|às|de|da|lembro-me)\s+/i, '')
             .replace(/\s+/g, ' ').trim();
 
           // If no time → return empty datetime so user picks time
@@ -1576,7 +1590,7 @@ app.post("/parse", auth, async (req, res) => {
 
         // Determine if AM/PM word present
         const hasPRE24AM = /(ранку|вранці|утра|morning|am|a\.m\.|morgens|du\s+matin|de\s+la\s+mañana|di\s+mattina|da\s+manhã|rano|mattina)/i.test(input);
-        const hasPRE24PM = /(вечора|вечера|evening|pm|p\.m\.|abends|du\s+soir|de\s+la\s+noche|di\s+sera|da\s+noite|wieczor)/i.test(input);
+        const hasPRE24PM = /(вечора|вечера|evening|pm|p\.m\.|abends|du\s+soir|de\s+la\s+noche|di\s+sera|da\s+noite|wieczor)/i.test(normInputGlobal);
         let adjH = h;
         if (hasPRE24PM && h < 12) adjH = h + 12;
         if (hasPRE24AM && h === 12) adjH = 0;
@@ -1623,6 +1637,9 @@ app.post("/parse", auth, async (req, res) => {
             // Remove period words (all languages)
             .replace(/(вечора|вечера|вечором|увечері|ввечері|ранку|вранці|зранку|утра|ночи|дня)/gi, '')
             .replace(/\b(evening|morning|night|afternoon|noon|pm|am|abends|morgens|soir|matin|noche|tarde|sera|mattina|manhã|noite|rano|wieczorem?)\b/gi, '')
+            .replace(/[ap]\.m\./gi, '')
+            .replace(/\b(horas?|heures?|Stunden?|hours?|ore\b)/gi, '')
+            .replace(/(?:^|\s)(à|às)\s+\d+\s*/gi, ' ')
             // Remove connector words at start (FR d', ES que, PL że, IT di, PT de)
             .replace(/^(d['\u2019]|que\s+|\u017ce\s+|\u017ceby\s+|di\s+|de\s+|da\s+)/i, '')
             // Remove leftover single prepositions at start
@@ -1840,26 +1857,28 @@ app.post("/parse", auth, async (req, res) => {
       if (!resultText || resultText === input.trim()) {
         // Only skip if input has NO time references at all
         const hasTimeRefTrigger = (
-          /\d{1,2}[:h]\d{2}/.test(input) ||
-          /\d+\s*(мин|час|хв|годин|min|hour|heure|hora|minuto|ora|Minute|Stunde|minut[aey]?|godzin)/i.test(input) ||
-          /(утра|вечера|ночи|дня|утром|вечером|ранку|вечора)/i.test(input) ||
-        /(годину|години|годин|години)/i.test(input) ||  // UK hours word form
-          /\b(morning|evening|night|afternoon|midnight|noon)\b/i.test(input) ||
-          /\b(matin|soir|après-midi|minuit|midi)\b/i.test(input) ||
-          /\b(mañana|tarde|noche|mediodía|medianoche)\b/i.test(input) ||
-          /\b(rano|wieczor|południe|północ)\b/i.test(input) ||
-          /\b(mattina|sera|pomeriggio|mezzanotte|mezzogiorno)\b/i.test(input) ||
-          /\b(manhã|tarde|noite|madrugada|meia-noite|meio-dia)\b/i.test(input) ||
-          /\bdaqui\s+a\s+\d/i.test(input) ||
-          /\bdentro\s+de\s+\d/i.test(input) ||
-          /\b(morgens|abends|nachts|mittags|Uhr)\b/i.test(input) ||
-          /\bam\b/i.test(input) || /\bpm\b/i.test(input) || /[ap]\.m\./i.test(input) ||
-          /\bo\s+\d/i.test(input) || /\bo\s+godzinie\b/i.test(input) ||
-          /(?:^|\s)à\s+\d/i.test(input) || /(?:^|\s)às\s+\d/i.test(input) ||
-          /(?:^|\s)aos\s+\d/i.test(input) ||
-          /\balle\s+\d/i.test(input) || /\bum\s+\d/i.test(input) ||
-          /\ba\s+las\s+\d/i.test(input) || /\bat\s+\d/i.test(input) ||
-          /\b(eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf)\s+Uhr\b/i.test(input)
+          /\d{1,2}[:h]\d{2}/.test(normInputGlobal) ||
+          /\d+\s*(мин|час|хв|годин|min|hour|heure|hora|minuto|ora|Minute|Stunde|minut[aey]?|godzin)/i.test(normInputGlobal) ||
+          /(утра|вечера|ночи|дня|утром|вечером|ранку|вечора)/i.test(normInputGlobal) ||
+        /(годину|години|годин|години)/i.test(normInputGlobal) ||  // UK hours word form
+          /\b(morning|evening|night|afternoon|midnight|noon)\b/i.test(normInputGlobal) ||
+          /\b(matin|soir|après-midi|minuit|midi)\b/i.test(normInputGlobal) ||
+          /\b(mañana|tarde|noche|mediodía|medianoche)\b/i.test(normInputGlobal) ||
+          /\b(rano|wieczor|południe|północ)\b/i.test(normInputGlobal) ||
+          /\b(mattina|sera|pomeriggio|mezzanotte|mezzogiorno)\b/i.test(normInputGlobal) ||
+          /\b(manhã|tarde|noite|madrugada|meia-noite|meio-dia)\b/i.test(normInputGlobal) ||
+          /\bdaqui\s+a\s+\d/i.test(normInputGlobal) ||
+          /\bdentro\s+de\s+\d/i.test(normInputGlobal) ||
+          /\b(morgens|abends|nachts|mittags|Uhr)\b/i.test(normInputGlobal) ||
+          /(?:in|dans|en|tra|fra|em|za|через|за)\s+\d+\s*(?:h\b|heures?|horas?|ore?\b|godzin)/i.test(normInputGlobal) ||
+          /(?:^|\s)(?:à|às|alle)\s+\d{1,2}h\b/i.test(normInputGlobal) ||    // FR/IT bare Nh
+          /\bam\b/i.test(normInputGlobal) || /\bpm\b/i.test(normInputGlobal) || /[ap]\.m\./i.test(normInputGlobal) ||
+          /\bo\s+\d/i.test(normInputGlobal) || /\bo\s+godzinie\b/i.test(normInputGlobal) ||
+          /(?:^|\s)à\s+\d/i.test(normInputGlobal) || /(?:^|\s)às\s+\d/i.test(normInputGlobal) ||
+          /(?:^|\s)aos\s+\d/i.test(normInputGlobal) ||
+          /\balle\s+\d/i.test(normInputGlobal) || /\bum\s+\d/i.test(normInputGlobal) ||
+          /\ba\s+las\s+\d/i.test(normInputGlobal) || /\bat\s+\d/i.test(normInputGlobal) ||
+          /\b(eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf)\s+Uhr\b/i.test(normInputGlobal)
         );
         const triggerOnly = !hasTimeRefTrigger && /^[\s\p{P}]*(поставь|напомни|нагадай|remind|set a reminder|erinnere|rappelle|recuérdame|przypomnij|ricordami|lembra)[\s\p{P}]*мне?[\s\p{P}]*$/iu.test(input.trim());
         if (triggerOnly) {
@@ -1870,32 +1889,34 @@ app.post("/parse", auth, async (req, res) => {
 
       // If AI returned 09:00 but input had no explicit time → it's a default, show picker
       const hasTimeRef = (
-        /\d{1,2}[:h]\d{2}/.test(input) ||                                          // 9:00 8h30
-        /\d+\s*(мин|час|хв|годин|min|hour|heure|hora|minuto|ora|Minute|Stunde|minut[aey]?|godzin)/i.test(input) || // intervals
-        /(утра|вечера|ночи|дня|утром|вечером|ранку|вечора)/i.test(input) ||
-        /(годину|години|годин|години)/i.test(input) ||  // UK hours word form    // RU/UK period
-        /\b(morning|evening|night|afternoon|midnight|noon)\b/i.test(input) ||       // EN period
-        /\b(matin|soir|après-midi|minuit|midi)\b/i.test(input) ||                  // FR period
-        /\b(mañana|tarde|noche|mediodía|medianoche)\b/i.test(input) ||             // ES period
-        /\b(rano|wieczor|południe|północ|południu)\b/i.test(input) ||              // PL period
-        /\b(mattina|sera|pomeriggio|mezzanotte|mezzogiorno)\b/i.test(input) ||     // IT period
-        /\b(manhã|tarde|noite|madrugada|meia-noite|meio-dia)\b/i.test(input) ||    // PT period
-        /\bdaqui\s+a\s+\d/i.test(input) ||                                           // PT daqui a N
-        /\bdentro\s+de\s+\d/i.test(input) ||                                         // ES dentro de N
-        /\bpara\s+\d+\s*(?:minutos?|horas?)/i.test(input) ||                         // PT para N min/h
-        /\b(morgens|abends|nachts|mittags|Uhr)\b/i.test(input) ||                  // DE period
-        /\bam\b/i.test(input) ||                                                    // EN am (word boundary)
-        /\bpm\b/i.test(input) || /[ap]\.m\./i.test(input) ||                       // EN pm / p.m.
-        /\bo\s+\d/i.test(input) ||                                                  // PL/IT "o 9"
-        /\bo\s+godzinie\b/i.test(input) ||                                          // PL "o godzinie"
-        /(?:^|\s)à\s+\d/i.test(input) ||                                           // FR "à 9h"
-        /(?:^|\s)às\s+\d/i.test(input) ||                                          // PT "às 9h"
-        /(?:^|\s)aos\s+\d/i.test(input) ||                                         // PT "aos 10"
-        /\balle\s+\d/i.test(input) ||                                               // IT "alle 9"
-        /\bum\s+\d/i.test(input) ||                                                 // DE "um 9 Uhr"
-        /\ba\s+las\s+\d/i.test(input) ||                                            // ES "a las 9"
-        /\bat\s+\d/i.test(input) ||                                                 // EN "at 9"
-        /\b(eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf)\s+Uhr\b/i.test(input) // DE word hours
+        /\d{1,2}[:h]\d{2}/.test(normInputGlobal) ||                                          // 9:00 8h30
+        /\d+\s*(мин|час|хв|годин|min|hour|heure|hora|minuto|ora|Minute|Stunde|minut[aey]?|godzin)/i.test(normInputGlobal) || // intervals
+        /(утра|вечера|ночи|дня|утром|вечером|ранку|вечора)/i.test(normInputGlobal) ||
+        /(годину|години|годин|години)/i.test(normInputGlobal) ||  // UK hours word form    // RU/UK period
+        /\b(morning|evening|night|afternoon|midnight|noon)\b/i.test(normInputGlobal) ||       // EN period
+        /\b(matin|soir|après-midi|minuit|midi)\b/i.test(normInputGlobal) ||                  // FR period
+        /\b(mañana|tarde|noche|mediodía|medianoche)\b/i.test(normInputGlobal) ||             // ES period
+        /\b(rano|wieczor|południe|północ|południu)\b/i.test(normInputGlobal) ||              // PL period
+        /\b(mattina|sera|pomeriggio|mezzanotte|mezzogiorno)\b/i.test(normInputGlobal) ||     // IT period
+        /\b(manhã|tarde|noite|madrugada|meia-noite|meio-dia)\b/i.test(normInputGlobal) ||    // PT period
+        /\bdaqui\s+a\s+\d/i.test(normInputGlobal) ||                                           // PT daqui a N
+        /\bdentro\s+de\s+\d/i.test(normInputGlobal) ||                                         // ES dentro de N
+        /\bpara\s+\d+\s*(?:minutos?|horas?)/i.test(normInputGlobal) ||                         // PT para N min/h
+        /\b(morgens|abends|nachts|mittags|Uhr)\b/i.test(normInputGlobal) ||                  // DE period
+        /(?:in|dans|en|tra|fra|em|za|через|за)\s+\d+\s*(?:h\b|heures?|horas?|ore?\b|godzin)/i.test(normInputGlobal) ||  // Nh format
+        /(?:^|\s)(?:à|às|alle)\s+\d{1,2}h\b/i.test(normInputGlobal) ||    // FR/IT à 20h
+        /\bam\b/i.test(normInputGlobal) ||                                                    // EN am (word boundary)
+        /\bpm\b/i.test(normInputGlobal) || /[ap]\.m\./i.test(normInputGlobal) ||                       // EN pm / p.m.
+        /\bo\s+\d/i.test(normInputGlobal) ||                                                  // PL/IT "o 9"
+        /\bo\s+godzinie\b/i.test(normInputGlobal) ||                                          // PL "o godzinie"
+        /(?:^|\s)à\s+\d/i.test(normInputGlobal) ||                                           // FR "à 9h"
+        /(?:^|\s)às\s+\d/i.test(normInputGlobal) ||                                          // PT "às 9h"
+        /(?:^|\s)aos\s+\d/i.test(normInputGlobal) ||                                         // PT "aos 10"
+        /\balle\s+\d/i.test(normInputGlobal) ||                                               // IT "alle 9"
+        /\bum\s+\d/i.test(normInputGlobal) ||                                                 // DE "um 9 Uhr"
+        /\ba\s+las\s+\d/i.test(normInputGlobal) ||                                            // ES "a las 9"
+        /\bat\s+\d/i.test(normInputGlobal) ||                                                 // EN "at 9"
+        /\b(eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf)\s+Uhr\b/i.test(normInputGlobal) // DE word hours
       );
       if (!hasTimeRef && result.datetime) {
         // No time reference in input → AI invented a time → show picker instead
