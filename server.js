@@ -1218,7 +1218,7 @@ app.post("/parse", auth, async (req, res) => {
     {
       // Weekday detection — all 9 languages → index 0(Sun)..6(Sat)
       const dowPatterns = [
-        [0, /(sunday|dimanche|domingo|niedziela|domenica|domingo|воскресенье|неділю?|sonntag)/i],
+        [0, /(sunday|dimanche|domingo|niedziela|domenica|воскресенье|(?<![а-яіїєА-ЯІЇЄa-z])неділ[юяі]?(?![а-яіїєА-ЯІЇЄa-z])|sonntag)/i],
         [1, /(monday|lundi|lunes|poniedziałek|lunedì|segunda-?feira|segunda\b|понедельник|понеділо?к|montag)/i],
         [2, /(tuesday|mardi|martes|wtorek|martedì|terça-?feira|terça\b|вторник|вівторо?к|dienstag)/i],
         [3, /(wednesday|mercredi|miércoles|środa|mercoledì|quarta-?feira|quarta\b|среда|середа|mittwoch)/i],
