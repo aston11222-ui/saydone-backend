@@ -1215,7 +1215,28 @@ app.post("/parse", auth, async (req, res) => {
     // ── Deterministic N days/weeks parser ────────────────────────────────────
     // Handles: "через 3 дня", "in 3 days", "dans 3 jours", "za 3 dni" etc.
     {
-      const daysMatch = input.match(/(?:через|за)\s+(\d+)\s*(?:день|дня|дней|дні|днів|днів)/i) ||
+      // Word numbers → digits for RU/UK/EN
+      function normalizeWordNums(s) {
+        const map = {
+          // RU
+          'один':'1','два':'2','три':'3','четыре':'4','пять':'5',
+          'шесть':'6','семь':'7','восемь':'8','девять':'9','десять':'10',
+          'одного':'1','двух':'2','трёх':'3','четырёх':'4','пяти':'5',
+          // UK (key forms)
+          'чотири':'4','чотирьох':'4','п’ять':'5','шість':'6',
+          'сім':'7','вісім':'8','дев’ять':'9',
+          // EN
+          'one':'1','two':'2','three':'3','four':'4','five':'5',
+          'six':'6','seven':'7','eight':'8','nine':'9','ten':'10',
+        };
+        for (const [w, d] of Object.entries(map)) {
+          s = s.replace(new RegExp('(?:^|\\s)' + w.replace(/'/g, '[\\'’]') + '(?=\\s|$)', 'gi'), m => m.replace(w, d));
+        }
+        return s;
+      }
+      const normInput = normalizeWordNums(input);
+
+      const daysMatch = normInput.match(/(?:через|за)\s+(\d+)\s*(?:день|дня|дней|дні|днів|днів)/i) ||
         input.match(/\bin\s+(\d+)\s*days?\b/i) ||
         input.match(/\bin\s+(\d+)\s*Tagen?\b/i) ||
         input.match(/\bdans\s+(\d+)\s*jours?\b/i) ||
@@ -1228,8 +1249,8 @@ app.post("/parse", auth, async (req, res) => {
         input.match(/\bdaqui\s+a\s+(\d+)\s*dias?\b/i);
 
       const weeksMatch = !daysMatch && (
-        input.match(/(?:через|за)\s+(\d+)\s*(?:тижн[іьея]|тижнів|неділь|тижде?нь)/i) ||
-        input.match(/(?:через|за)\s+(\d+)\s*(?:недел[иьюя]|недель)/i) ||
+        normInput.match(/(?:через|за)\s+(\d+)\s*(?:тижн[іьея]|тижнів|неділь|тижде?нь)/i) ||
+        normInput.match(/(?:через|за)\s+(\d+)\s*(?:недел[иьюя]|недель)/i) ||
         input.match(/\bin\s+(\d+)\s*weeks?\b/i) ||
         input.match(/\bin\s+(\d+)\s*Wochen?\b/i) ||
         input.match(/\bdans\s+(\d+)\s*semaines?\b/i) ||
@@ -1274,20 +1295,23 @@ app.post("/parse", auth, async (req, res) => {
             : `${dateStr}T00:00:00${offStr(offsetMinutes)}`;
 
           // Extract task
-          const taskText = removeTriggerWords(input)
-            .replace(/(?:через|за)\s+\d+\s*\S+/i, '')
-            .replace(/\bin\s+\d+\s*\S+/i, '')
-            .replace(/\bdans\s+\d+\s*\S+/i, '')
-            .replace(/\ben\s+\d+\s*\S+/i, '')
-            .replace(/\bza\s+\d+\s*\S+/i, '')
-            .replace(/\btra\s+\d+\s*\S+/i, '')
-            .replace(/\bfra\s+\d+\s*\S+/i, '')
-            .replace(/\bem\s+\d+\s*\S+/i, '')
-            .replace(/\bdaqui\s+a\s+\d+\s*\S+/i, '')
+          const taskText = removeTriggerWords(normInput)
+            // Remove interval expressions (digits after normalization)
+            .replace(/(?:через|за)\s+\d+\s*\S+/gi, '')
+            .replace(/\bin\s+\d+\s*\S+/gi, '')
+            .replace(/\bdans\s+\d+\s*\S+/gi, '')
+            .replace(/\ben\s+\d+\s*\S+/gi, '')
+            .replace(/\bza\s+\d+\s*\S+/gi, '')
+            .replace(/\btra\s+\d+\s*\S+/gi, '')
+            .replace(/\bfra\s+\d+\s*\S+/gi, '')
+            .replace(/\bem\s+\d+\s*\S+/gi, '')
+            .replace(/\bdaqui\s+a\s+\d+\s*\S+/gi, '')
+            // Remove time parts
             .replace(/\d{1,2}:\d{2}/g, '')
             .replace(/\b(Uhr|pm|am)\b/gi, '')
-            .replace(/(вечора|вечера|ранку|утра)/gi, '')
-            .replace(/^(на|в|о|у)\s+/i, '')
+            .replace(/(вечора|вечера|ранку|утра|ночи|ночі)/gi, '')
+            // Remove leftover prepositions at start
+            .replace(/^(на|в|о|у|a|le)\s+/i, '')
             .replace(/\s+/g, ' ').trim();
 
           // If no time → return empty datetime so user picks time
@@ -1388,9 +1412,12 @@ app.post("/parse", auth, async (req, res) => {
 
     // ── Safe deterministic parser for exact HH:MM time + simple date ─────────
     // Only handles 100% unambiguous patterns to avoid AI cost
+    // SKIP if input has relative days/weeks — those are handled by PRE-DAYS
     {
+      const hasRelativeDays = /(?:через|за)\s+(\d+|один|два|три|чотир|п'ять|шість|сім|вісім|дев'ять|десять|one|two|three|four|five|six|seven|eight|nine|ten)\s*(?:день|дня|дней|дні|днів|тижн|недел|days?|weeks?|Tagen?|Wochen?|jours?|semaines?|días?|semanas?|dni|tygodni|giorni|settimane|dias?)/i.test(input);
+
       // Extract exact time: HH:MM or H:MM (24h)
-      const timeMatch = input.match(/\b(\d{1,2}):(\d{2})\b/);
+      const timeMatch = !hasRelativeDays && input.match(/\b(\d{1,2}):(\d{2})\b/);
 
       if (timeMatch) {
         const h = parseInt(timeMatch[1]);
