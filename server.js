@@ -1053,7 +1053,16 @@ app.post("/parse", auth, async (req, res) => {
 
       // Word numbers → digits for RU/UK/EN
     function normalizeWordNums(s) {
-      const map = {
+        // Compound numbers (ES/FR/IT/PT/DE)
+        s = s
+          .replace(/cuarenta\s+y\s+cinco/gi,'45').replace(/cuarenta\s+y\s+seis/gi,'46')
+          .replace(/treinta\s+y\s+cinco/gi,'35').replace(/treinta\s+y\s+seis/gi,'36')
+          .replace(/veinte\s+y\s+cinco/gi,'25').replace(/veinte\s+y\s+uno/gi,'21')
+          .replace(/vingt\s+et\s+un/gi,'21').replace(/vingt-cinq/gi,'25').replace(/trente\s+et\s+un/gi,'31')
+          .replace(/venticinque/gi,'25').replace(/ventuno/gi,'21').replace(/quarantacinque/gi,'45').replace(/trentacinque/gi,'35')
+          .replace(/vinte\s+e\s+cinco/gi,'25').replace(/vinte\s+e\s+um/gi,'21').replace(/quarenta\s+e\s+cinco/gi,'45').replace(/trinta\s+e\s+cinco/gi,'35')
+          .replace(/fünfundvierzig/gi,'45').replace(/fünfunddreißig/gi,'35').replace(/fünfundzwanzig/gi,'25').replace(/einundzwanzig/gi,'21');
+        const map = {
         // RU
         'один':'1','два':'2','три':'3','четыре':'4','пять':'5',
         'шесть':'6','семь':'7','восемь':'8','девять':'9','десять':'10',
@@ -1165,6 +1174,8 @@ app.post("/parse", auth, async (req, res) => {
         /\bdaqui\s+a\s+(\d+(?:[.,]\d+)?)\s*(?:minutos?|min)\b/i
       ) || normInputGlobal.match(
         /\bpara\s+(\d+(?:[.,]\d+)?)\s*(?:minutos?|min)\b/i
+      ) || normInputGlobal.match(
+        /\bpara\s+(\d+(?:[.,]\d+)?)\s*(?:horas?)\b/i
       );
 
       const hourMatch = normInputGlobal.match(
@@ -1206,7 +1217,7 @@ app.post("/parse", auth, async (req, res) => {
         /\bza\s+godzin[ęe]/i.test(input) ||
         /\btra\s+un['']?ora\b/i.test(input) ||
         /\bfra\s+un['']?ora\b/i.test(input) ||
-        /\bem\s+uma\s+hora\b/i.test(normInputGlobal) ||
+        /\bem\s+(?:uma?|1)\s+hora\b/i.test(normInputGlobal) ||
         /\bdentro\s+de\s+(?:una?|1)\s+hora\b/i.test(normInputGlobal) ||
         /\bdaqui\s+a\s+(?:uma?|1)\s+hora\b/i.test(normInputGlobal) ||
         /\bpara\s+(?:uma?|1)\s+hora\b/i.test(normInputGlobal)
