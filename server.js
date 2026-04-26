@@ -1255,6 +1255,11 @@ app.post("/parse", auth, async (req, res) => {
 
         taskText = removeTriggers(taskText);
         taskText = removeTriggers(taskText); // second pass catches leftovers
+        // Remove word-number interval expressions that survived
+        taskText = taskText
+          .replace(/(?:через|за)\s+(?:один|два|дві|две|три|чотири|четыре|п['’]ять|пять|шість|шесть|сім|семь|вісім|восемь|дев['’]ять|девять|десять|one|two|three|four|five|six|seven|eight|nine|ten|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|deux|trois|quatre|cinq|sept|huit|neuf|dix|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|dwa|dwie|trzy|cztery|due|tre|quattro|cinque|dois|duas|três|quatro)\s*\S+/gi, '')
+          .replace(/^(на|в|о|у|a)\s+/i, '')
+          .replace(/\s+/g, ' ').trim();
 
         const datetime = toIso(preResult.dt, offsetMinutes);
         console.log(`[PRE] "${input}" → ${datetime} (task: "${taskText}")`);
@@ -1310,6 +1315,7 @@ app.post("/parse", auth, async (req, res) => {
                               input.match(/(\d{1,2})-[а-яіїєА-ЯІЇЄa-z]+/) ||
                               input.match(/в\s+(\d{1,2})\s+(?:вечера|вечора|ранку|утра|ночи|ночі)/i) ||
                               input.match(/о\s+(\d{1,2})\s+(?:вечора|вечера|ранку|утра)/i) ||
+                              input.match(/на\s+(\d{1,2})\s+(?:годин\s+)?(?:вечора|вечера|ранку|утра|ночи|ночі)/i) ||
                               input.match(/\bat\s+(\d{1,2})\s*(pm|am)\b/i) ||
                               input.match(/\balle\s+(\d{1,2})\b/i) ||
                               input.match(/(?:^|\s)à\s+(\d{1,2})\b/i) ||
@@ -1345,7 +1351,7 @@ app.post("/parse", auth, async (req, res) => {
             .replace(/\b(Uhr|pm|am)\b/gi, '')
             .replace(/(вечора|вечера|ранку|утра|ночи|ночі)/gi, '')
             // Remove leftover prepositions at start
-            .replace(/^(на|в|о|у|a|le)\s+/i, '')
+            .replace(/^(на|в|о|у|a|le|o)\s+/i, '')
             .replace(/\s+/g, ' ').trim();
 
           // If no time → return empty datetime so user picks time
@@ -1433,6 +1439,9 @@ app.post("/parse", auth, async (req, res) => {
             // Latin period words
             .replace(/\b(evening|morning|night|afternoon|noon|midnight|soir|matin|noche|mañana|tarde|sera|mattina|manhã|noite|rano|wieczorem?|wieczór)\b/gi, '')
             .replace(/\b(daran|zurück)\b/gi, '')
+            // Remove ordinal suffixes like "-ту", "-му", "-ій"
+            .replace(/^-[а-яіїєА-ЯІЇЄ]+\s*/i, '')
+            .replace(/\s+-[а-яіїєА-ЯІЇЄ]+/gi, '')
             // Remove leftover prepositions at start
             .replace(/^(на|в|о|у|o|a|le|el)\s+/i, '')
             .replace(/\s+/g, ' ').trim();
@@ -1457,8 +1466,16 @@ app.post("/parse", auth, async (req, res) => {
         const h = parseInt(timeMatch[1]);
         const m = parseInt(timeMatch[2]);
 
-        // Only handle unambiguous 24h times (13-23 = clearly PM, or explicit context)
-        if (h >= 13 && h <= 23 && m >= 0 && m <= 59) {
+        // Determine if AM/PM word present
+        const hasPRE24AM = /(ранку|вранці|утра|morning|am|a\.m\.|morgens|du\s+matin|de\s+la\s+mañana|di\s+mattina|da\s+manhã|rano|mattina)/i.test(input);
+        const hasPRE24PM = /(вечора|вечера|evening|pm|p\.m\.|abends|du\s+soir|de\s+la\s+noche|di\s+sera|da\s+noite|wieczor)/i.test(input);
+        let adjH = h;
+        if (hasPRE24PM && h < 12) adjH = h + 12;
+        if (hasPRE24AM && h === 12) adjH = 0;
+
+        // Handle 24h times OR 12h with explicit AM/PM word
+        if ((adjH >= 13 || hasPRE24AM || hasPRE24PM) && adjH >= 0 && adjH <= 23 && m >= 0 && m <= 59) {
+          const finalH = adjH;
           // Clear 24h time — determine date
           const statedMinutes = h * 60 + m;
           const nowMinutes = localNow.getHours() * 60 + localNow.getMinutes();
@@ -1484,7 +1501,7 @@ app.post("/parse", auth, async (req, res) => {
             dateStr = d.toISOString().slice(0, 10);
           }
 
-          const datetime = `${dateStr}T${p2(h)}:${p2(m)}:00${offStr(offsetMinutes)}`;
+          const datetime = `${dateStr}T${p2(finalH)}:${p2(m)}:00${offStr(offsetMinutes)}`;
 
           // Extract task text
           const taskText = removeTriggerWords(input)
