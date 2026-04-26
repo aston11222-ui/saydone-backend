@@ -1115,46 +1115,58 @@ app.post("/parse", auth, async (req, res) => {
     {
       const relMatch = normInputGlobal.match(
         /(?:через|за)\s+(\d+(?:[.,]\d+)?)\s*(?:минут[аыу]?|минут\b|хвилин[аиу]?|хвилин\b|хв\.?|мин\.?)/i
-      ) || input.match(
+      ) || normInputGlobal.match(
         /\bin\s+(\d+(?:[.,]\d+)?)\s*(?:min(?:ute)?s?)\b/i
-      ) || input.match(
+      ) || normInputGlobal.match(
         /\bdans\s+(\d+(?:[.,]\d+)?)\s*(?:min(?:ute)?s?)\b/i
-      ) || input.match(
+      ) || normInputGlobal.match(
         /\bin\s+(\d+(?:[.,]\d+)?)\s*(?:Minute[n]?)\b/i
-      ) || input.match(
+      ) || normInputGlobal.match(
         /\ben\s+(\d+(?:[.,]\d+)?)\s*(?:min(?:uto)?s?)\b/i
-      ) || input.match(
+      ) || normInputGlobal.match(
         /\bza\s+(\d+(?:[.,]\d+)?)\s*(?:minut[aey]?|min)\b/i
-      ) || input.match(
+      ) || normInputGlobal.match(
         /\btra\s+(\d+(?:[.,]\d+)?)\s*(?:minut[oi]|min)\b/i
-      ) || input.match(
+      ) || normInputGlobal.match(
         /\bfra\s+(\d+(?:[.,]\d+)?)\s*(?:minut[oi]|min)\b/i
-      ) || input.match(
+      ) || normInputGlobal.match(
         /\bem\s+(\d+(?:[.,]\d+)?)\s*(?:minuto?s?)\b/i
+      ) || normInputGlobal.match(
+        /\bdentro\s+de\s+(\d+(?:[.,]\d+)?)\s*(?:minutos?|min)\b/i
+      ) || normInputGlobal.match(
+        /\bdaqui\s+a\s+(\d+(?:[.,]\d+)?)\s*(?:minutos?|min)\b/i
+      ) || normInputGlobal.match(
+        /\bpara\s+(\d+(?:[.,]\d+)?)\s*(?:minutos?|min)\b/i
       );
 
       const hourMatch = normInputGlobal.match(
         /(?:через|за)\s+(\d+(?:[.,]\d+)?)\s*(?:час[аов]?|час\b|годин[аиу]?|годин\b|год\.?)/i
-      ) || input.match(
+      ) || normInputGlobal.match(
         /\bin\s+(\d+(?:[.,]\d+)?)\s*(?:hours?|h)\b/i
-      ) || input.match(
+      ) || normInputGlobal.match(
         /\bin\s+(\d+(?:[.,]\d+)?)\s*(?:Stunden?)\b/i
-      ) || input.match(
-        /\bdans\s+(\d+(?:[.,]\d+)?)\s*(?:heures?)\b/i
-      ) || input.match(
-        /\ben\s+(\d+(?:[.,]\d+)?)\s*(?:horas?)\b/i
-      ) || input.match(
+      ) || normInputGlobal.match(
+        /\bdans\s+(\d+(?:[.,]\d+)?)\s*(?:heures?|h)\b/i
+      ) || normInputGlobal.match(
+        /\ben\s+(\d+(?:[.,]\d+)?)\s*(?:horas?|h)\b/i
+      ) || normInputGlobal.match(
         /\bza\s+(\d+(?:[.,]\d+)?)\s*(?:godzin[aey]?|godz)\b/i
-      ) || input.match(
+      ) || normInputGlobal.match(
         /\btra\s+(\d+(?:[.,]\d+)?)\s*(?:ora[e]?|ore)\b/i
-      ) || input.match(
+      ) || normInputGlobal.match(
         /\bfra\s+(\d+(?:[.,]\d+)?)\s*(?:ora[e]?|ore)\b/i
-      ) || input.match(
+      ) || normInputGlobal.match(
         /\bem\s+(\d+(?:[.,]\d+)?)\s*(?:horas?)\b/i
+      ) || normInputGlobal.match(
+        /\bdentro\s+de\s+(\d+(?:[.,]\d+)?)\s*horas?\b/i
+      ) || normInputGlobal.match(
+        /\bdaqui\s+a\s+(\d+(?:[.,]\d+)?)\s*horas?\b/i
+      ) || normInputGlobal.match(
+        /\bpara\s+(\d+(?:[.,]\d+)?)\s*horas?\b/i
       );
 
       // Special: через полчаса / через пів години / in half an hour
-      const halfHourMatch = /через\s+полчаса|через\s+пів\s+год|in\s+half\s+an\s+hour|dans\s+une\s+demi|en\s+media\s+hora|za\s+pół\s+godziny|tra\s+mezz['']ora|em\s+meia\s+hora/i.test(input);
+      const halfHourMatch = /через\s+полчаса|через\s+пів\s+год|in\s+half\s+an\s+hour|dans\s+une\s+demi|en\s+media\s+hora|za\s+pół\s+godziny|tra\s+mezz['']ora|em\s+meia\s+hora|dentro\s+de\s+media\s+hora|daqui\s+a\s+meia\s+hora/i.test(normInputGlobal);
       // через час / через годину / in an hour — anywhere in string, all languages
       const oneHourMatch = !halfHourMatch && (
         /(?:через|за)\s+(?:один\s+)?час(?!\S)/i.test(normInputGlobal) ||
@@ -1166,7 +1178,10 @@ app.post("/parse", auth, async (req, res) => {
         /\bza\s+godzin[ęe]/i.test(input) ||
         /\btra\s+un['']?ora\b/i.test(input) ||
         /\bfra\s+un['']?ora\b/i.test(input) ||
-        /\bem\s+uma\s+hora\b/i.test(input)
+        /\bem\s+uma\s+hora\b/i.test(normInputGlobal) ||
+        /\bdentro\s+de\s+una\s+hora\b/i.test(normInputGlobal) ||
+        /\bdaqui\s+a\s+uma\s+hora\b/i.test(normInputGlobal) ||
+        /\bpara\s+uma\s+hora\b/i.test(normInputGlobal)
       );
 
       let preResult = null;
@@ -1367,12 +1382,19 @@ app.post("/parse", auth, async (req, res) => {
             .replace(/\bfra\s+\d+\s*\S+/gi, '')
             .replace(/\bem\s+\d+\s*\S+/gi, '')
             .replace(/\bdaqui\s+a\s+\d+\s*\S+/gi, '')
+            .replace(/\bdentro\s+de\s+\d+\s*\S+/gi, '')
             // Remove time parts
             .replace(/\d{1,2}:\d{2}/g, '')
+            .replace(/\b\d{1,2}h\b/gi, '')
             .replace(/\b(Uhr|pm|am)\b/gi, '')
             .replace(/(вечора|вечера|ранку|утра|ночи|ночі)/gi, '')
+            // Remove period phrases (FR/ES/IT/PT)
+            .replace(/\b(de\s+la\s+(?:mañana|tarde|noche)|du\s+(?:soir|matin)|di\s+(?:sera|mattina)|da\s+(?:manhã|noite|tarde))\b/gi, '')
+            .replace(/\b(horas?|heures?|Stunden?|hours?|ore\b)/gi, '')
+            // Remove connector words
+            .replace(/\b(que|di|de|al)\b/gi, '')
             // Remove leftover prepositions at start
-            .replace(/^(на|в|о|у|a|le|o)\s+/i, '')
+            .replace(/^(на|в|о|у|a|le|o|à)\s+/i, '')
             .replace(/\s+/g, ' ').trim();
 
           // If no time → return empty datetime so user picks time
@@ -1459,6 +1481,11 @@ app.post("/parse", auth, async (req, res) => {
             .replace(/(вечера|вечора|вечором|увечері|ввечері|ранку|вранці|зранку|утра|ночи|дня)/gi, '')
             // Latin period words
             .replace(/\b(evening|morning|night|afternoon|noon|midnight|soir|matin|noche|mañana|tarde|sera|mattina|manhã|noite|rano|wieczorem?|wieczór)\b/gi, '')
+            // Time unit words that might remain after hour extraction
+            .replace(/\b(horas?|heures?|Stunden?|hours?)\b/gi, '')
+            // Connector words (FR de/d', ES que/de, IT di/al/il/mio/la, PT de/da/do)
+            .replace(/\bde\s+la\b/gi, '').replace(/\bde\b/gi, '')
+            .replace(/\bque\b/gi, '').replace(/\bal\b/gi, '').replace(/\bdi\b/gi, '')
             .replace(/\b(daran|zurück)\b/gi, '')
             // Remove ordinal suffixes like "-ту", "-му", "-ій"
             .replace(/^-[а-яіїєА-ЯІЇЄ]+\s*/i, '')
@@ -1478,7 +1505,7 @@ app.post("/parse", auth, async (req, res) => {
     // Only handles 100% unambiguous patterns to avoid AI cost
     // SKIP if input has relative days/weeks — those are handled by PRE-DAYS
     {
-      const hasRelativeDays = /(?:через|за)\s+(\d+|один|два|три|чотир|п'ять|шість|сім|вісім|дев'ять|десять|one|two|three|four|five|six|seven|eight|nine|ten)\s*(?:день|дня|дней|дні|днів|тижн|недел|days?|weeks?|Tagen?|Wochen?|jours?|semaines?|días?|semanas?|dni|tygodni|giorni|settimane|dias?)/i.test(input);
+      const hasRelativeDays = /(?:через|за|in|dans|en|za|tra|fra|em|dentro\s+de|daqui\s+a)\s+(\d+|один|два|три|чотир|п.ять|шість|сім|вісім|дев.ять|десять|one|two|three|four|five|six|seven|eight|nine|ten|ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|deux|trois|quatre|cinq|sept|huit|neuf|dix|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|dwa|dwie|trzy|cztery|due|tre|quattro|cinque|sei|sette|otto|nove|dois|duas|três|quatro)\s*(?:день|дня|дней|дні|днів|тижн|недел|days?|weeks?|Tagen?|Wochen?|jours?|semaines?|días?|semanas?|dni|tygodni|giorni|settimane|dias?)/i.test(input);
 
       // Extract exact time: HH:MM or H:MM (24h)
       const timeMatch = !hasRelativeDays && input.match(/\b(\d{1,2}):(\d{2})\b/);
@@ -1761,6 +1788,8 @@ app.post("/parse", auth, async (req, res) => {
           /\b(rano|wieczor|południe|północ)\b/i.test(input) ||
           /\b(mattina|sera|pomeriggio|mezzanotte|mezzogiorno)\b/i.test(input) ||
           /\b(manhã|tarde|noite|madrugada|meia-noite|meio-dia)\b/i.test(input) ||
+          /\bdaqui\s+a\s+\d/i.test(input) ||
+          /\bdentro\s+de\s+\d/i.test(input) ||
           /\b(morgens|abends|nachts|mittags|Uhr)\b/i.test(input) ||
           /\bam\b/i.test(input) || /\bpm\b/i.test(input) || /[ap]\.m\./i.test(input) ||
           /\bo\s+\d/i.test(input) || /\bo\s+godzinie\b/i.test(input) ||
@@ -1789,6 +1818,9 @@ app.post("/parse", auth, async (req, res) => {
         /\b(rano|wieczor|południe|północ|południu)\b/i.test(input) ||              // PL period
         /\b(mattina|sera|pomeriggio|mezzanotte|mezzogiorno)\b/i.test(input) ||     // IT period
         /\b(manhã|tarde|noite|madrugada|meia-noite|meio-dia)\b/i.test(input) ||    // PT period
+        /\bdaqui\s+a\s+\d/i.test(input) ||                                           // PT daqui a N
+        /\bdentro\s+de\s+\d/i.test(input) ||                                         // ES dentro de N
+        /\bpara\s+\d+\s*(?:minutos?|horas?)/i.test(input) ||                         // PT para N min/h
         /\b(morgens|abends|nachts|mittags|Uhr)\b/i.test(input) ||                  // DE period
         /\bam\b/i.test(input) ||                                                    // EN am (word boundary)
         /\bpm\b/i.test(input) || /[ap]\.m\./i.test(input) ||                       // EN pm / p.m.
