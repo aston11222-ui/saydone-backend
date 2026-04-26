@@ -1218,30 +1218,42 @@ app.post("/parse", auth, async (req, res) => {
     {
       // Weekday detection — all 9 languages → index 0(Sun)..6(Sat)
       const dowPatterns = [
-        [0, /(sunday|dimanche|domingo|niedziela|domenica|воскресенье|(?<![а-яіїєА-ЯІЇЄa-z])неділ[юяі]?(?![а-яіїєА-ЯІЇЄa-z])|sonntag)/i],
-        [1, /(monday|lundi|lunes|poniedziałek|lunedì|segunda-?feira|segunda\b|понедельник|понеділо?к|montag)/i],
-        [2, /(tuesday|mardi|martes|wtorek|martedì|terça-?feira|terça\b|вторник|вівторо?к|dienstag)/i],
-        [3, /(wednesday|mercredi|miércoles|środa|mercoledì|quarta-?feira|quarta\b|среда|середа|mittwoch)/i],
+        [0, /(sunday|dimanche|domingo|niedziela|niedziel[ęą]|domenica|воскресенье|(?<![а-яіїєА-ЯІЇЄa-z])неділ[юяі]?(?![а-яіїєА-ЯІЇЄa-z])|sonntag)/i],
+        [1, /(monday|lundi|lunes|poniedzia[łl]ek|lunedì|segunda-?feira|segunda\b|понедельник|понеділо?к|montag)/i],
+        [2, /(tuesday|mardi|martes|wtorek|martedì|ter[çc]a-?feira|terça\b|вторник|вівторо?к|dienstag)/i],
+        [3, /(wednesday|mercredi|miércoles|[sś]rod[ęa]|mercoledì|quarta-?feira|quarta\b|среду?|середу?|середа|mittwoch)/i],
         [4, /(thursday|jeudi|jueves|czwartek|giovedì|quinta-?feira|quinta\b|четверг|четвер|donnerstag)/i],
-        [5, /(friday|vendredi|viernes|piątek|venerdì|sexta-?feira|sexta\b|пятницу?|п.ятниц[юя]|freitag)/i],
-        [6, /(saturday|samedi|sábado|sobota|sabato|sábado\b|суббота|суботу?|samstag)/i],
+        [5, /(friday|vendredi|viernes|pi[aą]tek|venerdì|sexta-?feira|sexta\b|пятниц[ую]?|п['’]ятниц[юя]|freitag)/i],
+        [6, /(saturday|samedi|s[aá]bado|sobot[ęa]|sabato|суббот[ау]?|субот[ую]?|samstag)/i],
       ];
 
-      // Exact time: HH:MM or H Uhr or Hh or bare H + pm/am
+      // Exact time: HH:MM or H Uhr or Hh or bare H + pm/am or ordinal (9-ту, 8-му etc.)
       const timeMatch24 = input.match(/\b(\d{1,2}):(\d{2})\b/) ||
                           input.match(/\b(\d{1,2})\s*Uhr\b/i) ||
                           input.match(/\b(\d{1,2})h\b(?!eure)/i) ||
                           input.match(/\bat\s+(\d{1,2})\s*(pm|am)\b/i) ||
-                          input.match(/\bo\s+(\d{1,2})\s*(pm|am)?\b/i);
+                          input.match(/\bo\s+(\d{1,2})\s*(pm|am)?\b/i) ||
+                          // Ordinal: 9-ту, 8-му, 7-му etc. (UK/RU) — no \b needed
+                          input.match(/(\d{1,2})-[а-яіїєА-ЯІЇЄa-z]+/) ||
+                          // Bare hour + Cyrillic period word
+                          input.match(/на\s+(\d{1,2})\s+(?:вечора|вечера|ранку|утра|ночи|ночі)/i) ||
+                          input.match(/о\s+(\d{1,2})\s+(?:вечора|вечера|ранку|утра)/i) ||
+                          // Bare hour + Latin period/preposition
+                          input.match(/\balle\s+(\d{1,2})\b/i) ||
+                          input.match(/(?:^|\s)à\s+(\d{1,2})\b/i) ||
+                          input.match(/(?:^|\s)às\s+(\d{1,2})\b/i) ||
+                          input.match(/\ba\s+las\s+(\d{1,2})\b/i);
       // PM words
       const hasPM = /(\d(pm)\b|\bp\.m\.\b|вечера|вечора|увечері|ввечері|\babends\b|\bdu\s+soir\b|\bde\s+la\s+noche\b|\bdi\s+sera\b|\bda\s+noite\b|wieczore?m?\b|\bsera\b|\bnoche\b)/i.test(input);
       const hasAM = /(\d(am)\b|\ba\.m\.\b|утра|ранку|вранці|зранку|\bmorgens\b|\bdu\s+matin\b|\bde\s+la\s+mañana\b|\bdi\s+mattina\b|\bda\s+manhã\b|\brano\b|\bmattina\b|\bmatin\b|\bmorning\b)/i.test(input);
 
       if (timeMatch24) {
         let h = parseInt(timeMatch24[1]);
-        const m = timeMatch24[2] ? parseInt(timeMatch24[2]) : 0;
+        const g2 = timeMatch24[2]?.toLowerCase();
+        const m = (g2 && g2 !== 'pm' && g2 !== 'am') ? parseInt(g2) : 0;
+        const pmInMatch = g2 === 'pm';
         // Apply PM/AM if needed
-        if (hasPM && h < 12) h += 12;
+        if ((hasPM || pmInMatch) && h < 12) h += 12;
         if (hasAM && h === 12) h = 0;
 
         // Find weekday
@@ -1458,7 +1470,7 @@ app.post("/parse", auth, async (req, res) => {
         // Weekdays ES
         'el\\s*(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)',
         // Weekdays PL
-        'w\\s*poniedzia[lł]ek','we\\s*wtorek','w\\s*[sś]rod[eę]','w\\s*czwartek','w\\s*pi[aą]tek','w\\s*sobot[eę]','w\\s*niedziel[eę]',
+        'w\\s*poniedzia[lł]ek','we?\\s*wtorek','w\\s*[sś]rod[ęae]','w\\s*czwartek','w\\s*pi[aą]tek','w\\s*sobot[ęae]','w\\s*niedziel[ęae]',
         // Weekdays IT
         'il\\s*(luned[iì]|marted[iì]|mercoled[iì]|gioved[iì]|venerd[iì]|sabato)','la\\s*domenica',
         'luned[iì]','marted[iì]','mercoled[iì]','gioved[iì]','venerd[iì]',
