@@ -1115,8 +1115,19 @@ app.post("/parse", auth, async (req, res) => {
 
       // Special: через полчаса / через пів години / in half an hour
       const halfHourMatch = /через\s+полчаса|через\s+пів\s+год|in\s+half\s+an\s+hour|dans\s+une\s+demi|en\s+media\s+hora|za\s+pół\s+godziny|tra\s+mezz['']ora|em\s+meia\s+hora/i.test(input);
-      // через час / through 1 hour / in an hour
-      const oneHourMatch = /^(?:поставь\s+напоминание\s+)?через\s+час\b|^нагадай\s+через\s+годину|^remind\s+me\s+in\s+an?\s+hour|^in\s+an?\s+hour|^dans\s+une\s+heure|^en\s+una\s+hora|^za\s+godzinę|^tra\s+un['']?ora/i.test(input);
+      // через час / через годину / in an hour — anywhere in string, all languages
+      const oneHourMatch = !halfHourMatch && (
+        /(?:через|за)\s+(?:один\s+)?час(?!\S)/i.test(input) ||
+        /(?:через|за)\s+годину/i.test(input) ||
+        /\bin\s+an?\s+hour\b/i.test(input) ||
+        /\bin\s+einer\s+Stunde\b/i.test(input) ||
+        /\bdans\s+une\s+heure\b/i.test(input) ||
+        /\ben\s+una\s+hora\b/i.test(input) ||
+        /\bza\s+godzin[ęe]/i.test(input) ||
+        /\btra\s+un['']?ora\b/i.test(input) ||
+        /\bfra\s+un['']?ora\b/i.test(input) ||
+        /\bem\s+uma\s+hora\b/i.test(input)
+      );
 
       let preResult = null;
 
