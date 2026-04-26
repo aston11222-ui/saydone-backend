@@ -1212,6 +1212,72 @@ app.post("/parse", auth, async (req, res) => {
     }
     // ─────────────────────────────────────────────────────────────────────────
 
+    // ── Deterministic weekday + time parser ──────────────────────────────────
+    // Handles: "on Friday at 21:00", "am Freitag um 21 Uhr", "vendredi à 21h" etc.
+    // Only fires when BOTH weekday AND unambiguous time are present
+    {
+      // Weekday detection — all 9 languages → index 0(Sun)..6(Sat)
+      const dowPatterns = [
+        [0, /(sunday|dimanche|domingo|niedziela|domenica|domingo|воскресенье|неділю?|sonntag)/i],
+        [1, /(monday|lundi|lunes|poniedziałek|lunedì|segunda-?feira|segunda\b|понедельник|понеділо?к|montag)/i],
+        [2, /(tuesday|mardi|martes|wtorek|martedì|terça-?feira|terça\b|вторник|вівторо?к|dienstag)/i],
+        [3, /(wednesday|mercredi|miércoles|środa|mercoledì|quarta-?feira|quarta\b|среда|середа|mittwoch)/i],
+        [4, /(thursday|jeudi|jueves|czwartek|giovedì|quinta-?feira|quinta\b|четверг|четвер|donnerstag)/i],
+        [5, /(friday|vendredi|viernes|piątek|venerdì|sexta-?feira|sexta\b|пятницу?|п.ятниц[юя]|freitag)/i],
+        [6, /(saturday|samedi|sábado|sobota|sabato|sábado\b|суббота|суботу?|samstag)/i],
+      ];
+
+      // Exact time: HH:MM or H Uhr or Hh or bare H + pm/am
+      const timeMatch24 = input.match(/\b(\d{1,2}):(\d{2})\b/) ||
+                          input.match(/\b(\d{1,2})\s*Uhr\b/i) ||
+                          input.match(/\b(\d{1,2})h\b(?!eure)/i) ||
+                          input.match(/\bat\s+(\d{1,2})\s*(pm|am)\b/i) ||
+                          input.match(/\bo\s+(\d{1,2})\s*(pm|am)?\b/i);
+      // PM words
+      const hasPM = /\b(pm|p\.m\.|вечера|вечора|abends|du\s+soir|de\s+la\s+noche|di\s+sera|da\s+noite|wieczor|sera)\b/i.test(input);
+      const hasAM = /\b(am\b|a\.m\.|утра|ранку|morgens|du\s+matin|de\s+la\s+mañana|di\s+mattina|da\s+manhã|rano|mattina)\b/i.test(input);
+
+      if (timeMatch24) {
+        let h = parseInt(timeMatch24[1]);
+        const m = timeMatch24[2] ? parseInt(timeMatch24[2]) : 0;
+        // Apply PM/AM if needed
+        if (hasPM && h < 12) h += 12;
+        if (hasAM && h === 12) h = 0;
+
+        // Find weekday
+        let targetDow = -1;
+        for (const [idx, re] of dowPatterns) {
+          if (re.test(input)) { targetDow = idx; break; }
+        }
+
+        if (targetDow >= 0 && h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+          // Calculate next occurrence of that weekday
+          const todayDow2 = localNow.getDay();
+          let diff = targetDow - todayDow2;
+          if (diff <= 0) diff += 7; // always future
+          const targetDate = new Date(localNow);
+          targetDate.setDate(localNow.getDate() + diff);
+          const dateStr = targetDate.toISOString().slice(0, 10);
+          const datetime = `${dateStr}T${p2(h)}:${p2(m)}:00${offStr(offsetMinutes)}`;
+
+          const taskText = removeTriggerWords(input)
+            .replace(/(?:on|am|le|el|w|il|la|no|na)\s+/gi, ' ')
+            .replace(new RegExp(dowPatterns.map(([,re]) => re.source).join('|'), 'gi'), '')
+            .replace(/(?:на|в|о|у|at|on|um|à|às|aos|alle|a\s+las|o\s+godzinie)\s+\d{1,2}(:\d{2})?(\s*Uhr)?/gi, '')
+            .replace(/\d{1,2}:\d{2}/g, '')
+            .replace(/\d{1,2}\s*Uhr\b/gi, '').replace(/\d{1,2}h\b/gi, '')
+            .replace(/(pm|p\.m\.|am\b|a\.m\.|abends|morgens|Uhr)/gi, '')
+            .replace(/(вечера|вечором|ранку|утра)/gi, '')
+            .replace(/\b(daran|zurück)\b/gi, '')
+            .replace(/\s+/g, ' ').trim();
+
+          console.log(`[PRE-DOW] "${input}" → ${datetime} (task: "${taskText}")`);
+          return res.json({ ok: true, text: taskText, datetime, source: 'pre' });
+        }
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     // ── Safe deterministic parser for exact HH:MM time + simple date ─────────
     // Only handles 100% unambiguous patterns to avoid AI cost
     {
