@@ -1255,8 +1255,11 @@ app.post("/parse", auth, async (req, res) => {
 
         taskText = removeTriggers(taskText);
         taskText = removeTriggers(taskText); // second pass catches leftovers
-        // Remove word-number interval expressions that survived
+        // Remove single-letter particles/pronouns at start (Я, я etc.)
+        taskText = taskText.replace(/^[а-яіїєА-ЯІЇЄ]\s+/u, '').trim();
+        // Remove word-number interval expressions that survived (second pass after letter removal)
         taskText = taskText
+          .replace(/(?:через|за)\s+\d+\s*\S+/gi, '')
           .replace(/(?:через|за)\s+(?:один|два|дві|две|три|чотири|четыре|п['’]ять|пять|шість|шесть|сім|семь|вісім|восемь|дев['’]ять|девять|десять|one|two|three|four|five|six|seven|eight|nine|ten|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|deux|trois|quatre|cinq|sept|huit|neuf|dix|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|dwa|dwie|trzy|cztery|due|tre|quattro|cinque|dois|duas|três|quatro)\s*\S+/gi, '')
           .replace(/^(на|в|о|у|a)\s+/i, '')
           .replace(/\s+/g, ' ').trim();
@@ -1336,6 +1339,9 @@ app.post("/parse", auth, async (req, res) => {
 
           // Extract task
           const taskText = removeTriggerWords(normInput)
+            // Remove "на/в/о HH:MM period" time expressions
+            .replace(/(?:на|в|о|у)\s+\d{1,2}:\d{2}(?:\s+(?:вечора|вечера|ранку|утра|вечером|ночи))?/gi, '')
+            .replace(/(?:на|в|о|у)\s+\d{1,2}\s+(?:годин\s+)?(?:вечора|вечера|ранку|утра|ночи|ночі)/gi, '')
             // Remove interval expressions (digits after normalization)
             .replace(/(?:через|за)\s+\d+\s*\S+/gi, '')
             .replace(/\bin\s+\d+\s*\S+/gi, '')
