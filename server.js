@@ -1290,9 +1290,13 @@ app.post("/parse", auth, async (req, res) => {
         'pojutrze','dopodomani','depois\\s*de\\s*amanh[aã]',
         // Weekdays RU
         'в\\s*понедельник','в\\s*вторник','в\\s*среду','в\\s*четверг','в\\s*пятницу','в\\s*субботу','в\\s*воскресенье',
-        // Weekdays UK
-        'у\\s*понедiлок','у\\s*вiвторок','у\\s*середу','у\\s*четвер','у\\s*п.ятницю','у\\s*суботу','у\\s*недiлю',
-        'в\\s*понедiлок','в\\s*вiвторок',
+        // Weekdays UK — all forms (у/в + nominative/accusative)
+        'у\\s*понеділок','у\\s*понедiлок','у\\s*вівторок','у\\s*вiвторок',
+        'у\\s*середу','у\\s*четвер','у\\s*п\'ятницю','у\\s*п.ятницю',
+        'у\\s*суботу','у\\s*неділю','у\\s*недiлю',
+        'в\\s*понеділок','в\\s*понедiлок','в\\s*вівторок','в\\s*вiвторок',
+        'в\\s*середу','в\\s*четвер','в\\s*п\'ятницю',
+        'в\\s*суботу','в\\s*неділю',
         // Weekdays EN
         'on\\s*(monday|tuesday|wednesday|thursday|friday|saturday|sunday)',
         '(monday|tuesday|wednesday|thursday|friday|saturday|sunday)',
@@ -1376,7 +1380,25 @@ app.post("/parse", auth, async (req, res) => {
       const resultText = (result.text || '').trim();
       if (!resultText || resultText === input.trim()) {
         // Only skip if input has NO time references at all
-        const hasTimeRefTrigger = /(\d{1,2}[:h]\d{0,2}|\d+\s*(мин|час|хв|min|hour|heure|hora|minuto|ora|Minute|Stunde|minut|godzin)|утра|вечера|ночи|дня|утром|вечером|ранку|вечора|am\b|pm\b|morning|evening|night|après-midi|matin|tarde|noche|rano|wieczor|mattina|sera|manhã|madrugada|\bo\s+\d|\bo\s+godzinie|\bà\s+\d|\bàs\s+\d|\baos\s+\d|\balle\s+\d|\bum\s+\d|\ba\s+las\s+\d|\bat\s+\d|\bdziewiąt|\bósm|\bsiódm|\bdziesięt|\bjeden[aą]st|\bdwunast|\btrzyn|\bcztern|\bpiętn|\bszesn|\bsiedemn|\bosiem|\bdziewiętn|\bdwudzie)/i.test(input);
+        const hasTimeRefTrigger = (
+          /\d{1,2}[:h]\d{2}/.test(input) ||
+          /\d+\s*(мин|час|хв|min|hour|heure|hora|minuto|ora|Minute|Stunde|minut[aey]?|godzin)/i.test(input) ||
+          /(утра|вечера|ночи|дня|утром|вечером|ранку|вечора)/i.test(input) ||
+          /\b(morning|evening|night|afternoon|midnight|noon)\b/i.test(input) ||
+          /\b(matin|soir|après-midi|minuit|midi)\b/i.test(input) ||
+          /\b(mañana|tarde|noche|mediodía|medianoche)\b/i.test(input) ||
+          /\b(rano|wieczor|południe|północ)\b/i.test(input) ||
+          /\b(mattina|sera|pomeriggio|mezzanotte|mezzogiorno)\b/i.test(input) ||
+          /\b(manhã|tarde|noite|madrugada|meia-noite|meio-dia)\b/i.test(input) ||
+          /\b(morgens|abends|nachts|mittags|Uhr)\b/i.test(input) ||
+          /\bam\b/i.test(input) || /\bpm\b/i.test(input) ||
+          /\bo\s+\d/i.test(input) || /\bo\s+godzinie\b/i.test(input) ||
+          /(?:^|\s)à\s+\d/i.test(input) || /(?:^|\s)às\s+\d/i.test(input) ||
+          /(?:^|\s)aos\s+\d/i.test(input) ||
+          /\balle\s+\d/i.test(input) || /\bum\s+\d/i.test(input) ||
+          /\ba\s+las\s+\d/i.test(input) || /\bat\s+\d/i.test(input) ||
+          /\b(eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf)\s+Uhr\b/i.test(input)
+        );
         const triggerOnly = !hasTimeRefTrigger && /^[\s\p{P}]*(поставь|напомни|нагадай|remind|set a reminder|erinnere|rappelle|recuérdame|przypomnij|ricordami|lembra)[\s\p{P}]*мне?[\s\p{P}]*$/iu.test(input.trim());
         if (triggerOnly) {
           console.log(`[SKIP] trigger-only input, no task: "${input}"`);
@@ -1385,7 +1407,30 @@ app.post("/parse", auth, async (req, res) => {
       }
 
       // If AI returned 09:00 but input had no explicit time → it's a default, show picker
-      const hasTimeRef = /(\d{1,2}[:h]\d{0,2}|\d+\s*(мин|час|хв|min|hour|heure|hora|minuto|ora|Minute|Stunde|minut|godzin)|утра|вечера|ночи|дня|утром|вечером|ранку|вечора|am\b|pm\b|morning|evening|night|après-midi|matin|tarde|noche|rano|wieczor|mattina|sera|manhã|madrugada|\bo\s+\d|\bo\s+godzinie|\bà\s+\d|\bàs\s+\d|\baos\s+\d|\balle\s+\d|\bum\s+\d|\ba\s+las\s+\d|\bat\s+\d|\bdziewiąt|\bósm|\bsiódm|\bdziesięt|\bjeden[aą]st|\bdwunast|\btrzyn|\bcztern|\bpiętn|\bszesn|\bsiedemn|\bosiem|\bdziewiętn|\bdwudzie)/i.test(input);
+      const hasTimeRef = (
+        /\d{1,2}[:h]\d{2}/.test(input) ||                                          // 9:00 8h30
+        /\d+\s*(мин|час|хв|min|hour|heure|hora|minuto|ora|Minute|Stunde|minut[aey]?|godzin)/i.test(input) || // intervals
+        /(утра|вечера|ночи|дня|утром|вечером|ранку|вечора)/i.test(input) ||    // RU/UK period
+        /\b(morning|evening|night|afternoon|midnight|noon)\b/i.test(input) ||       // EN period
+        /\b(matin|soir|après-midi|minuit|midi)\b/i.test(input) ||                  // FR period
+        /\b(mañana|tarde|noche|mediodía|medianoche)\b/i.test(input) ||             // ES period
+        /\b(rano|wieczor|południe|północ|południu)\b/i.test(input) ||              // PL period
+        /\b(mattina|sera|pomeriggio|mezzanotte|mezzogiorno)\b/i.test(input) ||     // IT period
+        /\b(manhã|tarde|noite|madrugada|meia-noite|meio-dia)\b/i.test(input) ||    // PT period
+        /\b(morgens|abends|nachts|mittags|Uhr)\b/i.test(input) ||                  // DE period
+        /\bam\b/i.test(input) ||                                                    // EN am (word boundary)
+        /\bpm\b/i.test(input) ||                                                    // EN pm
+        /\bo\s+\d/i.test(input) ||                                                  // PL/IT "o 9"
+        /\bo\s+godzinie\b/i.test(input) ||                                          // PL "o godzinie"
+        /(?:^|\s)à\s+\d/i.test(input) ||                                           // FR "à 9h"
+        /(?:^|\s)às\s+\d/i.test(input) ||                                          // PT "às 9h"
+        /(?:^|\s)aos\s+\d/i.test(input) ||                                         // PT "aos 10"
+        /\balle\s+\d/i.test(input) ||                                               // IT "alle 9"
+        /\bum\s+\d/i.test(input) ||                                                 // DE "um 9 Uhr"
+        /\ba\s+las\s+\d/i.test(input) ||                                            // ES "a las 9"
+        /\bat\s+\d/i.test(input) ||                                                 // EN "at 9"
+        /\b(eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf)\s+Uhr\b/i.test(input) // DE word hours
+      );
       if (!hasTimeRef && result.datetime) {
         const rDt = new Date(result.datetime);
         const rH = rDt.getUTCHours() + Math.round(offsetMinutes / 60);
