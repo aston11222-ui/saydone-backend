@@ -1470,7 +1470,7 @@ app.post("/parse", auth, async (req, res) => {
           /\b(mattina|sera|pomeriggio|mezzanotte|mezzogiorno)\b/i.test(input) ||
           /\b(manhã|tarde|noite|madrugada|meia-noite|meio-dia)\b/i.test(input) ||
           /\b(morgens|abends|nachts|mittags|Uhr)\b/i.test(input) ||
-          /\bam\b/i.test(input) || /\bpm\b/i.test(input) ||
+          /\bam\b/i.test(input) || /\bpm\b/i.test(input) || /[ap]\.m\./i.test(input) ||
           /\bo\s+\d/i.test(input) || /\bo\s+godzinie\b/i.test(input) ||
           /(?:^|\s)à\s+\d/i.test(input) || /(?:^|\s)às\s+\d/i.test(input) ||
           /(?:^|\s)aos\s+\d/i.test(input) ||
@@ -1498,7 +1498,7 @@ app.post("/parse", auth, async (req, res) => {
         /\b(manhã|tarde|noite|madrugada|meia-noite|meio-dia)\b/i.test(input) ||    // PT period
         /\b(morgens|abends|nachts|mittags|Uhr)\b/i.test(input) ||                  // DE period
         /\bam\b/i.test(input) ||                                                    // EN am (word boundary)
-        /\bpm\b/i.test(input) ||                                                    // EN pm
+        /\bpm\b/i.test(input) || /[ap]\.m\./i.test(input) ||                       // EN pm / p.m.
         /\bo\s+\d/i.test(input) ||                                                  // PL/IT "o 9"
         /\bo\s+godzinie\b/i.test(input) ||                                          // PL "o godzinie"
         /(?:^|\s)à\s+\d/i.test(input) ||                                           // FR "à 9h"
@@ -1511,13 +1511,9 @@ app.post("/parse", auth, async (req, res) => {
         /\b(eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf)\s+Uhr\b/i.test(input) // DE word hours
       );
       if (!hasTimeRef && result.datetime) {
-        const rDt = new Date(result.datetime);
-        const rH = rDt.getUTCHours() + Math.round(offsetMinutes / 60);
-        const rMin = rDt.getUTCMinutes();
-        if (rH % 24 === 9 && rMin === 0) {
-          console.log(`[NO TIME] AI defaulted to 09:00 but no time in input → returning empty datetime`);
-          return res.json({ ok: true, text: result.text || input, datetime: '', source: 'unparsed' });
-        }
+        // No time reference in input → AI invented a time → show picker instead
+        console.log(`[NO TIME] No time in input, AI invented time → returning empty datetime for: "${input}"`);
+        return res.json({ ok: true, text: result.text || input, datetime: '', source: 'unparsed' });
       }
 
       return res.json({ ok: true, text: result.text || input, datetime: result.datetime, source: "ai" });
