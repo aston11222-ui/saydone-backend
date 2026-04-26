@@ -1121,6 +1121,26 @@ app.post("/parse", auth, async (req, res) => {
     }
 
     {
+      // ── Combined "N hour(s) M minute(s)" pattern — all 9 languages ──────────
+      const combinedHMMatch = normInputGlobal.match(
+        /(?:in|dans|en|za|tra|fra|em|daqui\s+a|dentro\s+de|через|за)\s+(\d+)\s*(?:hours?|Stunden?|heures?|horas?|ora[e]?|ore\b|год[ину]+|годин[аиу]?|час[аов]?)\s*(?:and\s+|und\s+|et\s+|y\s+|e\s+|і\s+|та\s+|и\s+)?(\d+)\s*(?:min(?:ute)?s?|Minuten?|minutes?|minutos?|minut[oiа]?|хвилин[аиу]?|мин[утаы]*)/i
+      );
+      if (combinedHMMatch) {
+        const totalMins = parseInt(combinedHMMatch[1]) * 60 + parseInt(combinedHMMatch[2]);
+        const d = new Date(localNow);
+        d.setMinutes(d.getMinutes() + totalMins);
+        const datetime = toIso(d, offsetMinutes);
+        const taskText = removeTriggerWords(normInputGlobal)
+          .replace(/(?:in|dans|en|za|tra|fra|em|daqui\s+a|dentro\s+de|через|за)\s+\d+\s*\S+\s*(?:and\s+|und\s+|et\s+|y\s+|e\s+|і\s+|та\s+)?\d+\s*\S+/gi, '')
+          .replace(/(сьогодні|сегодня|today|heute)/gi, '')
+          .replace(/^(d['\u2019]|que\s+|że\s+|di\s+|de\s+)/i, '')
+          .replace(/^(на|в|о|у|o|a)\s+/i, '')
+          .replace(/\s+/g, ' ').trim();
+        console.log(`[PRE-HM] "${input}" → ${datetime} (task: "${taskText}")`);
+        return res.json({ ok: true, text: taskText, datetime, source: 'pre' });
+      }
+      // ─────────────────────────────────────────────────────────────────────────
+
       const relMatch = normInputGlobal.match(
         /(?:через|за)\s+(\d+(?:[.,]\d+)?)\s*(?:минут[аыу]?|минут\b|хвилин[аиу]?|хвилин\b|хв\.?|мин\.?)/i
       ) || normInputGlobal.match(
@@ -1298,6 +1318,16 @@ app.post("/parse", auth, async (req, res) => {
         // Remove today/tomorrow date words that might remain
         taskText = taskText
           .replace(/(сьогодні|сегодня|today|heute|aujourd'hui|hoy|dzisiaj|oggi|hoje)/gi, '')
+          .replace(/\s+/g, ' ').trim();
+        // Remove ES/PT interval expressions
+        taskText = taskText
+          .replace(/dentro\s+de\s+(?:una?|\d+)\s+hora\S*/gi, '')
+          .replace(/dentro\s+de\s+\d+\s*\S+/gi, '')
+          .replace(/daqui\s+a\s+(?:uma?|\d+)\s+hora\S*/gi, '')
+          .replace(/daqui\s+a\s+\d+\s*\S+/gi, '')
+          .replace(/para\s+\d+\s*\S+/gi, '')
+          // Remove "que/co" connectors from ES/PL at start
+          .replace(/^(que|co)\s+/i, '')
           .replace(/\s+/g, ' ').trim();
         // Remove word-number interval expressions that survived (second pass after letter removal)
         taskText = taskText
@@ -1525,7 +1555,20 @@ app.post("/parse", auth, async (req, res) => {
       const hasRelativeDays = /(?:через|за|in|dans|en|za|tra|fra|em|dentro\s+de|daqui\s+a)\s+(\d+|один|два|три|чотир|п.ять|шість|сім|вісім|дев.ять|десять|one|two|three|four|five|six|seven|eight|nine|ten|ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|deux|trois|quatre|cinq|sept|huit|neuf|dix|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|dwa|dwie|trzy|cztery|due|tre|quattro|cinque|sei|sette|otto|nove|dois|duas|três|quatro)\s*(?:день|дня|дней|дні|днів|тижн|недел|days?|weeks?|Tagen?|Wochen?|jours?|semaines?|días?|semanas?|dni|tygodni|giorni|settimane|dias?)/i.test(input);
 
       // Extract exact time: HH:MM or H:MM (24h)
-      const timeMatch = !hasRelativeDays && input.match(/\b(\d{1,2}):(\d{2})\b/);
+      const timeMatch = !hasRelativeDays && (
+        normInputGlobal.match(/\b(\d{1,2}):(\d{2})\b/) ||
+        // Bare hour + period word (RU/UK)
+        normInputGlobal.match(/в\s+(\d{1,2})\s+(?:вечера|вечора|ночи|ночі)/i) ||
+        normInputGlobal.match(/о\s+(\d{1,2})\s+(?:вечора|вечера|ранку|утра)/i) ||
+        // ES bare hour
+        normInputGlobal.match(/a\s+las\s+(\d{1,2})\s+de\s+la/i) ||
+        // FR bare hour
+        normInputGlobal.match(/à\s+(\d{1,2})\s+heures?\b/i) ||
+        // IT bare hour
+        normInputGlobal.match(/alle\s+(\d{1,2})\s+(?:di\s+sera|di\s+mattina)/i) ||
+        // PT bare hour
+        normInputGlobal.match(/às\s+(\d{1,2})\s+horas?\b/i)
+      );
 
       if (timeMatch) {
         const h = parseInt(timeMatch[1]);
