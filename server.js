@@ -1051,6 +1051,46 @@ app.post("/parse", auth, async (req, res) => {
     // Handle "через N минут/часов" and equivalents in all languages
     // This runs BEFORE the AI to avoid hallucinations for any N value
 
+      // Word numbers → digits for RU/UK/EN
+    function normalizeWordNums(s) {
+      const map = {
+        // RU
+        'один':'1','два':'2','три':'3','четыре':'4','пять':'5',
+        'шесть':'6','семь':'7','восемь':'8','девять':'9','десять':'10',
+        'одного':'1','двух':'2','трёх':'3','четырёх':'4',
+        // UK
+        'одна':'1','один':'1','дві':'2','два':'2','две':'2','три':'3','чотири':'4','чотирьох':'4','трёх':'3','четыре':'4',
+        'п’ять':'5','шість':'6','сім':'7','вісім':'8','дев’ять':'9','десять':'10',
+        // EN
+        'one':'1','two':'2','three':'3','four':'4','five':'5',
+        'six':'6','seven':'7','eight':'8','nine':'9','ten':'10',
+        // DE
+        'ein':'1','eine':'1','zwei':'2','drei':'3','vier':'4','fünf':'5',
+        'sechs':'6','sieben':'7','acht':'8','neun':'9','zehn':'10',
+        // FR
+        'un':'1','une':'1','deux':'2','trois':'3','quatre':'4','cinq':'5',
+        'six':'6','sept':'7','huit':'8','neuf':'9','dix':'10',
+        // ES
+        'uno':'1','una':'1','dos':'2','tres':'3','cuatro':'4','cinco':'5',
+        'seis':'6','siete':'7','ocho':'8','nueve':'9','diez':'10',
+        // PL
+        'jeden':'1','jedna':'1','jedno':'1','dwa':'2','dwie':'2','trzy':'3',
+        'cztery':'4','pięć':'5','sześć':'6','siedem':'7','osiem':'8',
+        'dziewięć':'9','dziesięć':'10',
+        // IT
+        'uno':'1','una':'1','due':'2','tre':'3','quattro':'4','cinque':'5',
+        'sei':'6','sette':'7','otto':'8','nove':'9','dieci':'10',
+        // PT
+        'um':'1','uma':'1','dois':'2','duas':'2','três':'3','quatro':'4',
+        'cinco':'5','seis':'6','sete':'7','oito':'8','nove':'9','dez':'10',
+      };
+      for (const [w, d] of Object.entries(map)) {
+        s = s.replace(new RegExp('(?:^|\\s)' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?=\\s|$)', 'gi'), m => m.replace(new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'), d));
+      }
+      return s;
+      }
+    const normInputGlobal = normalizeWordNums(input);
+
     // Helper: remove trigger words from input
     const _triggers = [
       'поставь\\s+напоминание', 'напомни\\s+мне', 'напомни', 'напоминание', 'поставь',
@@ -1073,7 +1113,7 @@ app.post("/parse", auth, async (req, res) => {
     }
 
     {
-      const relMatch = input.match(
+      const relMatch = normInputGlobal.match(
         /(?:через|за)\s+(\d+(?:[.,]\d+)?)\s*(?:минут[аыу]?|минут\b|хвилин[аиу]?|хвилин\b|хв\.?|мин\.?)/i
       ) || input.match(
         /\bin\s+(\d+(?:[.,]\d+)?)\s*(?:min(?:ute)?s?)\b/i
@@ -1093,7 +1133,7 @@ app.post("/parse", auth, async (req, res) => {
         /\bem\s+(\d+(?:[.,]\d+)?)\s*(?:minuto?s?)\b/i
       );
 
-      const hourMatch = input.match(
+      const hourMatch = normInputGlobal.match(
         /(?:через|за)\s+(\d+(?:[.,]\d+)?)\s*(?:час[аов]?|час\b|годин[аиу]?|годин\b|год\.?)/i
       ) || input.match(
         /\bin\s+(\d+(?:[.,]\d+)?)\s*(?:hours?|h)\b/i
@@ -1117,8 +1157,8 @@ app.post("/parse", auth, async (req, res) => {
       const halfHourMatch = /через\s+полчаса|через\s+пів\s+год|in\s+half\s+an\s+hour|dans\s+une\s+demi|en\s+media\s+hora|za\s+pół\s+godziny|tra\s+mezz['']ora|em\s+meia\s+hora/i.test(input);
       // через час / через годину / in an hour — anywhere in string, all languages
       const oneHourMatch = !halfHourMatch && (
-        /(?:через|за)\s+(?:один\s+)?час(?!\S)/i.test(input) ||
-        /(?:через|за)\s+годину/i.test(input) ||
+        /(?:через|за)\s+(?:один\s+)?час(?!\S)/i.test(normInputGlobal) ||
+        /(?:через|за)\s+годину/i.test(normInputGlobal) ||
         /\bin\s+an?\s+hour\b/i.test(input) ||
         /\bin\s+einer\s+Stunde\b/i.test(input) ||
         /\bdans\s+une\s+heure\b/i.test(input) ||
@@ -1226,45 +1266,9 @@ app.post("/parse", auth, async (req, res) => {
     // ── Deterministic N days/weeks parser ────────────────────────────────────
     // Handles: "через 3 дня", "in 3 days", "dans 3 jours", "za 3 dni" etc.
     {
-      // Word numbers → digits for RU/UK/EN
-      function normalizeWordNums(s) {
-        const map = {
-          // RU
-          'один':'1','два':'2','три':'3','четыре':'4','пять':'5',
-          'шесть':'6','семь':'7','восемь':'8','девять':'9','десять':'10',
-          'одного':'1','двух':'2','трёх':'3','четырёх':'4',
-          // UK
-          'чотири':'4','чотирьох':'4','п’ять':'5','шість':'6',
-          'сім':'7','вісім':'8','дев’ять':'9',
-          // EN
-          'one':'1','two':'2','three':'3','four':'4','five':'5',
-          'six':'6','seven':'7','eight':'8','nine':'9','ten':'10',
-          // DE
-          'ein':'1','eine':'1','zwei':'2','drei':'3','vier':'4','fünf':'5',
-          'sechs':'6','sieben':'7','acht':'8','neun':'9','zehn':'10',
-          // FR
-          'un':'1','une':'1','deux':'2','trois':'3','quatre':'4','cinq':'5',
-          'six':'6','sept':'7','huit':'8','neuf':'9','dix':'10',
-          // ES
-          'uno':'1','una':'1','dos':'2','tres':'3','cuatro':'4','cinco':'5',
-          'seis':'6','siete':'7','ocho':'8','nueve':'9','diez':'10',
-          // PL
-          'jeden':'1','jedna':'1','jedno':'1','dwa':'2','dwie':'2','trzy':'3',
-          'cztery':'4','pięć':'5','sześć':'6','siedem':'7','osiem':'8',
-          'dziewięć':'9','dziesięć':'10',
-          // IT
-          'uno':'1','una':'1','due':'2','tre':'3','quattro':'4','cinque':'5',
-          'sei':'6','sette':'7','otto':'8','nove':'9','dieci':'10',
-          // PT
-          'um':'1','uma':'1','dois':'2','duas':'2','três':'3','quatro':'4',
-          'cinco':'5','seis':'6','sete':'7','oito':'8','nove':'9','dez':'10',
-        };
-        for (const [w, d] of Object.entries(map)) {
-          s = s.replace(new RegExp('(?:^|\\s)' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?=\\s|$)', 'gi'), m => m.replace(new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'), d));
-        }
-        return s;
-      }
-      const normInput = normalizeWordNums(input);
+      // normalizeWordNums defined above as shared helper
+
+      const normInput = normInputGlobal;
 
       const daysMatch = normInput.match(/(?:через|за)\s+(\d+)\s*(?:день|дня|дней|дні|днів|днів)/i) ||
         input.match(/\bin\s+(\d+)\s*days?\b/i) ||
@@ -1707,8 +1711,9 @@ app.post("/parse", auth, async (req, res) => {
         // Only skip if input has NO time references at all
         const hasTimeRefTrigger = (
           /\d{1,2}[:h]\d{2}/.test(input) ||
-          /\d+\s*(мин|час|хв|min|hour|heure|hora|minuto|ora|Minute|Stunde|minut[aey]?|godzin)/i.test(input) ||
+          /\d+\s*(мин|час|хв|годин|min|hour|heure|hora|minuto|ora|Minute|Stunde|minut[aey]?|godzin)/i.test(input) ||
           /(утра|вечера|ночи|дня|утром|вечером|ранку|вечора)/i.test(input) ||
+        /(годину|години|годин|години)/i.test(input) ||  // UK hours word form
           /\b(morning|evening|night|afternoon|midnight|noon)\b/i.test(input) ||
           /\b(matin|soir|après-midi|minuit|midi)\b/i.test(input) ||
           /\b(mañana|tarde|noche|mediodía|medianoche)\b/i.test(input) ||
@@ -1734,8 +1739,9 @@ app.post("/parse", auth, async (req, res) => {
       // If AI returned 09:00 but input had no explicit time → it's a default, show picker
       const hasTimeRef = (
         /\d{1,2}[:h]\d{2}/.test(input) ||                                          // 9:00 8h30
-        /\d+\s*(мин|час|хв|min|hour|heure|hora|minuto|ora|Minute|Stunde|minut[aey]?|godzin)/i.test(input) || // intervals
-        /(утра|вечера|ночи|дня|утром|вечером|ранку|вечора)/i.test(input) ||    // RU/UK period
+        /\d+\s*(мин|час|хв|годин|min|hour|heure|hora|minuto|ora|Minute|Stunde|minut[aey]?|godzin)/i.test(input) || // intervals
+        /(утра|вечера|ночи|дня|утром|вечером|ранку|вечора)/i.test(input) ||
+        /(годину|години|годин|години)/i.test(input) ||  // UK hours word form    // RU/UK period
         /\b(morning|evening|night|afternoon|midnight|noon)\b/i.test(input) ||       // EN period
         /\b(matin|soir|après-midi|minuit|midi)\b/i.test(input) ||                  // FR period
         /\b(mañana|tarde|noche|mediodía|medianoche)\b/i.test(input) ||             // ES period
