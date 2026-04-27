@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import OpenAI from "openai";
 
 dotenv.config();
-const DEBUG = process.env.DEBUG === 'true';
+const DEBUG = process.env.APP_DEBUG === 'true';
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -627,7 +627,7 @@ app.post("/parse", auth, async (req, res) => {
                               normInputGlobal.match(/\bat\s+(\d{1,2})\s*(?:a\.m\.|p\.m\.)(?=\s|$)/i) ||
                               // RU/UK bare 'в 8' / 'на 8' / 'о 8' without period word
                               normInputGlobal.match(/(?:^|\s)(?:в|на|о|у)\s+(\d{1,2})(?:\s|$)/i) ||
-                              normInputGlobal.match(/[ap]\.m\./) ||
+                              normInputGlobal.match(/\b(\d{1,2})\s*(?:a\.m\.|p\.m\.)(?=\s|$)/i) ||
                               normInputGlobal.match(/\balle\s+(\d{1,2})\b/i) ||
                               normInputGlobal.match(/(?:à|a)\s+(\d{1,2})h\b/i) ||
                               normInputGlobal.match(/(?:^|\s)à\s+(\d{1,2})\b/i) ||
