@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import OpenAI from "openai";
 
 dotenv.config();
+const DEBUG = process.env.DEBUG === 'true';
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -141,7 +142,7 @@ app.post("/parse", auth, async (req, res) => {
       const _pm = input.match(_prefixIntervalRe);
       if (_pm) {
         const reordered = _pm[2].trimEnd() + ' ' + _pm[1];
-        console.log(`[REORDER] "${input}" → "${reordered}"`);
+        if (DEBUG) console.log(`[REORDER] "${input}" → "${reordered}"`);
         input = reordered;
       }
     }
@@ -288,7 +289,7 @@ app.post("/parse", auth, async (req, res) => {
           .replace(/^(d['\u2019]|que\s+|że\s+|di\s+|de\s+)/i, '')
           .replace(/^(на|в|о|у|o|a)\s+/i, '')
           .replace(/\s+/g, ' ').trim();
-        console.log(`[PRE-HM] "${input}" → ${datetime} (task: "${taskText}")`);
+        if (DEBUG) console.log(`[PRE-HM] "${input}" → ${datetime} (task: "${taskText}")`);
         return res.json({ ok: true, text: taskText, datetime, source: 'pre' });
       }
       // ─────────────────────────────────────────────────────────────────────────
@@ -529,7 +530,7 @@ app.post("/parse", auth, async (req, res) => {
           .replace(/\s+/g, ' ').trim();
 
         const datetime = toIso(preResult.dt, offsetMinutes);
-        console.log(`[PRE] "${input}" → ${datetime} (task: "${taskText}")`);
+        if (DEBUG) console.log(`[PRE] "${input}" → ${datetime} (task: "${taskText}")`);
         return res.json({ ok: true, text: taskText, datetime, source: 'pre' });
       }
     }
@@ -568,7 +569,7 @@ app.post("/parse", auth, async (req, res) => {
           .replace(/\b(ровно|рівно|exactly|sharp|genau|exactement|pile|exactamente|en\s+punto|dokładnie|esattamente|exatamente)\b/gi, '')
           .replace(/^(на|в|о|у|o|a|au?)\s+/i, '')
           .replace(/\s+/g, ' ').trim();
-        console.log(`[PRE-NOON] "${input}" → ${datetime} (task: "${taskText}")`);
+        if (DEBUG) console.log(`[PRE-NOON] "${input}" → ${datetime} (task: "${taskText}")`);
         return res.json({ ok: true, text: taskText, datetime, source: 'pre' });
       }
     }
@@ -692,11 +693,11 @@ app.post("/parse", auth, async (req, res) => {
 
           // If no time → return empty datetime so user picks time
           if (!hasTime) {
-            console.log(`[PRE-DAYS] "${input}" → task:"${taskText}" date:${dateStr} (no time → picker)`);
+            if (DEBUG) console.log(`[PRE-DAYS] "${input}" → task:"${taskText}" date:${dateStr} (no time → picker)`);
             return res.json({ ok: true, text: taskText, datetime: '', source: 'unparsed' });
           }
 
-          console.log(`[PRE-DAYS] "${input}" → ${datetime} (task: "${taskText}")`);
+          if (DEBUG) console.log(`[PRE-DAYS] "${input}" → ${datetime} (task: "${taskText}")`);
           return res.json({ ok: true, text: taskText, datetime, source: 'pre' });
         }
       }
@@ -794,7 +795,7 @@ app.post("/parse", auth, async (req, res) => {
             .replace(/^(на|в|о|у|o|a|le|el)\s+/i, '')
             .replace(/\s+/g, ' ').trim();
 
-          console.log(`[PRE-DOW] "${input}" → ${datetime} (task: "${taskText}")`);
+          if (DEBUG) console.log(`[PRE-DOW] "${input}" → ${datetime} (task: "${taskText}")`);
           return res.json({ ok: true, text: taskText, datetime, source: 'pre' });
         }
       }
@@ -835,7 +836,7 @@ app.post("/parse", auth, async (req, res) => {
             .replace(/^(на|в|о|у|on|am|le|el|w|il|la|no|na|a|o)\s+/i, '')
             .replace(/\s+(на|в|о|у)\s*$/i, '')
             .replace(/\s+/g, ' ').trim();
-          console.log(`[PRE-DOW-NOTIME] "${input}" → date:${dateStr} no time → picker (task: "${taskText}")`);
+          if (DEBUG) console.log(`[PRE-DOW-NOTIME] "${input}" → date:${dateStr} no time → picker (task: "${taskText}")`);
           return res.json({ ok: true, text: taskText, datetime: '', source: 'unparsed' });
         }
       }
@@ -936,7 +937,7 @@ app.post("/parse", auth, async (req, res) => {
             .replace(/^(на|в|о|у|o)\s+/i, '')
             .replace(/\s+/g, ' ').trim();
 
-          console.log(`[PRE24] "${input}" → ${datetime} (task: "${taskText}")`);
+          if (DEBUG) console.log(`[PRE24] "${input}" → ${datetime} (task: "${taskText}")`);
           return res.json({ ok: true, text: taskText, datetime, source: 'pre' });
         }
       }
@@ -961,7 +962,7 @@ app.post("/parse", auth, async (req, res) => {
         const onlySelfHarm = cats.split(',').map(s=>s.trim())
           .every(c => c.startsWith('self-harm') || c.startsWith('self_harm'));
         if (isMedicalContext && onlySelfHarm) {
-          console.log(`[MODERATION] False positive skipped for medical context: "${input}"`);
+          if (DEBUG) console.log(`[MODERATION] False positive skipped for medical context: "${input}"`);
         } else {
           console.warn(`[MODERATION] Flagged: "${input}" — categories: ${cats}`);
           return res.status(200).json({ ok: false, error: "moderated", categories: cats });
@@ -988,7 +989,7 @@ app.post("/parse", auth, async (req, res) => {
         max_tokens: 120,
       });
       const raw = response.choices?.[0]?.message?.content;
-      console.log(`[AI RAW] "${input}" → ${raw}`);
+      if (DEBUG) console.log(`[AI RAW] "${input}" → ${raw}`);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed.datetime) {
@@ -996,7 +997,7 @@ app.post("/parse", auth, async (req, res) => {
           if (!isNaN(dt.getTime())) result = parsed;
         } else if (parsed.text !== undefined && parsed.datetime === '') {
           // AI returned task with no time — will show time picker with cleaned text
-          console.log(`[NO TIME] "${input}" → task: "${parsed.text}"`);
+          if (DEBUG) console.log(`[NO TIME] "${input}" → task: "${parsed.text}"`);
           return res.json({ ok: true, text: parsed.text || input, datetime: '', source: 'unparsed' });
         }
       }
@@ -1024,7 +1025,7 @@ app.post("/parse", auth, async (req, res) => {
             const rYear2 = rLocal.getUTCFullYear(), rMonth2 = rLocal.getUTCMonth(), rDay2 = rLocal.getUTCDate();
             // Use the AI's date but correct the hour
             const correctedIso = `${String(rYear2).padStart(4,'0')}-${p2(rMonth2+1)}-${p2(rDay2)}T${p2(correctedH)}:${p2(rMin2)}:00${offStr(offsetMinutes)}`;
-            console.log(`[AFTERNOON FIX] ${p2(rHour)}:${p2(rMin2)} + afternoon word → ${p2(correctedH)}:${p2(rMin2)}: ${correctedIso}`);
+            if (DEBUG) console.log(`[AFTERNOON FIX] ${p2(rHour)}:${p2(rMin2)} + afternoon word → ${p2(correctedH)}:${p2(rMin2)}: ${correctedIso}`);
             result = { ...result, datetime: correctedIso };
           }
         } catch (e) { console.warn('[AFTERNOON FIX] error:', e.message); }
@@ -1100,7 +1101,7 @@ app.post("/parse", auth, async (req, res) => {
             const currentMinutes = nowH * 60 + nowMin;
             if (statedMinutes > currentMinutes) {
               const todayIso = `${String(nYear).padStart(4,'0')}-${p2(nMonth+1)}-${p2(nDay)}T${p2(rH)}:${p2(rMin)}:00${offStr(offsetMinutes)}`;
-              console.log(`[FIX] ${p2(rH)}:${p2(rMin)} > ${p2(nowH)}:${p2(nowMin)}, no explicit tomorrow → today: ${todayIso}`);
+              if (DEBUG) console.log(`[FIX] ${p2(rH)}:${p2(rMin)} > ${p2(nowH)}:${p2(nowMin)}, no explicit tomorrow → today: ${todayIso}`);
               result = { ...result, datetime: todayIso };
             }
           } else if (diffDays === 0) {
@@ -1113,12 +1114,12 @@ app.post("/parse", auth, async (req, res) => {
               const tomorrowDt = new Date(localNow);
               tomorrowDt.setDate(tomorrowDt.getDate() + 1);
               const tomorrowIso = `${String(tomorrowDt.getFullYear()).padStart(4,'0')}-${p2(tomorrowDt.getMonth()+1)}-${p2(tomorrowDt.getDate())}T${p2(rH)}:${p2(rMin)}:00${offStr(offsetMinutes)}`;
-              console.log(`[FIX] ${p2(rH)}:${p2(rMin)} ≤ ${p2(nowH)}:${p2(nowMin)}, today but past → tomorrow: ${tomorrowIso}`);
+              if (DEBUG) console.log(`[FIX] ${p2(rH)}:${p2(rMin)} ≤ ${p2(nowH)}:${p2(nowMin)}, today but past → tomorrow: ${tomorrowIso}`);
               result = { ...result, datetime: tomorrowIso };
             }
           }
         } else if (hasExplicitDate) {
-          console.log(`[FIX] skipped — explicit date word detected in: "${input}"`);
+          if (DEBUG) console.log(`[FIX] skipped — explicit date word detected in: "${input}"`);
           // But still check: if AI returned a PAST date with weekday → fix to future
           try {
             const resultDt2 = new Date(result.datetime);
@@ -1129,7 +1130,7 @@ app.post("/parse", auth, async (req, res) => {
               const fixedDt = new Date(resultDt2);
               fixedDt.setDate(fixedDt.getDate() + 7);
               const fixedIso = fixedDt.toISOString().replace('Z', offStr(offsetMinutes)).slice(0, 19) + offStr(offsetMinutes);
-              console.log(`[FIX] Past weekday date ${result.datetime} → ${fixedIso}`);
+              if (DEBUG) console.log(`[FIX] Past weekday date ${result.datetime} → ${fixedIso}`);
               result = { ...result, datetime: fixedIso };
             }
           } catch(e) { console.warn('[FIX weekday] error:', e.message); }
@@ -1139,7 +1140,7 @@ app.post("/parse", auth, async (req, res) => {
       }
       // ─────────────────────────────────────────────────────────────────────────
 
-      console.log(`[OK] "${input}" → ${result.datetime}`);
+      if (DEBUG) console.log(`[OK] "${input}" → ${result.datetime}`);
 
       // Clean AI result text from leftover prepositions/date words
       if (result.text) {
@@ -1182,7 +1183,7 @@ app.post("/parse", auth, async (req, res) => {
         );
         const triggerOnly = !hasTimeRefTrigger && /^[\s\p{P}]*(поставь|напомни|нагадай|remind|set a reminder|erinnere|rappelle|recuérdame|przypomnij|ricordami|lembra)[\s\p{P}]*мне?[\s\p{P}]*$/iu.test(input.trim());
         if (triggerOnly) {
-          console.log(`[SKIP] trigger-only input, no task: "${input}"`);
+          if (DEBUG) console.log(`[SKIP] trigger-only input, no task: "${input}"`);
           return res.json({ ok: false, reason: 'no_task' });
         }
       }
@@ -1220,7 +1221,7 @@ app.post("/parse", auth, async (req, res) => {
       );
       if (!hasTimeRef && result.datetime) {
         // No time reference in input → AI invented a time → show picker instead
-        console.log(`[NO TIME] No time in input, AI invented time → returning empty datetime for: "${input}"`);
+        if (DEBUG) console.log(`[NO TIME] No time in input, AI invented time → returning empty datetime for: "${input}"`);
         return res.json({ ok: true, text: result.text || input, datetime: '', source: 'unparsed' });
       }
 
