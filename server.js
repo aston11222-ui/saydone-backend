@@ -249,6 +249,7 @@ app.post("/parse", auth, async (req, res) => {
         const taskText = removeTriggerWords(normInputGlobal)
           .replace(/(?:in|dans|en|za|tra|fra|em|daqui\s+a|dentro\s+de|через|за)\s+\d+\s*\S+\s*(?:and\s+|und\s+|et\s+|y\s+|e\s+|і\s+|та\s+)?\d+\s*\S+/gi, '')
           .replace(/(сьогодні|сегодня|today|heute)/gi, '')
+          .replace(/(вчора|вчера|yesterday|gestern|hier|ayer|wczoraj|ieri|ontem)/gi, '')
           .replace(/^(d['\u2019]|que\s+|że\s+|di\s+|de\s+)/i, '')
           .replace(/^(на|в|о|у|o|a)\s+/i, '')
           .replace(/\s+/g, ' ').trim();
@@ -687,14 +688,13 @@ app.post("/parse", auth, async (req, res) => {
           const datetime = `${dateStr}T${p2(h)}:${p2(m)}:00${offStr(offsetMinutes)}`;
 
           const taskText = removeTriggerWords(input)
-            .replace(/(?:on|am|le|el|w|il|la|no|na)\s+/gi, ' ')
             .replace(new RegExp(dowPatterns.map(([,re]) => re.source).join('|'), 'gi'), '')
             // Remove precision words
             .replace(/\b(ровно|рівно|exactly|sharp|genau|exakt|exactement|pile|exactamente|en\s+punto|dok\u0142adnie|r\xf3wno|esattamente|in\s+punto|exatamente|em\s+ponto)\b/gi, '')
             // Remove next/следующий/наступний modifiers
             .replace(/\b(следующ(?:ий|ую|его)|ближайш(?:ий|ую)|наступн(?:ий|ого|ій|у)|найближч(?:ий|у))\b/gi, '')
             .replace(/\b(next|upcoming|this\s+coming|n\xe4chsten?|n\xe4chste[rn]?|kommenden?|prochain[e]?|pr[o\xf3]xim[ao]|nast\u0119pn(?:y|a)|najbli\u017cszych?|prossim[ao])\b/gi, '')
-            .replace(/(?:\xd0\xbd\xd0\xb0|\xd0\xb2|\xd0\xbe|\xd1\x83|at|on|um|\xc3\xa0|\xc3\xa0s|aos|alle|a\s+las|o\s+godzinie)\s+\d{1,2}(:\d{2})?(\s*Uhr)?/gi, '')
+            .replace(/(?:на|в|о|у|at|on|um|à|às|aos|alle|a\s+las|o\s+godzinie)\s+\d{1,2}(:\d{2})?(\s*Uhr)?/gi, '')
             .replace(/\d{1,2}:\d{2}/g, '')
             .replace(/\d{1,2}\s*Uhr\b/gi, '').replace(/\d{1,2}h\b/gi, '')
             .replace(/(pm|p\.m\.|am\b|a\.m\.|abends|morgens|Uhr)/gi, '')
@@ -712,7 +712,7 @@ app.post("/parse", auth, async (req, res) => {
             .replace(/^-[\u0400-\u04ff]+\s*/i, '')
             .replace(/\s+-[\u0400-\u04ff]+/gi, '')
             // Remove leftover prepositions at start
-            .replace(/^(\xd0\xbd\xd0\xb0|\xd0\xb2|\xd0\xbe|\xd1\x83|o|a|le|el)\s+/i, '')
+            .replace(/^(на|в|о|у|o|a|le|el)\s+/i, '')
             .replace(/\s+/g, ' ').trim();
 
           console.log(`[PRE-DOW] "${input}" → ${datetime} (task: "${taskText}")`);
@@ -722,7 +722,48 @@ app.post("/parse", auth, async (req, res) => {
     }
     // ─────────────────────────────────────────────────────────────────────────
 
-    // ── Safe deterministic parser for exact HH:MM time + simple date ─────────
+    // ── Deterministic weekday-only parser (no time → show picker) ───────────
+    // Intercepts "на пятницу", "on Friday", "am Freitag" etc. without time info
+    // Returns datetime:'' so app shows time picker with cleaned task text
+    {
+      const dowPatternsSimple = [
+        [0, /(sunday|dimanche|domingo|niedziela|niedziel[ęą]|domenica|воскресенье|неділ[юяі]?|sonntag)/i],
+        [1, /(monday|lundi|lunes|poniedzia[łl]ek|lunedì|segunda-?feira|segunda\b|понедельник|понеділо?к|montag)/i],
+        [2, /(tuesday|mardi|martes|wtorek|martedì|ter[çc]a-?feira|terça\b|вторник|вівторо?к|dienstag)/i],
+        [3, /(wednesday|mercredi|miércoles|[sś]rod[ęa]|mercoledì|quarta-?feira|quarta\b|среду?|середу?|середа|mittwoch)/i],
+        [4, /(thursday|jeudi|jueves|czwartek|giovedì|quinta-?feira|quinta\b|четверг|четвер|donnerstag)/i],
+        [5, /(friday|vendredi|viernes|pi[aą]tek|venerdì|sexta-?feira|sexta\b|пятниц[ую]?|п['']ятниц[юя]|freitag)/i],
+        [6, /(saturday|samedi|s[aá]bado|sobot[ęa]|sabato|суббот[ау]?|субот[ую]?|samstag)/i],
+      ];
+      const hasTimeRef = /\d{1,2}[:\-\.]\d{2}|\d{1,2}h\d{2}|\b\d{1,2}\s*Uhr\b|\bat\s+\d|\balle\s+\d|\ba\s+las\s+\d|\bum\s+\d|(?:^|\s)à\s+\d|(?:^|\s)às\s+\d|\bam\b|\bpm\b|[ap]\.m\.|вечора|вечера|ночи|ночі|утра|ранку|вранці|зранку|morning|evening|night|afternoon|abends|nachts|morgens|soir|matin|noche|tarde|manhã|noite|rano|wieczor/i.test(normInputGlobal);
+      if (!hasTimeRef) {
+        let targetDow2 = -1;
+        for (const [idx, re] of dowPatternsSimple) {
+          if (re.test(input)) { targetDow2 = idx; break; }
+        }
+        if (targetDow2 >= 0) {
+          let diff = targetDow2 - localNow.getDay();
+          if (diff < 0) diff += 7;
+          if (diff === 0) diff = 7;
+          const targetDate = new Date(localNow);
+          targetDate.setDate(localNow.getDate() + diff);
+          const dateStr = targetDate.toISOString().slice(0, 10);
+          const taskText = removeTriggerWords(input)
+            .replace(new RegExp(dowPatternsSimple.map(([,re]) => re.source).join('|'), 'gi'), '')
+            .replace(/\b(следующ(?:ий|ую|его)|ближайш(?:ий|ую)|наступн(?:ий|ого|ій|у)|найближч(?:ий|у))\b/gi, '')
+            .replace(/\b(next|upcoming|this\s+coming|nächsten?|nächste[rn]?|kommenden?|prochain[e]?|pr[oó]xim[ao]|następn(?:y|a)|najbliższ(?:y|a)|prossim[ao])\b/gi, '')
+            .replace(/\b(вчора|вчера|yesterday|gestern|hier|ayer|wczoraj|ieri|ontem)\b/gi, '')
+            .replace(/^(на|в|о|у|on|am|le|el|w|il|la|no|na|a|o)\s+/i, '')
+            .replace(/\s+(на|в|о|у)\s*$/i, '')
+            .replace(/\s+/g, ' ').trim();
+          console.log(\`[PRE-DOW-NOTIME] "\${input}" → date:\${dateStr} no time → picker (task: "\${taskText}")\`);
+          return res.json({ ok: true, text: taskText, datetime: '', source: 'unparsed' });
+        }
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+        // ── Safe deterministic parser for exact HH:MM time + simple date ─────────
     // Only handles 100% unambiguous patterns to avoid AI cost
     // SKIP if input has relative days/weeks — those are handled by PRE-DAYS
     {
@@ -753,7 +794,7 @@ app.post("/parse", auth, async (req, res) => {
 
         // Determine if AM/PM word present
         const hasPRE24AM = /(ранку|вранці|зранку|до\s+обіду|утра|утром|с\s+утра|до\s+обеда|\bmorning\b|in\s+the\s+morning|\bam\b|a\.m\.|morgens|fr[uü]h|vormittags|du\s+matin|le\s+matin|de\s+la\s+ma[nñ]ana|por\s+la\s+ma[nñ]ana|\bdi\s+mattina\b|\bmattina\b|da\s+manh[ãa]|de\s+manh[ãa]|\brano\b|z\s+rana|przed\s+po[łl]udniem)/i.test(input);
-        const hasPRE24PM = /(вечора|вечера|увечері|ввечері|ночи|ночі|вночі|уночі|дня|після\s+обіду|вечером|ночью|после\s+обеда|\bevening\b|in\s+the\s+evening|\bnight\b|at\s+night|\bpm\b|p\.m\.|\bafternoon\b|in\s+the\s+afternoon|\babends\b|\bnachts\b|du\s+soir|le\s+soir|de\s+nuit|la\s+nuit|de\s+la\s+(?:tarde|noche)|por\s+la\s+(?:tarde|noche)|\bdi\s+sera\b|\bdi\s+notte\b|\bsera\b|\bnotte\b|da\s+(?:tarde|noite)|[øa0]\s+noite|wieczore?m?|w\s+nocy|noc[ąa])/i.test(normInputGlobal);
+        const hasPRE24PM = /(вечора|вечера|увечері|ввечері|ночи|ночі|вночі|уночі|дня|після\s+обіду|вечером|ночью|после\s+обеда|\bevening\b|in\s+the\s+evening|\bnight\b|at\s+night|\bpm\b|p\.m\.|\bafternoon\b|in\s+the\s+afternoon|\babends\b|\bnachts\b|du\s+soir|le\s+soir|de\s+nuit|la\s+nuit|de\s+la\s+(?:tarde|noche)|por\s+la\s+(?:tarde|noche)|\bdi\s+sera\b|\bdi\s+notte\b|\bsera\b|\bnotte\b|da\s+(?:tarde|noite)|[�xa0]\s+noite|wieczore?m?|w\s+nocy|noc[ąa])/i.test(normInputGlobal);
         let adjH = h;
         if (hasPRE24PM && h < 12) adjH = h + 12;
         if (hasPRE24AM && h === 12) adjH = 0;
@@ -1020,6 +1061,16 @@ app.post("/parse", auth, async (req, res) => {
       // ─────────────────────────────────────────────────────────────────────────
 
       console.log(`[OK] "${input}" → ${result.datetime}`);
+
+      // Clean AI result text from leftover prepositions/date words
+      if (result.text) {
+        result = { ...result, text: result.text
+          .replace(/\b(вчора|вчера|yesterday|gestern|hier|ayer|wczoraj|ieri|ontem)\b/gi, '')
+          .replace(/^(на|в|о|у|on|am|le|el|a|o)\s+/i, '')
+          .replace(/\s+(на|в|о|у)\s*$/i, '')
+          .replace(/\s+/g, ' ').trim()
+        };
+      }
 
       // If AI returned empty text (only trigger words, no real task) → ok:false
       // App will show "Almost ready" sheet to pick time
