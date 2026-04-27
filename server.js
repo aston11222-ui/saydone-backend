@@ -235,13 +235,13 @@ app.post("/parse", auth, async (req, res) => {
       'hey\\s+siri', 'ehi\\s+siri', 'dis\\s+siri', 'ей\\s+сір[иі]', 'эй\\s+сір[иі]',
       // RU — longest first
       'поставь\\s+пожалуйста', 'поставь\\s+напоминание', 'создай\\s+напоминание', 'добавь\\s+напоминание', 'поставь\\s+будильник',
-      'напомни\\s+пожалуйста', 'напомни\\s+мне', 'напомни', 'напоминание', 'поставь',
+      'напомни\\s+пожалуйста', 'напомни\\s+мне', 'напомню(?=\\s|$)', 'напомни(?=\\s|$)', 'напоминание', 'поставь',
       // UK — longest first
       'постав\\s+будь\\s+ласка', 'постав\\s+нагадування', 'створи\\s+нагадування', 'додай\\s+нагадування', 'постав\\s+будильник',
-      'нагадай\\s+будь\\s+ласка', 'нагадай\\s+мені', 'нагадай', 'нагадування', 'постав',
+      'нагадаю(?=\\s|$)', 'нагадай\\s+будь\\s+ласка', 'нагадай\\s+мені', 'нагадай(?=\\s|$)', 'нагадування', 'постав(?=\\s|$)',
       // EN — longest first
       'set\\s+a\\s+reminder\\s+for', 'set\\s+a\\s+reminder', 'set\\s+reminder', 'create\\s+reminder', 'add\\s+reminder', 'set\\s+alarm',
-      'remind\\s+me\\s+to', 'please\\s+remind\\s+me', 'remind\\s+me', 'remind', 'remember',
+      'remind\\s+me\\s+to', 'please\\s+remind\\s+me', 'remind\\s+me', 'remind(?=\\s|$)', 'remember',
       'alert\\s+me\\s+to', 'alert\\s+me',
       // DE
       'bitte\\s+erinnere\\s+mich', 'erinnere\\s+mich', 'erinner\\s+mich',
@@ -257,11 +257,11 @@ app.post("/parse", auth, async (req, res) => {
       'przypomnij\\s+mi\\s+[żz]eby', 'przypomnij\\s+mi', 'przypomnij',
       // IT
       'imposta\\s+un\\s+promemoria', 'aggiungi\\s+promemoria', 'crea\\s+promemoria',
-      'ricordami\\s+che', 'ricordami\\s+di', 'ricordami\\s+tra', 'ricordami', 'ricorda',
+      'ricordami\\s+che', 'ricordami\\s+di', 'ricordami\\s+tra', 'ricordami', 'ricorda(?=\\s|$)',
       // PT (PT-PT + PT-BR)
       'me\\s+lembre\\s+de', 'me\\s+lembre\\s+que', 'me\\s+lembre',
       'define\\s+um\\s+lembrete', 'adicione\\s+um\\s+lembrete', 'criar\\s+lembrete',
-      'lembra-me\\s+que', 'lembra-me\\s+de', 'lembra-me', 'lembra',
+      'lembra-me\\s+que', 'lembra-me\\s+de', 'lembra-me', 'lembra(?=\\s|$)',
     ];
     const _leftoverRe = /^(мне|мені|me|mich|mi|moi|por\s+favor|pls|please|bitte|s'il\s+te\s+pla[iî]t|per\s+favore|proszę|будь\s+ласка|пожалуйста)\s+/i;
     function removeTriggerWords(t) {
@@ -409,10 +409,10 @@ app.post("/parse", auth, async (req, res) => {
         const triggers = [
           // RU — longest patterns first
           'поставь\\s+пожалуйста', 'поставь\\s+напоминание', 'создай\\s+напоминание', 'добавь\\s+напоминание', 'поставь\\s+будильник',
-          'напомни\\s+пожалуйста', 'напомни\\s+мне', 'напомни', 'напоминание', 'поставь',
+          'напомни\\s+пожалуйста', 'напомни\\s+мне', 'напомню(?=\\s|$)', 'напомни(?=\\s|$)', 'напоминание', 'поставь',
           // UK
           'постав\\s+будь\\s+ласка', 'постав\\s+нагадування', 'створи\\s+нагадування', 'додай\\s+нагадування', 'постав\\s+будильник',
-          'нагадай\\s+будь\\s+ласка', 'нагадай\\s+мені', 'нагадай', 'нагадування', 'постав',
+          'нагадаю(?=\\s|$)', 'нагадай\\s+будь\\s+ласка', 'нагадай\\s+мені', 'нагадай(?=\\s|$)', 'нагадування', 'постав(?=\\s|$)',
           // EN
           'set\\s+a\\s+reminder\\s+for', 'set\\s+a\\s+reminder', 'set\\s+reminder', 'create\\s+reminder', 'add\\s+reminder', 'set\\s+alarm',
           'remind\\s+me\\s+to', 'please\\s+remind\\s+me', 'remind\\s+me', 'remind', 'remember',
@@ -791,8 +791,10 @@ app.post("/parse", auth, async (req, res) => {
             // Remove ordinal suffixes like -ту, -му, -ій
             .replace(/^-[\u0400-\u04ff]+\s*/i, '')
             .replace(/\s+-[\u0400-\u04ff]+/gi, '')
-            // Remove leftover prepositions at start
+            // Remove leftover prepositions at start AND as isolated tokens
             .replace(/^(на|в|о|у|o|a|le|el)\s+/i, '')
+            // Remove isolated single Cyrillic prepositions left after DOW removal
+            .replace(/(?:^|\s)(у|о|в|на|по)(?=\s|$)/gi, ' ')
             .replace(/\s+/g, ' ').trim();
 
           if (DEBUG) console.log(`[PRE-DOW] "${input}" → ${datetime} (task: "${taskText}")`);
