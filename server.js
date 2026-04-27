@@ -131,7 +131,20 @@ app.post("/parse", auth, async (req, res) => {
     const offsetMinutes = getOffset(req.body.now);
     const nowIso = toIso(localNow, offsetMinutes);
 
-    const input = String(text).replace(/\s+/g, " ").trim();
+    let input = String(text).replace(/\s+/g, " ").trim();
+
+    // Normalize prefix-interval order so pre-parsers always find trigger first
+    // "через 2 часа напомни купить молоко" → "напомни купить молоко через 2 часа"
+    // "in 2 hours remind me to buy milk"   → "remind me to buy milk in 2 hours"
+    {
+      const _prefixIntervalRe = /^((?:через|за)\s+\d+[.,]?\d*\s*\S+|через\s+(?:полчаса|полтора\s+часа?)|(?:in|dans|en|za|tra|fra|em)\s+\d+[.,]?\d*\s*\S+|(?:daqui\s+a|dentro\s+de)\s+\d+[.,]?\d*\s*\S+|in\s+half\s+an\s+hour|in\s+an?\s+hour|in\s+(?:one\s+and\s+a\s+half|\d+\.5)\s+hours?)\s+((?:напомни|нагадай|поставь|постав|remind(?:\s+me)?|set\s+a\s+reminder|erinnere(?:\s+mich)?|rappelle(?:-moi)?|recu[eé]rdame|przypomnij(?:\s+mi)?|ricordami|lembra(?:-me)?|me\s+lembre)(?:\s|$).*)/i;
+      const _pm = input.match(_prefixIntervalRe);
+      if (_pm) {
+        const reordered = _pm[2].trimEnd() + ' ' + _pm[1];
+        console.log(\`[REORDER] "\${input}" → "\${reordered}"\`);
+        input = reordered;
+      }
+    }
 
     // ── Deterministic pre-parser for relative intervals ───────────────────────
     // Handle "через N минут/часов" and equivalents in all languages
@@ -139,6 +152,24 @@ app.post("/parse", auth, async (req, res) => {
 
       // Word numbers → digits for RU/UK/EN
     function normalizeWordNums(s) {
+        // Accentless → accented normalization (handles voice/typo input without diacritics)
+        s = s
+          // ES weekdays/modifiers
+          .replace(/\bmiercoles\b/gi, 'miércoles')
+          .replace(/\bsabado\b/gi, 'sábado')
+          .replace(/\bproximo\b/gi, 'próximo').replace(/\bproxima\b/gi, 'próxima')
+          .replace(/\bmanana\b/gi, 'mañana')
+          // IT weekdays
+          .replace(/\blunedi\b/gi, 'lunedì').replace(/\bmartedi\b/gi, 'martedì')
+          .replace(/\bmercoledi\b/gi, 'mercoledì').replace(/\bgiovedi\b/gi, 'giovedì')
+          .replace(/\bvenerdi\b/gi, 'venerdì')
+          // PL weekdays
+          .replace(/\bsrode\b/gi, 'środę').replace(/\bsroda\b/gi, 'środa')
+          .replace(/\bpiatek\b/gi, 'piątek').replace(/\bsrody\b/gi, 'środy')
+          .replace(/\bniedziele\b/gi, 'niedzielę').replace(/\bsobote\b/gi, 'sobotę')
+          // PT
+          .replace(/\bamanha\b/gi, 'amanhã')
+          .replace(/\bpróximo\b/gi, 'próximo').replace(/\bpróxima\b/gi, 'próxima');
         // Compound numbers (ES/FR/IT/PT/DE)
         s = s
           .replace(/cuarenta\s+y\s+cinco/gi,'45').replace(/cuarenta\s+y\s+seis/gi,'46')
@@ -179,7 +210,7 @@ app.post("/parse", auth, async (req, res) => {
         // PL
         'jeden':'1','jedna':'1','jedno':'1','dwa':'2','dwie':'2','trzy':'3',
         'cztery':'4','pięć':'5','sześć':'6','siedem':'7','osiem':'8',
-        'dziewięć':'9','dziesięć':'10','piętnaście':'15','dwaście':'20','trzydzieści':'30',
+        'dziewięć':'9','dziesięć':'10','piętnaście':'15','dwadzieścia':'20','trzydzieści':'30',
         // IT
         'uno':'1','una':'1','due':'2','tre':'3','quattro':'4','cinque':'5',
         'sei':'6','sette':'7','otto':'8','nove':'9','dieci':'10',
@@ -198,6 +229,9 @@ app.post("/parse", auth, async (req, res) => {
 
     // Helper: remove trigger words from input
     const _triggers = [
+      // Wake words — all languages (strip before anything else)
+      'ok(?:ay)?\\s+google', 'hey\\s+google', 'ok\\s+гугл', 'окей\\s+гугл',
+      'hey\\s+siri', 'ehi\\s+siri', 'dis\\s+siri', 'ей\\s+сір[иі]', 'эй\\s+сір[иі]',
       // RU — longest first
       'поставь\\s+пожалуйста', 'поставь\\s+напоминание', 'создай\\s+напоминание', 'добавь\\s+напоминание', 'поставь\\s+будильник',
       'напомни\\s+пожалуйста', 'напомни\\s+мне', 'напомни', 'напоминание', 'поставь',
@@ -223,11 +257,12 @@ app.post("/parse", auth, async (req, res) => {
       // IT
       'imposta\\s+un\\s+promemoria', 'aggiungi\\s+promemoria', 'crea\\s+promemoria',
       'ricordami\\s+che', 'ricordami\\s+di', 'ricordami\\s+tra', 'ricordami', 'ricorda',
-      // PT
+      // PT (PT-PT + PT-BR)
+      'me\\s+lembre\\s+de', 'me\\s+lembre\\s+que', 'me\\s+lembre',
       'define\\s+um\\s+lembrete', 'adicione\\s+um\\s+lembrete', 'criar\\s+lembrete',
       'lembra-me\\s+que', 'lembra-me\\s+de', 'lembra-me', 'lembra',
     ];
-    const _leftoverRe = /^(мне|мені|me|mich|mi|moi|por\\s+favor|pls|please|bitte|s'il\\s+te\\s+pla[iî]t|por\\s+favor|per\\s+favore|proszę|будь\\s+ласка|пожалуйста)\s+/i;
+    const _leftoverRe = /^(мне|мені|me|mich|mi|moi|por\s+favor|pls|please|bitte|s'il\s+te\s+pla[iî]t|per\s+favore|proszę|будь\s+ласка|пожалуйста)\s+/i;
     function removeTriggerWords(t) {
       for (const tr of _triggers) {
         t = t.replace(new RegExp('^' + tr + '\\s*', 'i'), '');
@@ -396,7 +431,8 @@ app.post("/parse", auth, async (req, res) => {
           // IT
           'imposta\\s+un\\s+promemoria', 'aggiungi\\s+promemoria', 'crea\\s+promemoria',
           'ricordami\\s+che', 'ricordami\\s+di', 'ricordami\\s+tra', 'ricordami', 'ricorda',
-          // PT
+          // PT (PT-PT + PT-BR)
+          'me\\s+lembre\\s+de', 'me\\s+lembre\\s+que', 'me\\s+lembre',
           'define\\s+um\\s+lembrete', 'adicione\\s+um\\s+lembrete', 'criar\\s+lembrete',
           'lembra-me\\s+que', 'lembra-me\\s+de', 'lembra-me', 'lembra',
         ];
@@ -499,6 +535,45 @@ app.post("/parse", auth, async (req, res) => {
     }
     // ─────────────────────────────────────────────────────────────────────────
 
+    // ── Noon / полдень deterministic handler ─────────────────────────────────
+    {
+      const noonRe = /(в\s+полдень|о\s+полудні|опівдні|\bat\s+noon\b|\bnoon\b|\bzu\s+Mittag\b|\bMittag\b|\bà\s+midi\b|\bmidi\b|\bal\s+mediod[ií]a\b|\bmediod[ií]a\b|\ba\s+mezzogiorno\b|\bmezzogiorno\b|\bao?\s+meio-?dia\b|\bmeio-?dia\b|\bw\s+południe\b|\bpołudnie\b)/i;
+      const midnightRe = /(в\s+полночь|опівночі|о\s+полуночі|\bat\s+midnight\b|\bmidnight\b|\bzu\s+Mitternacht\b|\bMitternacht\b|\bà\s+minuit\b|\bminuit\b|\ba\s+medianoche\b|\bmedianoche\b|\ba\s+mezzanotte\b|\bmezzanotte\b|\bà\s+meia-?noite\b|\bmeia-?noite\b|\bo\s+północy\b|\bpółnoc\b)/i;
+
+      const isNoon = noonRe.test(normInputGlobal);
+      const isMidnight = !isNoon && midnightRe.test(normInputGlobal);
+
+      if (isNoon || isMidnight) {
+        const targetHour = isNoon ? 12 : 0;
+        // Check for tomorrow/day-after modifier
+        const hasTomNoon = /(завтра|tomorrow|morgen|demain|ma[nñ]ana|jutro|domani|amanh[aã])/i.test(normInputGlobal);
+        const hasDayAfterNoon = /(послезавтра|після\s*завтра|позавтра|day\s*after\s*tomorrow|übermorgen|après-demain|pasado\s*ma[nñ]ana|pojutrze|dopodomani|depois\s*de\s*amanh[aã])/i.test(normInputGlobal);
+        const d = new Date(localNow);
+        d.setHours(targetHour, 0, 0, 0);
+        if (hasDayAfterNoon) {
+          d.setDate(d.getDate() + 2);
+        } else if (hasTomNoon) {
+          d.setDate(d.getDate() + 1);
+        } else if (d <= localNow) {
+          // already passed today → tomorrow
+          d.setDate(d.getDate() + 1);
+        }
+        const datetime = toIso(d, offsetMinutes);
+        const taskText = removeTriggerWords(normInputGlobal)
+          .replace(noonRe, '').replace(midnightRe, '')
+          .replace(/(завтра|tomorrow|morgen|demain|ma[nñ]ana|jutro|domani|amanh[aã])/gi, '')
+          .replace(/(послезавтра|після\s*завтра|позавтра|übermorgen|après-demain|pojutrze|dopodomani|depois\s*de\s*amanh[aã])/gi, '')
+          .replace(/(сьогодні|сегодня|today|heute|aujourd'hui|hoy|dzisiaj|oggi|hoje)/gi, '')
+          .replace(/(вчора|вчера|yesterday|gestern|hier|ayer|wczoraj|ieri|ontem)/gi, '')
+          .replace(/\b(ровно|рівно|exactly|sharp|genau|exactement|pile|exactamente|en\s+punto|dokładnie|esattamente|exatamente)\b/gi, '')
+          .replace(/^(на|в|о|у|o|a|au?)\s+/i, '')
+          .replace(/\s+/g, ' ').trim();
+        console.log(`[PRE-NOON] "${input}" → ${datetime} (task: "${taskText}")`);
+        return res.json({ ok: true, text: taskText, datetime, source: 'pre' });
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     // ── Deterministic N days/weeks parser ────────────────────────────────────
     // Handles: "через 3 дня", "in 3 days", "dans 3 jours", "za 3 dni" etc.
     {
@@ -507,29 +582,29 @@ app.post("/parse", auth, async (req, res) => {
       const normInput = normInputGlobal;
 
       const daysMatch = normInput.match(/(?:через|за)\s+(\d+)\s*(?:день|дня|дней|дні|днів|днів)/i) ||
-        input.match(/\bin\s+(\d+)\s*days?\b/i) ||
-        input.match(/\bin\s+(\d+)\s*Tagen?\b/i) ||
-        input.match(/\bdans\s+(\d+)\s*jours?\b/i) ||
-        input.match(/\ben\s+(\d+)\s*d[íi]as?\b/i) ||
-        input.match(/\bza\s+(\d+)\s*dni\b/i) ||
-        input.match(/\bza\s+(\d+)\s*dzie[nń]\b/i) ||
-        input.match(/\btra\s+(\d+)\s*giorni\b/i) ||
-        input.match(/\bfra\s+(\d+)\s*giorni\b/i) ||
-        input.match(/\bem\s+(\d+)\s*dias?\b/i) ||
-        input.match(/\bdaqui\s+a\s+(\d+)\s*dias?\b/i);
+        normInput.match(/\bin\s+(\d+)\s*days?\b/i) ||
+        normInput.match(/\bin\s+(\d+)\s*Tagen?\b/i) ||
+        normInput.match(/\bdans\s+(\d+)\s*jours?\b/i) ||
+        normInput.match(/\ben\s+(\d+)\s*d[íi]as?\b/i) ||
+        normInput.match(/\bza\s+(\d+)\s*dni\b/i) ||
+        normInput.match(/\bza\s+(\d+)\s*dzie[nń]\b/i) ||
+        normInput.match(/\btra\s+(\d+)\s*giorni\b/i) ||
+        normInput.match(/\bfra\s+(\d+)\s*giorni\b/i) ||
+        normInput.match(/\bem\s+(\d+)\s*dias?\b/i) ||
+        normInput.match(/\bdaqui\s+a\s+(\d+)\s*dias?\b/i);
 
       const weeksMatch = !daysMatch && (
         normInput.match(/(?:через|за)\s+(\d+)\s*(?:тижн[іьея]|тижнів|неділь|тижде?нь)/i) ||
         normInput.match(/(?:через|за)\s+(\d+)\s*(?:недел[иьюя]|недель)/i) ||
-        input.match(/\bin\s+(\d+)\s*weeks?\b/i) ||
-        input.match(/\bin\s+(\d+)\s*Wochen?\b/i) ||
-        input.match(/\bdans\s+(\d+)\s*semaines?\b/i) ||
-        input.match(/\ben\s+(\d+)\s*semanas?\b/i) ||
-        input.match(/\bza\s+(\d+)\s*tygodni[aey]?\b/i) ||
-        input.match(/\btra\s+(\d+)\s*settimane?\b/i) ||
-        input.match(/\bfra\s+(\d+)\s*settimane?\b/i) ||
-        input.match(/\bem\s+(\d+)\s*semanas?\b/i) ||
-        input.match(/\bdaqui\s+a\s+(\d+)\s*semanas?\b/i)
+        normInput.match(/\bin\s+(\d+)\s*weeks?\b/i) ||
+        normInput.match(/\bin\s+(\d+)\s*Wochen?\b/i) ||
+        normInput.match(/\bdans\s+(\d+)\s*semaines?\b/i) ||
+        normInput.match(/\ben\s+(\d+)\s*semanas?\b/i) ||
+        normInput.match(/\bza\s+(\d+)\s*tygodni[aey]?\b/i) ||
+        normInput.match(/\btra\s+(\d+)\s*settimane?\b/i) ||
+        normInput.match(/\bfra\s+(\d+)\s*settimane?\b/i) ||
+        normInput.match(/\bem\s+(\d+)\s*semanas?\b/i) ||
+        normInput.match(/\bdaqui\s+a\s+(\d+)\s*semanas?\b/i)
       );
 
       const nMatch = daysMatch || weeksMatch;
@@ -548,6 +623,9 @@ app.post("/parse", auth, async (req, res) => {
                               normInputGlobal.match(/о\s+(\d{1,2})\s+(?:вечора|вечера|ранку|утра)/i) ||
                               normInputGlobal.match(/на\s+(\d{1,2})\s+(?:годин\s+)?(?:вечора|вечера|ранку|утра|ночи|ночі)/i) ||
                               normInputGlobal.match(/\bat\s+(\d{1,2})\s*(pm|am)\b/i) ||
+                              normInputGlobal.match(/\bat\s+(\d{1,2})\s*(?:a\.m\.|p\.m\.)(?=\s|$)/i) ||
+                              // RU/UK bare 'в 8' / 'на 8' / 'о 8' without period word
+                              normInputGlobal.match(/(?:^|\s)(?:в|на|о|у)\s+(\d{1,2})(?:\s|$)/i) ||
                               normInputGlobal.match(/[ap]\.m\./) ||
                               normInputGlobal.match(/\balle\s+(\d{1,2})\b/i) ||
                               normInputGlobal.match(/(?:à|a)\s+(\d{1,2})h\b/i) ||
@@ -645,6 +723,7 @@ app.post("/parse", auth, async (req, res) => {
                           normInputGlobal.match(/\b(\d{1,2})\s*Uhr\b/i) ||
                           normInputGlobal.match(/\b(\d{1,2})h\b(?!eure)/i) ||
                           normInputGlobal.match(/\bat\s+(\d{1,2})\s*(pm|am)\b/i) ||
+                          normInputGlobal.match(/\bat\s+(\d{1,2})\s*(?:a\.m\.|p\.m\.)(?=\s|$)/i) ||
                           normInputGlobal.match(/\bo\s+(\d{1,2})\s*(pm|am)?\b/i) ||
                           // Ordinal: 9-ту, 8-му etc. (UK/RU)
                           normInputGlobal.match(/(\d{1,2})-[а-яіїєА-ЯІЇЄa-z]+/) ||
@@ -659,8 +738,8 @@ app.post("/parse", auth, async (req, res) => {
                           normInputGlobal.match(/(?:^|\s)às\s+(\d{1,2})\b/i) ||
                           normInputGlobal.match(/\ba\s+las\s+(\d{1,2})\b/i);
       // PM words
-      const hasPM = /(\d(pm)\b|\bp\.m\.\b|вечера|вечора|увечері|ввечері|\babends\b|\bdu\s+soir\b|\bde\s+la\s+noche\b|\bdi\s+sera\b|\bda\s+noite\b|wieczore?m?\b|\bsera\b|\bnoche\b)/i.test(input);
-      const hasAM = /(\d(am)\b|\ba\.m\.\b|утра|ранку|вранці|зранку|\bmorgens\b|\bdu\s+matin\b|\bde\s+la\s+mañana\b|\bdi\s+mattina\b|\bda\s+manhã\b|\brano\b|\bmattina\b|\bmatin\b|\bmorning\b)/i.test(input);
+      const hasPM = /(\d(pm)\b|p\.m\.(?=\s|$)|вечера|вечора|увечері|ввечері|\babends\b|\bdu\s+soir\b|\bde\s+la\s+noche\b|\bdi\s+sera\b|\bda\s+noite\b|wieczore?m?\b|\bsera\b|\bnoche\b)/i.test(input);
+      const hasAM = /(\d(am)\b|a\.m\.(?=\s|$)|утра|ранку|вранці|зранку|\bmorgens\b|\bdu\s+matin\b|\bde\s+la\s+mañana\b|\bdi\s+mattina\b|\bda\s+manhã\b|\brano\b|\bmattina\b|\bmatin\b|\bmorning\b)/i.test(input);
 
       if (timeMatch24) {
         let h = parseInt(timeMatch24[1]);
