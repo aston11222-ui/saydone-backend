@@ -885,7 +885,7 @@ app.post("/parse", auth, async (req, res) => {
         if ((adjH >= 13 || hasPRE24AM || hasPRE24PM) && adjH >= 0 && adjH <= 23 && m >= 0 && m <= 59) {
           const finalH = adjH;
           // Clear 24h time — determine date
-          const statedMinutes = h * 60 + m;
+          const statedMinutes = finalH * 60 + m;  // use finalH (post AM/PM correction)
           const nowMinutes = localNow.getHours() * 60 + localNow.getMinutes();
 
           // Check for tomorrow/послезавтра/day-after words
