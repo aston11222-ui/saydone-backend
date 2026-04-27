@@ -141,7 +141,7 @@ app.post("/parse", auth, async (req, res) => {
       const _pm = input.match(_prefixIntervalRe);
       if (_pm) {
         const reordered = _pm[2].trimEnd() + ' ' + _pm[1];
-        console.log(\`[REORDER] "\${input}" → "\${reordered}"\`);
+        console.log(`[REORDER] "${input}" → "${reordered}"`);
         input = reordered;
       }
     }
@@ -835,7 +835,7 @@ app.post("/parse", auth, async (req, res) => {
             .replace(/^(на|в|о|у|on|am|le|el|w|il|la|no|na|a|o)\s+/i, '')
             .replace(/\s+(на|в|о|у)\s*$/i, '')
             .replace(/\s+/g, ' ').trim();
-          console.log(\`[PRE-DOW-NOTIME] "\${input}" → date:\${dateStr} no time → picker (task: "\${taskText}")\`);
+          console.log(`[PRE-DOW-NOTIME] "${input}" → date:${dateStr} no time → picker (task: "${taskText}")`);
           return res.json({ ok: true, text: taskText, datetime: '', source: 'unparsed' });
         }
       }
