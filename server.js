@@ -89,6 +89,7 @@ TASK: Extract reminder text and datetime from voice input in ${lang.toUpperCase(
 
 OUTPUT: JSON only — {"text":"<task>","datetime":"<ISO8601 with offset>"}
 - datetime format: ${todayStr}T15:00:00${offsetStr}
+- CRITICAL: hours in datetime = LOCAL time (NOT UTC). If user says 9:00 → T09:00:00${offsetStr}, NOT T06:00:00${offsetStr}
 - If NO time stated → {"text":"<task>","datetime":""}
 - If ONLY trigger words, no task → {"ok":false}
 
@@ -910,7 +911,9 @@ app.post("/parse", auth, async (req, res) => {
         if (hasPRE24AM && h === 12) adjH = 0;
 
         // Handle 24h times OR 12h with explicit AM/PM word
-        if ((adjH >= 13 || hasPRE24AM || hasPRE24PM) && adjH >= 0 && adjH <= 23 && m >= 0 && m <= 59) {
+        // HH:MM with colon is always unambiguous 24h format (9:00 = 09:00, not noon)
+        const hasExplicitColon = !!(normInputGlobal.match(/\b(\d{1,2}):(\d{2})\b/) || normInputGlobal.match(/\b(\d{1,2})-(\d{2})\b/));
+        if ((adjH >= 13 || hasPRE24AM || hasPRE24PM || hasExplicitColon) && adjH >= 0 && adjH <= 23 && m >= 0 && m <= 59) {
           const finalH = adjH;
           // Clear 24h time — determine date
           const statedMinutes = finalH * 60 + m;  // use finalH (post AM/PM correction)
@@ -1017,7 +1020,7 @@ app.post("/parse", auth, async (req, res) => {
           { role: "system", content: systemPrompt },
           { role: "user",   content: `Locale: ${locale || "unknown"}\nVoice input: "${input}"` },
         ],
-        max_tokens: 80,
+        max_tokens: 120,
       });
       const raw = response.choices?.[0]?.message?.content;
       if (DEBUG) console.log(`[AI RAW] "${input}" → ${raw}`);
