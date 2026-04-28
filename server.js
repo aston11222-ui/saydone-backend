@@ -99,15 +99,9 @@ RULES:
 3. PM words (add 12 if hour < 12): ${h.pm}
 4. NOON/afternoon words (add 12 if hour < 12, max 17): ${h.noon}
 5. Weekday names in this language: ${h.days}
-6. BARE HOUR (no am/pm/morning/evening stated, hour 1-12):
-   - Try hour+12 first. If (hour+12) > current hour → use TODAY at (hour+12)
-   - Example: now=18:36, user says "в 10" → try 22:00 → 22>18 → TODAY 22:00
-   - Example: now=23:00, user says "в 10" → try 22:00 → 22<23 → try 10:00 → 10<23 → TOMORROW 10:00
-   - Example: now=08:00, user says "в 10" → try 22:00 → too far? no, but 10:00 > 08:00 → TODAY 10:00 (pick nearest)
-   - NEAREST future: pick whichever of (hour) or (hour+12) comes soonest after now
-7. If past time and no date word → move to tomorrow
-8. Weekdays → next future occurrence (never today)
-9. послезавтра/übermorgen/après-demain/pojutrze/dopodomani/depois de amanhã → ${addD(2)}
+6. If past time and no date word → move to tomorrow
+7. Weekdays → next future occurrence (never today)
+8. послезавтра/übermorgen/après-demain/pojutrze/dopodomani/depois de amanhã → ${addD(2)}
 
 DATES (today=${todayStr}):
 - tomorrow → ${addD(1)}
@@ -115,13 +109,11 @@ DATES (today=${todayStr}):
 - next monday → ${nextDow(1)}, tuesday → ${nextDow(2)}, wednesday → ${nextDow(3)}
 - thursday → ${nextDow(4)}, friday → ${nextDow(5)}, saturday → ${nextDow(6)}, sunday → ${nextDow(0)}
 
-EXAMPLES (current time=${timeStr}):
+EXAMPLES:
 {"text":"купить молоко","datetime":"${addD(1)}T21:00:00${offsetStr}"}  ← tomorrow at 9pm
 {"text":"","datetime":"${addD(3)}T09:00:00${offsetStr}"}              ← in 3 days at 9am  
 {"text":"встреча","datetime":""}                                       ← no time stated
 {"ok":false}                                                           ← only trigger words
-{"text":"сходити в магазин","datetime":"${todayStr}T22:00:00${offsetStr}"}  ← "в 10" when now=18:36 → nearest=22:00 today
-{"text":"call mom","datetime":"${todayStr}T20:00:00${offsetStr}"}           ← "at 8" when now=14:00 → nearest=20:00 today
 
 Output ONLY the JSON. No explanation.`;
 }
