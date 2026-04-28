@@ -1010,14 +1010,14 @@ app.post("/parse", auth, async (req, res) => {
     let result = null;
     try {
       const response = await client.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-4.1-nano",
         temperature: 0,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user",   content: `Locale: ${locale || "unknown"}\nVoice input: "${input}"` },
         ],
-        max_tokens: 120,
+        max_tokens: 80,
       });
       const raw = response.choices?.[0]?.message?.content;
       if (DEBUG) console.log(`[AI RAW] "${input}" → ${raw}`);
