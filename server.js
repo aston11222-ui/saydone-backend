@@ -134,6 +134,29 @@ app.post("/parse", auth, async (req, res) => {
 
     let input = String(text).replace(/\s+/g, " ").trim();
 
+    // ── Final task text cleaner — strips leading/trailing particles ──────────
+    function cleanTaskText(t) {
+      return t
+        // Leading connectors (FR d', ES que, PL że/żeby, IT di, PT de/da)
+        // Note: 'do','al','co' removed — too risky ("do homework", "al dentist")
+        .replace(/^d['\u2019\u0060\u00B4]\s*/i, '')
+        .replace(/^(que|że|żeby|żebym|di|de|da|del)\s+/i, '')
+        // Leading prepositions (RU/UK/EN/DE) — only unambiguous ones
+        .replace(/^(на|в|о|у|um|to|for|le|la|el)\s+/i, '')
+        // at/on only if followed by time/date context word, otherwise skip
+        // (too risky: "on the road", "at the office" are valid tasks)
+        // Leading à/às (FR/PT)
+        .replace(/^(à|às|ao?)\s+/i, '')
+        // Trailing prepositions/connectors (all languages)
+        // Note: 'a','o' removed from trailing — too short, risk eating task words
+        .replace(/\s+(в|на|о|у|at|on|to|for|um|à|às|al|alle|de|da|di|że)\s*$/i, '')
+        // Trailing EN particles
+        .replace(/\s+(and|or)\s*$/i, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     // Normalize prefix-interval order so pre-parsers always find trigger first
     // "через 2 часа напомни купить молоко" → "напомни купить молоко через 2 часа"
     // "in 2 hours remind me to buy milk"   → "remind me to buy milk in 2 hours"
@@ -289,6 +312,7 @@ app.post("/parse", auth, async (req, res) => {
           .replace(/^(d['\u2019]|que\s+|że\s+|di\s+|de\s+)/i, '')
           .replace(/^(на|в|о|у|o|a)\s+/i, '')
           .replace(/\s+/g, ' ').trim();
+        taskText = cleanTaskText(taskText);
         if (DEBUG) console.log(`[PRE-HM] "${input}" → ${datetime} (task: "${taskText}")`);
         return res.json({ ok: true, text: taskText, datetime, source: 'pre' });
       }
@@ -490,7 +514,6 @@ app.post("/parse", auth, async (req, res) => {
           .replace(/daqui\s+a\s+\d+[.,]?\d*\s*\S*/i, '');
 
         taskText = removeTriggers(taskText);
-        taskText = removeTriggers(taskText); // second pass catches leftovers
         // Remove single-letter particles/pronouns at start (Я, я etc.)
         taskText = taskText.replace(/^[а-яіїєА-ЯІЇЄ]\s+/u, '').trim();
         // Remove "через час/годину/hour" and half-hour expressions that may now be exposed
@@ -530,6 +553,7 @@ app.post("/parse", auth, async (req, res) => {
           .replace(/\s+/g, ' ').trim();
 
         const datetime = toIso(preResult.dt, offsetMinutes);
+        taskText = cleanTaskText(taskText);
         if (DEBUG) console.log(`[PRE] "${input}" → ${datetime} (task: "${taskText}")`);
         return res.json({ ok: true, text: taskText, datetime, source: 'pre' });
       }
@@ -569,6 +593,7 @@ app.post("/parse", auth, async (req, res) => {
           .replace(/\b(ровно|рівно|exactly|sharp|genau|exactement|pile|exactamente|en\s+punto|dokładnie|esattamente|exatamente)\b/gi, '')
           .replace(/^(на|в|о|у|o|a|au?)\s+/i, '')
           .replace(/\s+/g, ' ').trim();
+        taskText = cleanTaskText(taskText);
         if (DEBUG) console.log(`[PRE-NOON] "${input}" → ${datetime} (task: "${taskText}")`);
         return res.json({ ok: true, text: taskText, datetime, source: 'pre' });
       }
@@ -650,7 +675,7 @@ app.post("/parse", auth, async (req, res) => {
             : `${dateStr}T00:00:00${offStr(offsetMinutes)}`;
 
           // Extract task
-          const taskText = removeTriggerWords(normInput)
+          let taskText = removeTriggerWords(normInput)
             // Remove "на/в/о HH:MM period" time expressions
             .replace(/(?:на|в|о|у)\s+\d{1,2}:\d{2}(?:\s+(?:вечора|вечера|ранку|утра|вечером|ночи))?/gi, '')
             .replace(/(?:на|в|о|у)\s+\d{1,2}\s+(?:годин\s+)?(?:вечора|вечера|ранку|утра|ночи|ночі)/gi, '')
@@ -693,7 +718,8 @@ app.post("/parse", auth, async (req, res) => {
 
           // If no time → return empty datetime so user picks time
           if (!hasTime) {
-            if (DEBUG) console.log(`[PRE-DAYS] "${input}" → task:"${taskText}" date:${dateStr} (no time → picker)`);
+            taskText = cleanTaskText(taskText);
+          if (DEBUG) console.log(`[PRE-DAYS] "${input}" → task:"${taskText}" date:${dateStr} (no time → picker)`);
             return res.json({ ok: true, text: taskText, datetime: '', source: 'unparsed' });
           }
 
@@ -767,7 +793,7 @@ app.post("/parse", auth, async (req, res) => {
           const dateStr = targetDate.toISOString().slice(0, 10);
           const datetime = `${dateStr}T${p2(h)}:${p2(m)}:00${offStr(offsetMinutes)}`;
 
-          const taskText = removeTriggerWords(input)
+          let taskText = removeTriggerWords(input)
             .replace(new RegExp(dowPatterns.map(([,re]) => re.source).join('|'), 'gi'), '')
             // Remove precision words
             .replace(/\b(ровно|рівно|exactly|sharp|genau|exakt|exactement|pile|exactamente|en\s+punto|dok\u0142adnie|r\xf3wno|esattamente|in\s+punto|exatamente|em\s+ponto)\b/gi, '')
@@ -797,6 +823,7 @@ app.post("/parse", auth, async (req, res) => {
             .replace(/(?:^|\s)(у|о|в|на|по)(?=\s|$)/gi, ' ')
             .replace(/\s+/g, ' ').trim();
 
+          taskText = cleanTaskText(taskText);
           if (DEBUG) console.log(`[PRE-DOW] "${input}" → ${datetime} (task: "${taskText}")`);
           return res.json({ ok: true, text: taskText, datetime, source: 'pre' });
         }
@@ -830,7 +857,7 @@ app.post("/parse", auth, async (req, res) => {
           const targetDate = new Date(localNow);
           targetDate.setDate(localNow.getDate() + diff);
           const dateStr = targetDate.toISOString().slice(0, 10);
-          const taskText = removeTriggerWords(input)
+          let taskText = removeTriggerWords(input)
             .replace(new RegExp(dowPatternsSimple.map(([,re]) => re.source).join('|'), 'gi'), '')
             .replace(/\b(следующ(?:ий|ую|его)|ближайш(?:ий|ую)|наступн(?:ий|ого|ій|у)|найближч(?:ий|у))\b/gi, '')
             .replace(/\b(next|upcoming|this\s+coming|nächsten?|nächste[rn]?|kommenden?|prochain[e]?|pr[oó]xim[ao]|następn(?:y|a)|najbliższ(?:y|a)|prossim[ao])\b/gi, '')
@@ -838,6 +865,7 @@ app.post("/parse", auth, async (req, res) => {
             .replace(/^(на|в|о|у|on|am|le|el|w|il|la|no|na|a|o)\s+/i, '')
             .replace(/\s+(на|в|о|у)\s*$/i, '')
             .replace(/\s+/g, ' ').trim();
+          taskText = cleanTaskText(taskText);
           if (DEBUG) console.log(`[PRE-DOW-NOTIME] "${input}" → date:${dateStr} no time → picker (task: "${taskText}")`);
           return res.json({ ok: true, text: taskText, datetime: '', source: 'unparsed' });
         }
@@ -912,7 +940,7 @@ app.post("/parse", auth, async (req, res) => {
           const datetime = `${dateStr}T${p2(finalH)}:${p2(m)}:00${offStr(offsetMinutes)}`;
 
           // Extract task text
-          const taskText = removeTriggerWords(input)
+          let taskText = removeTriggerWords(input)
             // Remove time with preceding preposition (all languages)
             .replace(/(?:на|в|о|у|at|on|um|à|às|aos|alle|a\s+las|o\s+godzinie)\s+\d{1,2}[:\-\.h]\d{2}/gi, '')
             .replace(/(?:на|в|о|у|at|on|um|à|às|aos|alle|a\s+las|o\s+godzinie)\s+\d{1,2}:\d{2}/gi, '')
@@ -939,6 +967,7 @@ app.post("/parse", auth, async (req, res) => {
             .replace(/^(на|в|о|у|o)\s+/i, '')
             .replace(/\s+/g, ' ').trim();
 
+          taskText = cleanTaskText(taskText);
           if (DEBUG) console.log(`[PRE24] "${input}" → ${datetime} (task: "${taskText}")`);
           return res.json({ ok: true, text: taskText, datetime, source: 'pre' });
         }
