@@ -135,7 +135,51 @@ app.post("/parse", auth, async (req, res) => {
 
     let input = String(text).replace(/\s+/g, " ").trim();
 
-    // ── Final task text cleaner — strips leading/trailing particles ──────────
+    // ── ASR normalization — fix voice recognition artifacts ──────────────────
+    input = (function normalizeASR(s) {
+      // Fix glued time: "в8" → "в 8", "at9" → "at 9"
+      // Note: Cyrillic \b doesn't work — use lookahead/lookbehind
+      s = s
+        .replace(/(в|о|у|на)(\d{1,2})(?=\s|$)/gi, '$1 $2')
+        .replace(/\b(at|on|um|à|a|às|alle|las)(\d{1,2})\b/gi, '$1 $2');
+
+      // Fix spaced time after preposition: "в 8 30" → "в 8:30"
+      s = s.replace(
+        /(в|о|у|на|at|um|à|a|às|alle|las)\s+(\d{1,2})\s+(\d{2})(?=\s|$)/gi,
+        '$1 $2:$3'
+      );
+
+      // ASR verb mistakes (voice recognition errors)
+      s = s
+        // RU
+        .replace(/напамин(?=\s|$)/gi, 'напомни')
+        .replace(/напомин(?=\s|$)/gi, 'напомни')
+        // EN
+        .replace(/\breminder\s+me\b/gi, 'remind me')
+        .replace(/\bremind\s+to\b/gi, 'remind me to')
+        // DE
+        .replace(/\berinner\s+mich\b/gi, 'erinnere mich')
+        // FR
+        .replace(/\brappel\s+moi\b/gi, 'rappelle moi')
+        // ES
+        .replace(/\brecordame\b/gi, 'recuérdame')
+        // PL
+        .replace(/\bprzypomni\s+mi\b/gi, 'przypomnij mi')
+        // IT
+        .replace(/\bricorda\s+mi\b/gi, 'ricordami')
+        // PT
+        .replace(/\blembra\s+me\b/gi, 'lembra-me');
+
+      // Filler/hesitation words
+      s = s
+        .replace(/(^|\s)(ну|типа|короче|ээ|эм)(?=\s|$)/gi, ' ')
+        .replace(/\b(uh|um|eh|äh|euh)\b/gi, '');
+
+      return s.replace(/\s+/g, ' ').trim();
+    })(input);
+    // ─────────────────────────────────────────────────────────────────────────
+
+
     function cleanTaskText(t) {
       return t
         // Leading connectors (FR d', ES que, PL że/żeby, IT di, PT de/da)
@@ -1016,7 +1060,7 @@ app.post("/parse", auth, async (req, res) => {
     let result = null;
     try {
       const response = await client.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-4.1-nano",
         temperature: 0,
         response_format: { type: "json_object" },
         messages: [
