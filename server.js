@@ -208,7 +208,9 @@ app.post("/parse", auth, async (req, res) => {
         .replace(/^(на|в|о|у|um|to|for|le|la|el|na|po|at)\s+/i, '')
         // Polish w/o standalone — run twice to catch 'w o ...' pattern
         .replace(/^[wo]\s+/i, '')
-        .replace(/^(о|o|na|at)\s+/i, '')
+        .replace(/^(о|o|na|at|h)\s+/i, '')
+        // Remove lone 'h' leftover from FR time format (21h → strips 21 leaves h)
+        .replace(/^h\s+/i, '')
         .replace(/^[wo]\s+/i, '')
         // at/on only if followed by time/date context word, otherwise skip
         // (too risky: "on the road", "at the office" are valid tasks)
@@ -218,6 +220,8 @@ app.post("/parse", auth, async (req, res) => {
         .replace(/\b(w\s+nocy|w\s+rano|w\s+południe|\brano\b|\bwieczorem\b|\bnocy\b)\b/gi, '')
         // DE time period words
         .replace(/\b(Uhr|nachts|morgens|abends|nachmittags|vormittags)\b/gi, '')
+        // FR time period words
+        .replace(/\b(du\s+matin|du\s+soir|de\s+l['']apr[eè]s-midi|et\s+demie?|demi-heure)\b/gi, '')
         // EN period words that leak
         .replace(/\b(tonight|this\s+morning|this\s+evening|this\s+afternoon)\b/gi, '')
         // Remove trailing isolated w/o/na
@@ -294,7 +298,7 @@ app.post("/parse", auth, async (req, res) => {
         'п’ять':'5','шість':'6','сім':'7','вісім':'8','дев’ять':'9','десять':'10',
         'тридцять':'30','двадцять':'20','п’ятнадцять':'15',
         // EN
-        'one':'1','two':'2','three':'3','four':'4','five':'5',
+        'one':'1','two':'2','three':'3','five':'5',  // 'four' removed — conflicts with FR 'four' (oven)
         'six':'6','seven':'7','eight':'8','nine':'9','ten':'10',
         'eleven':'11','twelve':'12','fifteen':'15','twenty':'20','thirty':'30','forty':'40','fifty':'50',
         // DE
@@ -459,13 +463,13 @@ app.post("/parse", auth, async (req, res) => {
       );
 
       // Special: через полчаса / через пів години / in half an hour
-      const halfHourMatch = /через\s+полчаса|через\s+пів\s+год|in\s+half\s+an\s+hour|dans\s+une\s+demi[-\s]heure|en\s+media\s+hora|za\s+p[oó][łl]\s+godziny|tra\s+mezz[''\u2019]ora|fra\s+mezz[''\u2019]ora|em\s+meia\s+hora|dentro\s+de\s+media\s+hora|daqui\s+a\s+meia\s+hora|in\s+einer\s+halben\s+Stunde|in\s+einer\s+halbe\s+Stunde|dans\s+une\s+demi\s+heure/i.test(normInputGlobal);
+      const halfHourMatch = /через\s+полчаса|через\s+пів\s+год|in\s+half\s+an\s+hour|dans\s+une\s+demi[-\s]heure|en\s+media\s+hora|za\s+p[oó][łl]\s+godziny|tra\s+mezz[''\u2019]ora|fra\s+mezz[''\u2019]ora|em\s+meia\s+hora|dentro\s+de\s+media\s+hora|daqui\s+a\s+meia\s+hora|in\s+einer\s+halben\s+Stunde|in\s+einer\s+halbe\s+Stunde|dans\s+une\s+demi\s+heure|dans\s+1\s+demi[-\s]heure/i.test(normInputGlobal);
       // Special: через полтора часа / через півтори години / in one and a half hours
       const oneAndHalfHourMatch = !halfHourMatch && (
         /через\s+полтора\s+час|через\s+півтор[иі]\s+год/i.test(normInputGlobal) ||
         /\bin\s+(?:one\s+and\s+a\s+half|1\.5|1,5)\s+hours?\b/i.test(normInputGlobal) ||
         /\bin\s+anderthalb\s+Stunden?\b/i.test(normInputGlobal) ||
-        /\bdans\s+une\s+heure\s+et\s+demie\b/i.test(normInputGlobal) ||
+        /\bdans\s+(?:une|1)\s+heure\s+et\s+demie\b/i.test(normInputGlobal) ||
         /\ben\s+una\s+hora\s+y\s+media\b/i.test(normInputGlobal) ||
         /\bza\s+p[oó][łl]torej\s+godziny\b/i.test(normInputGlobal) ||
         /\btra\s+un[''\u2019]ora\s+e\s+mezza\b/i.test(normInputGlobal) ||
@@ -572,8 +576,7 @@ app.post("/parse", auth, async (req, res) => {
           .replace(/in\s+(?:one\s+and\s+a\s+half|1\.5|1,5)\s+hours?/i, '')
           .replace(/in\s+einer\s+halben\s+Stunde/i, '').replace(/in\s+einer\s+Stunde/i, '')
           .replace(/in\s+anderthalb\s+Stunden?/i, '')
-          .replace(/dans\s+une\s+demi[-\s]heure/i, '').replace(/dans\s+une\s+heure/i, '')
-          .replace(/dans\s+une\s+heure\s+et\s+demie/i, '')
+          .replace(/dans\s+(?:une|1)\s+demi[-\s]heure/i, '').replace(/dans\s+(?:une|1)\s+heure(?:\s+et\s+demie)?/i, '')
           .replace(/en\s+media\s+hora/i, '').replace(/en\s+una\s+hora/i, '')
           .replace(/en\s+una\s+hora\s+y\s+media/i, '')
           .replace(/za\s+p[oó][łl]\s+godziny/i, '').replace(/za\s+godzin[ęe]/i, '')
