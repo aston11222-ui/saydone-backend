@@ -601,7 +601,7 @@ app.post("/parse", auth, async (req, res) => {
           .replace(/daqui\s+a\s+meia\s+hora/i, '')
           // Precision words (ровно/рівно/exactly/sharp/genau/pile/en punto etc.) — remove
           .replace(/\b(ровно|рівно|exactly|sharp|genau|exakt|exactement|pile|exactamente|en\s+punto|dokładnie|równo|esattamente|in\s+punto|exatamente|em\s+ponto)\b/gi, '')
-          // N minutes/hours all languages
+          // N minutes/hours all languages (numeric)
           .replace(/через\s+\d+[.,]?\d*\s*\S+/i, '')
           .replace(/за\s+\d+[.,]?\d*\s*\S+/i, '')
           .replace(/in\s+\d+[.,]?\d*\s*\S+/i, '')
@@ -611,7 +611,14 @@ app.post("/parse", auth, async (req, res) => {
           .replace(/tra\s+\d+[.,]?\d*\s*\S+/i, '')
           .replace(/fra\s+\d+[.,]?\d*\s*\S+/i, '')
           .replace(/em\s+\d+[.,]?\d*\s*\S+/i, '')
-          .replace(/daqui\s+a\s+\d+[.,]?\d*\s*\S*/i, '');
+          .replace(/daqui\s+a\s+\d+[.,]?\d*\s*\S*/i, '')
+          // N minutes/hours word-based (ES/FR/DE/PL/IT/PT)
+          .replace(/en\s+(?:un[ao]?|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|quince|veinte|treinta|cuarenta)\s+(?:minutos?|horas?)/gi, '')
+          .replace(/dans\s+(?:un[e]?|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|quinze|vingt|trente)\s+(?:minutes?|heures?)/gi, '')
+          .replace(/in\s+(?:eine[mr]?|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|fünfzehn|zwanzig|dreißig)\s+(?:Minuten?|Stunden?)/gi, '')
+          .replace(/za\s+(?:jedn[ąa]|dwie|dwa|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|piętnaście)\s+(?:minutę?|godziny?|godzin)/gi, '')
+          .replace(/tra\s+(?:un[ao]?|due|tre|quattro|cinque|sei|sette|otto|nove|dieci|quindici|venti|trenta)\s+(?:minuti|ore|ora)/gi, '')
+          .replace(/em\s+(?:um[a]?|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|quinze|vinte|trinta)\s+(?:minutos?|horas?)/gi, '');
 
         taskText = removeTriggers(taskText);
         // Remove single-letter particles/pronouns at start (Я, я etc.)
