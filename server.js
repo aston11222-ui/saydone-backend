@@ -222,6 +222,22 @@ app.post("/parse", auth, async (req, res) => {
         .replace(/\b(Uhr|nachts|morgens|abends|nachmittags|vormittags)\b/gi, '')
         // IT time period words
         .replace(/\b(di\s+mattina|di\s+sera|di\s+notte|del\s+pomeriggio|mattina|sera|notte|pomeriggio)\b/gi, '')
+        // PT time period words — remove wherever they appear
+        .replace(/\b(da\s+manhã|da\s+noite|da\s+tarde|da\s+madrugada|de\s+manhã|de\s+noite)\b/gi, '')
+        .replace(/^(manhã|madrugada)\s+/i, '')
+        .replace(/\s+(manhã|madrugada)\s*$/i, '')
+        // PT 'depois de' leftover
+        .replace(/^depois\s+de\s*/i, '')
+        // PT/IT 'e meia/e mezza' leftover
+        .replace(/\be\s+mei[ao]\b/gi, '')
+        // PT 'às/as/no/na' standalone leading/trailing
+        .replace(/^(às?|as|no|na)\s+/i, '').replace(/\s+(às?|as|no|na)\s*$/i, '')
+        // Double preposition 'no da', 'na da', 'depois de da' etc
+        .replace(/^(no|na)\s+(da|de|do)\s+/i, '')
+        // Leading da/de/do after other strips
+        .replace(/^(da|de|do)\s+(manhã|noite|tarde|madrugada)?\s*/i, '')
+        // Remaining standalone manhã/madrugada at start
+        .replace(/^(manhã|madrugada)\s+/i, '')
         // IT/ES 'dopo' leftover from dopodomani/pasado
         .replace(/^(dopo|pasado)\s+/i, '')
         // 'e mezza' leftover from un'ora e mezza
@@ -258,7 +274,7 @@ app.post("/parse", auth, async (req, res) => {
         .replace(/\s+/g, ' ')
         .trim();
       // If only a single preposition remains — return empty
-      if (/^(на|в|о|у|o|w|na|po|at|on|to|for|um|à|às|a|le|la|las|los|el|de|da|di|du|al|alle|del|des|den|der|das)$/i.test(t.trim())) return '';
+      if (/^(на|в|о|у|o|w|na|no|po|at|on|to|for|um|à|às|as|a|le|la|las|los|el|de|da|di|du|al|alle|del|des|den|der|das|manhã|madrugada)$/i.test(t.trim())) return '';
       return t.trim();
     }
     // ─────────────────────────────────────────────────────────────────────────
@@ -402,7 +418,10 @@ app.post("/parse", auth, async (req, res) => {
       'imposta\\s+un\\s+promemoria', 'aggiungi\\s+promemoria', 'crea\\s+promemoria',
       'ricordami\\s+che', 'ricordami\\s+di', 'ricordami\\s+tra', 'ricordami', 'ricorda(?=\\s|$)',
       // PT (PT-PT + PT-BR)
-      'me\\s+lembre\\s+de', 'me\\s+lembre\\s+que', 'me\\s+lembre',
+      'me\\s+lembr(?:ar?|e)\\s+de', 'me\\s+lembr(?:ar?|e)\\s+que', 'me\\s+lembr(?:ar?|e)',
+      'lembr(?:ar?|e)-me\\s+de', 'lembr(?:ar?|e)-me\\s+que', 'lembr(?:ar?|e)-me',
+      'n[aã]o\\s+lembr(?:ar?|e)', // remove 'não lembra' as trigger variant
+
       'define\\s+um\\s+lembrete', 'adicione\\s+um\\s+lembrete', 'criar\\s+lembrete',
       'lembra-me\\s+que', 'lembra-me\\s+de', 'lembra-me', 'lembra(?=\\s|$)',
     ];
