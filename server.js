@@ -204,12 +204,23 @@ app.post("/parse", auth, async (req, res) => {
         // Note: 'do','al','co' removed — too risky ("do homework", "al dentist")
         .replace(/^d['\u2019\u0060\u00B4]\s*/i, '')
         .replace(/^(que|że|żeby|żebym|di|de|da|del)\s+/i, '')
-        // Leading prepositions (RU/UK/EN/DE) — only unambiguous ones
-        .replace(/^(на|в|о|у|um|to|for|le|la|el)\s+/i, '')
+        // Leading prepositions (RU/UK/EN/DE/PL) — only unambiguous ones
+        .replace(/^(на|в|о|у|um|to|for|le|la|el|na|po|at)\s+/i, '')
+        // Polish w/o standalone — run twice to catch 'w o ...' pattern
+        .replace(/^[wo]\s+/i, '')
+        .replace(/^(о|o|na|at)\s+/i, '')
+        .replace(/^[wo]\s+/i, '')
         // at/on only if followed by time/date context word, otherwise skip
         // (too risky: "on the road", "at the office" are valid tasks)
         // Leading à/às (FR/PT)
         .replace(/^(à|às|ao?)\s+/i, '')
+        // Remove time period words that leak into task
+        .replace(/\b(w\s+nocy|w\s+rano|w\s+południe|\brano\b|\bwieczorem\b|\bnocy\b)\b/gi, '')
+        // Remove trailing isolated w/o/na
+        .replace(/\s+[won]\s*$/gi, '')
+        .replace(/\s+(na|po|o|w)\s*$/gi, '')
+        // Remove 'the day after' leak from послезавтра
+        .replace(/\bthe\s+day\s+after\b/gi, '')
         // Trailing prepositions/connectors (all languages)
         // Note: 'a','o' removed from trailing — too short, risk eating task words
         .replace(/\s+(в|на|о|у|at|on|to|for|um|à|às|al|alle|de|da|di|że)\s*$/i, '')
@@ -969,8 +980,8 @@ app.post("/parse", auth, async (req, res) => {
         const m = timeMatch[2] && /^\d+$/.test(timeMatch[2]) ? parseInt(timeMatch[2]) : 0;
 
         // Determine if AM/PM word present
-        const hasPRE24AM = /(ранку|вранці|зранку|до\s+обіду|утра|утром|с\s+утра|до\s+обеда|ночи|ночі|вночі|уночі|ночью|\bmorning\b|in\s+the\s+morning|\bam\b|a\.m\.|morgens|fr[uü]h|vormittags|du\s+matin|le\s+matin|de\s+la\s+ma[nñ]ana|por\s+la\s+ma[nñ]ana|\bdi\s+mattina\b|\bmattina\b|da\s+manh[ãa]|de\s+manh[ãa]|\brano\b|z\s+rana|przed\s+po[łl]udniem)/i.test(input);
-        const hasPRE24PM = /(вечора|вечера|увечері|ввечері|дня|після\s+обіду|вечером|после\s+обеда|\bevening\b|in\s+the\s+evening|\bnight\b|at\s+night|\bpm\b|p\.m\.|\bafternoon\b|in\s+the\s+afternoon|\babends\b|\bnachts\b|du\s+soir|le\s+soir|de\s+nuit|la\s+nuit|de\s+la\s+(?:tarde|noche)|por\s+la\s+(?:tarde|noche)|\bdi\s+sera\b|\bdi\s+notte\b|\bsera\b|\bnotte\b|da\s+(?:tarde|noite)|[�xa0]\s+noite|wieczore?m?|w\s+nocy|noc[ąa])/i.test(normInputGlobal);
+        const hasPRE24AM = /(ранку|вранці|зранку|до\s+обіду|утра|утром|с\s+утра|до\s+обеда|ночи|ночі|вночі|уночі|ночью|w\s+nocy|noc[ąa]|\bmorning\b|in\s+the\s+morning|\bam\b|a\.m\.|morgens|fr[uü]h|vormittags|du\s+matin|le\s+matin|de\s+la\s+ma[nñ]ana|por\s+la\s+ma[nñ]ana|\bdi\s+mattina\b|\bmattina\b|da\s+manh[ãa]|de\s+manh[ãa]|\brano\b|z\s+rana|przed\s+po[łl]udniem)/i.test(input);
+        const hasPRE24PM = /(вечора|вечера|увечері|ввечері|дня|після\s+обіду|вечером|после\s+обеда|\bevening\b|in\s+the\s+evening|\bnight\b|at\s+night|\bpm\b|p\.m\.|\bafternoon\b|in\s+the\s+afternoon|\babends\b|\bnachts\b|du\s+soir|le\s+soir|de\s+nuit|la\s+nuit|de\s+la\s+(?:tarde|noche)|por\s+la\s+(?:tarde|noche)|\bdi\s+sera\b|\bdi\s+notte\b|\bsera\b|\bnotte\b|da\s+(?:tarde|noite)|[�xa0]\s+noite|wieczore?m?)/i.test(normInputGlobal);
         let adjH = h;
         if (hasPRE24PM && h < 12) adjH = h + 12;
         if (hasPRE24AM && h === 12) adjH = 0;
