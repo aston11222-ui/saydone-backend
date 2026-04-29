@@ -1100,7 +1100,7 @@ app.post("/parse", auth, async (req, res) => {
           { role: "system", content: systemPrompt },
           { role: "user",   content: `Locale: ${locale || "unknown"}\nVoice input: "${input}"` },
         ],
-        max_tokens: 120,
+        max_tokens: 80,
       });
       const raw = response.choices?.[0]?.message?.content;
       if (DEBUG) console.log(`[AI RAW] "${input}" → ${raw}`);
@@ -1331,10 +1331,7 @@ app.post("/parse", auth, async (req, res) => {
         /\bum\s+\d/i.test(normInputGlobal) ||                                                 // DE "um 9 Uhr"
         /\ba\s+las\s+\d/i.test(normInputGlobal) ||                                            // ES "a las 9"
         /\bat\s+\d/i.test(normInputGlobal) ||                                                 // EN "at 9"
-        /\b(eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf)\s+Uhr\b/i.test(normInputGlobal) || // DE word hours
-        /\b(halb|Viertel\s+vor|vor\s+\d)\s+\d/i.test(normInputGlobal) ||  // DE "halb 7", "Viertel vor 8"
-        /\bmenos\s+(?:cinco|dez|um\s+quarto|vinte)/i.test(normInputGlobal) ||   // PT "menos cinco"
-        /\bkwadrans\s+(?:po|przed)\b/i.test(normInputGlobal) ||  // PL "kwadrans po"
+        /\b(eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf)\s+Uhr\b/i.test(normInputGlobal) // DE word hours
       );
       if (!hasTimeRef && result.datetime) {
         // No time reference in input → AI invented a time → show picker instead
