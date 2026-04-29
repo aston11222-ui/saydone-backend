@@ -892,7 +892,6 @@ app.post("/parse", auth, async (req, res) => {
         [5, /(friday|vendredi|viernes|pi[aą]tek|venerdì|sexta-?feira|sexta\b|пятниц[ую]?|п['']ятниц[юя]|freitag)/i],
         [6, /(saturday|samedi|s[aá]bado|sobot[ęa]|sabato|суббот[ау]?|субот[ую]?|samstag)/i],
       ];
-      const hasTimeRef = /\d{1,2}[:\-\.]\d{2}|\d{1,2}h\d{2}|\b\d{1,2}\s*Uhr\b|\bat\s+\d|\balle\s+\d|\ba\s+las\s+\d|\bum\s+\d|(?:^|\s)à\s+\d|(?:^|\s)às\s+\d|\bam\b|\bpm\b|[ap]\.m\.|вечора|вечера|ночи|ночі|утра|ранку|вранці|зранку|дня|дні|після\s+обіду|годин[иіу]?|morning|evening|night|afternoon|abends|nachts|morgens|soir|matin|noche|tarde|manhã|noite|rano|wieczor|без\s+(?:пяти|четверти|десяти|двадцати|двадцяти|п['']яти|чверті)|в\s+половин[еі]\s+\S+|о\s+пів\s+на\s+\S+|\bhalb\s+\S+|\bViertel\s+vor\b|\bmoins\s+(?:le\s+)?(?:cinq|dix|quart)|\bmenos\s+(?:cinco|diez|cuarto)|\bmeno\s+(?:cinque|dieci|un\s+quarto)|\bkwadrans\b/i.test(normInputGlobal);
       if (!hasTimeRef) {
         let targetDow2 = -1;
         for (const [idx, re] of dowPatternsSimple) {
@@ -1046,8 +1045,6 @@ app.post("/parse", auth, async (req, res) => {
         /\b(domani|oggi|ieri|lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica|mattina|sera|mezzanotte|mezzogiorno|meno)\b/i.test(normInputGlobal) ||
         // PT
         /(amanhã|amanha|manh[aã]|hoje|ontem|segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo|tarde|noite|meia-noite|meio-dia)/i.test(normInputGlobal) ||
-        // "без N" constructions
-        /без\s+(?:пяти|четверти|десяти|двадцати|двадцяти|п['']яти|чверті)/i.test(normInputGlobal) ||
         // AM/PM markers
         /\b(am|pm)\b|[ap]\.m\./i.test(normInputGlobal)
       );
@@ -1103,7 +1100,7 @@ app.post("/parse", auth, async (req, res) => {
           { role: "system", content: systemPrompt },
           { role: "user",   content: `Locale: ${locale || "unknown"}\nVoice input: "${input}"` },
         ],
-        max_tokens: 120,
+        max_tokens: 80,
       });
       const raw = response.choices?.[0]?.message?.content;
       if (DEBUG) console.log(`[AI RAW] "${input}" → ${raw}`);
@@ -1335,17 +1332,9 @@ app.post("/parse", auth, async (req, res) => {
         /\ba\s+las\s+\d/i.test(normInputGlobal) ||                                            // ES "a las 9"
         /\bat\s+\d/i.test(normInputGlobal) ||                                                 // EN "at 9"
         /\b(eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf)\s+Uhr\b/i.test(normInputGlobal) || // DE word hours
-        // "без N" constructions — all languages (RU/UK/DE/FR/ES/PL/IT/PT)
-        /без\s+(?:пяти|четверти|десяти|двадцати|двадцяти|п'яти|чверті)/i.test(normInputGlobal) ||  // RU/UK
-        /в\s+половин[еі]\s+\S+/i.test(normInputGlobal) ||       // RU "в половине седьмого/7"
-        /о\s+пів\s+на\s+\S+/i.test(normInputGlobal) ||          // UK "о пів на сьому/7"
         /\b(halb|Viertel\s+vor|vor\s+\d)\s+\d/i.test(normInputGlobal) ||  // DE "halb 7", "Viertel vor 8"
-        /\bmoins\s+(le\s+)?(?:cinq|dix|quart|vingt)/i.test(normInputGlobal) || // FR "moins cinq"
-        /\bmenos\s+(?:cinco|diez|cuarto|veinte)/i.test(normInputGlobal) ||      // ES "menos cinco"
-        /\bmeno\s+(?:cinque|dieci|un\s+quarto|venti)/i.test(normInputGlobal) || // IT "meno cinque"
         /\bmenos\s+(?:cinco|dez|um\s+quarto|vinte)/i.test(normInputGlobal) ||   // PT "menos cinco"
         /\bkwadrans\s+(?:po|przed)\b/i.test(normInputGlobal) ||  // PL "kwadrans po"
-        /\bza\s+(?:pięć|dziesięć|kwadrans|dwadzieścia)\s+\d/i.test(normInputGlobal) // PL "za pięć 8"
       );
       if (!hasTimeRef && result.datetime) {
         // No time reference in input → AI invented a time → show picker instead
