@@ -143,6 +143,24 @@ app.post("/parse", auth, async (req, res) => {
         .replace(/(в|о|у|на)(\d{1,2})(?=\s|$)/gi, '$1 $2')
         .replace(/\b(at|on|um|à|a|às|alle|las)(\d{1,2})\b/gi, '$1 $2');
 
+      // Fix 4-digit military time after preposition: "at 1300" → "at 13:00", "в 0030" → "в 00:30"
+      s = s.replace(
+        /(?:^|\s)(at|um|à|às|alle|a\s+las)\s+([01]\d{3}|2[0-3]\d{2})\b/gi,
+        (_, prep, num) => {
+          const mins = parseInt(num.slice(-2));
+          if (mins > 59) return _;
+          return ' ' + prep + ' ' + num.slice(0, num.length - 2) + ':' + num.slice(-2);
+        }
+      );
+      s = s.replace(
+        /(в|о|на)\s+([01]\d{3}|2[0-3]\d{2})(?=\s|$)/gi,
+        (_, prep, num) => {
+          const mins = parseInt(num.slice(-2));
+          if (mins > 59) return _;
+          return prep + ' ' + num.slice(0, num.length - 2) + ':' + num.slice(-2);
+        }
+      );
+
       // Fix spaced time after preposition: "в 8 30" → "в 8:30"
       s = s.replace(
         /(в|о|у|на|at|um|à|a|às|alle|las)\s+(\d{1,2})\s+(\d{2})(?=\s|$)/gi,
@@ -1094,7 +1112,7 @@ app.post("/parse", auth, async (req, res) => {
     let result = null;
     try {
       const response = await client.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-4.1-nano",
         temperature: 0,
         response_format: { type: "json_object" },
         messages: [
