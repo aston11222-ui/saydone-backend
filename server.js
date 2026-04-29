@@ -218,6 +218,8 @@ app.post("/parse", auth, async (req, res) => {
         .replace(/^(à|às|ao?)\s+/i, '')
         // Remove time period words that leak into task
         .replace(/\b(w\s+nocy|w\s+rano|w\s+południe|\brano\b|\bwieczorem\b|\bnocy\b)\b/gi, '')
+        // UK/RU period words
+        .replace(/(^|\s)(ночі|вночі|ранку|вранці|зранку|вечора|увечері|ввечері|дня|ночи|утра|вечера)(\s|$)/gi, ' ')
         // DE time period words
         .replace(/\b(Uhr|nachts|morgens|abends|nachmittags|vormittags)\b/gi, '')
         // IT time period words
@@ -512,7 +514,7 @@ app.post("/parse", auth, async (req, res) => {
       );
 
       // Special: через полчаса / через пів години / in half an hour
-      const halfHourMatch = /через\s+полчаса|через\s+пів\s+год|in\s+half\s+an\s+hour|dans\s+une\s+demi[-\s]heure|en\s+media\s+hora|za\s+p[oó][łl]\s+godziny|tra\s+mezz[''\u2019]ora|fra\s+mezz[''\u2019]ora|em\s+meia\s+hora|dentro\s+de\s+media\s+hora|daqui\s+a\s+meia\s+hora|in\s+einer\s+halben\s+Stunde|in\s+einer\s+halbe\s+Stunde|dans\s+une\s+demi\s+heure|dans\s+1\s+demi[-\s]heure/i.test(normInputGlobal);
+      const halfHourMatch = /через\s+полчаса|через\s+пів\s*год|через\s+півгодини|in\s+half\s+an\s+hour|dans\s+une\s+demi[-\s]heure|en\s+media\s+hora|za\s+p[oó][łl]\s+godziny|tra\s+mezz[''\u2019]ora|fra\s+mezz[''\u2019]ora|em\s+meia\s+hora|dentro\s+de\s+media\s+hora|daqui\s+a\s+meia\s+hora|in\s+einer\s+halben\s+Stunde|in\s+einer\s+halbe\s+Stunde|dans\s+une\s+demi\s+heure|dans\s+1\s+demi[-\s]heure/i.test(normInputGlobal);
       // Special: через полтора часа / через півтори години / in one and a half hours
       const oneAndHalfHourMatch = !halfHourMatch && (
         /через\s+полтора\s+час|через\s+півтор[иі]\s+год/i.test(normInputGlobal) ||
