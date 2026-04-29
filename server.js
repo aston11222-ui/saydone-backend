@@ -224,11 +224,10 @@ app.post("/parse", auth, async (req, res) => {
         .replace(/\b(du\s+matin|du\s+soir|de\s+l['']apr[eè]s-midi|et\s+demie?|demi-heure)\b/gi, '')
         // ES time period words
         .replace(/\b(de\s+la\s+(?:mañana|tarde|noche|madrugada)|por\s+la\s+(?:mañana|tarde|noche)|madrugada|mediod[ií]a|medianoche)\b/gi, '')
-        // ES/PT leftover 'las/los/los'
-        .replace(/^(las|los|al|del)\s+/i, '')
-        .replace(/\s+(las|los)\s*$/i, '')
-        // 'pasado' leftover
-        .replace(/^pasado\s+/i, '')
+        // ES/FR/DE word-numbers that leak into task after time removal
+        .replace(/\b(uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|quince|veinte|treinta|cuarenta)\b/gi, '')
+        .replace(/\b(un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|quinze|vingt|trente|quarante)\b/gi, '')
+        .replace(/\b(ein[e]?|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|fünfzehn|zwanzig|dreißig)\b/gi, '')
         // EN period words that leak
         .replace(/\b(tonight|this\s+morning|this\s+evening|this\s+afternoon)\b/gi, '')
         // Remove ES 'y media' leftover
@@ -291,7 +290,9 @@ app.post("/parse", auth, async (req, res) => {
         s = s
           .replace(/cuarenta\s+y\s+cinco/gi,'45').replace(/cuarenta\s+y\s+seis/gi,'46')
           .replace(/treinta\s+y\s+cinco/gi,'35').replace(/treinta\s+y\s+seis/gi,'36')
-          .replace(/veinte\s+y\s+cinco/gi,'25').replace(/veinte\s+y\s+uno/gi,'21')
+          .replace(/veinte\s+y\s+cinco/gi,'25').replace(/veinte\s+y\s+uno/gi,'21').replace(/veinte\s+y\s+una/gi,'21')
+          .replace(/treinta\s+y\s+un[ao]?/gi,'31').replace(/treinta\s+y\s+cinco/gi,'35')
+          .replace(/cuarenta\s+y\s+cinco/gi,'45').replace(/cuarenta\s+y\s+un[ao]?/gi,'41')
           .replace(/vingt\s+et\s+un/gi,'21').replace(/vingt-cinq/gi,'25').replace(/trente\s+et\s+un/gi,'31')
           .replace(/venticinque/gi,'25').replace(/ventuno/gi,'21').replace(/quarantacinque/gi,'45').replace(/trentacinque/gi,'35')
           .replace(/vinte\s+e\s+cinco/gi,'25').replace(/vinte\s+e\s+um/gi,'21').replace(/quarenta\s+e\s+cinco/gi,'45').replace(/trinta\s+e\s+cinco/gi,'35')
