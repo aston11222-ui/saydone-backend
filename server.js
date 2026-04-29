@@ -222,8 +222,19 @@ app.post("/parse", auth, async (req, res) => {
         .replace(/\b(Uhr|nachts|morgens|abends|nachmittags|vormittags)\b/gi, '')
         // FR time period words
         .replace(/\b(du\s+matin|du\s+soir|de\s+l['']apr[eè]s-midi|et\s+demie?|demi-heure)\b/gi, '')
+        // ES time period words
+        .replace(/\b(de\s+la\s+(?:mañana|tarde|noche|madrugada)|por\s+la\s+(?:mañana|tarde|noche)|madrugada|mediod[ií]a|medianoche)\b/gi, '')
+        // ES/PT leftover 'las/los/los'
+        .replace(/^(las|los|al|del)\s+/i, '')
+        .replace(/\s+(las|los)\s*$/i, '')
+        // 'pasado' leftover
+        .replace(/^pasado\s+/i, '')
         // EN period words that leak
         .replace(/\b(tonight|this\s+morning|this\s+evening|this\s+afternoon)\b/gi, '')
+        // Remove ES 'y media' leftover
+        .replace(/\by\s+media\b/gi, '')
+        // Remove 'a las N' leftover in task
+        .replace(/\ba\s+las?\s+\d+\b/gi, '')
         // Remove trailing isolated w/o/na
         .replace(/\s+[won]\s*$/gi, '')
         .replace(/\s+(na|po|o|w)\s*$/gi, '')
@@ -857,8 +868,8 @@ app.post("/parse", auth, async (req, res) => {
                           normInputGlobal.match(/(?:^|\s)às\s+(\d{1,2})\b/i) ||
                           normInputGlobal.match(/\ba\s+las\s+(\d{1,2})\b/i);
       // PM words
-      const hasPM = /(\d(pm)\b|p\.m\.(?=\s|$)|вечера|вечора|увечері|ввечері|\babends\b|\bdu\s+soir\b|\bde\s+la\s+noche\b|\bdi\s+sera\b|\bda\s+noite\b|wieczore?m?\b|\bsera\b|\bnoche\b)/i.test(input);
-      const hasAM = /(\d(am)\b|a\.m\.(?=\s|$)|утра|ранку|вранці|зранку|\bmorgens\b|\bdu\s+matin\b|\bde\s+la\s+mañana\b|\bdi\s+mattina\b|\bda\s+manhã\b|\brano\b|\bmattina\b|\bmatin\b|\bmorning\b)/i.test(input);
+      const hasPM = /(\d(pm)\b|p\.m\.(?=\s|$)|вечера|вечора|увечері|ввечері|\babends\b|\bdu\s+soir\b|\bde\s+la\s+(?:noche|tarde)\b|\bpor\s+la\s+(?:noche|tarde)\b|\bdi\s+sera\b|\bda\s+noite\b|\bda\s+tarde\b|wieczore?m?\b|\bsera\b|\bnoche\b|\btarde\b)/i.test(input);
+      const hasAM = /(\d(am)\b|a\.m\.(?=\s|$)|утра|ранку|вранці|зранку|\bmorgens\b|\bdu\s+matin\b|\bde\s+la\s+mañana\b|\bpor\s+la\s+mañana\b|\bdi\s+mattina\b|\bda\s+manhã\b|\brano\b|\bmattina\b|\bmatin\b|\bmorning\b|madrugada)/i.test(input);
 
       if (timeMatch24) {
         let h = parseInt(timeMatch24[1]);
