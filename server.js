@@ -948,7 +948,7 @@ app.post("/parse", auth, async (req, res) => {
 
       if (timeMatch) {
         const h = parseInt(timeMatch[1]);
-        const m = parseInt(timeMatch[2]);
+        const m = timeMatch[2] && /^\d+$/.test(timeMatch[2]) ? parseInt(timeMatch[2]) : 0;
 
         // Determine if AM/PM word present
         const hasPRE24AM = /(ранку|вранці|зранку|до\s+обіду|утра|утром|с\s+утра|до\s+обеда|ночи|ночі|вночі|уночі|ночью|\bmorning\b|in\s+the\s+morning|\bam\b|a\.m\.|morgens|fr[uü]h|vormittags|du\s+matin|le\s+matin|de\s+la\s+ma[nñ]ana|por\s+la\s+ma[nñ]ana|\bdi\s+mattina\b|\bmattina\b|da\s+manh[ãa]|de\s+manh[ãa]|\brano\b|z\s+rana|przed\s+po[łl]udniem)/i.test(input);
