@@ -216,6 +216,10 @@ app.post("/parse", auth, async (req, res) => {
         .replace(/^(à|às|ao?)\s+/i, '')
         // Remove time period words that leak into task
         .replace(/\b(w\s+nocy|w\s+rano|w\s+południe|\brano\b|\bwieczorem\b|\bnocy\b)\b/gi, '')
+        // DE time period words
+        .replace(/\b(Uhr|nachts|morgens|abends|nachmittags|vormittags)\b/gi, '')
+        // EN period words that leak
+        .replace(/\b(tonight|this\s+morning|this\s+evening|this\s+afternoon)\b/gi, '')
         // Remove trailing isolated w/o/na
         .replace(/\s+[won]\s*$/gi, '')
         .replace(/\s+(na|po|o|w)\s*$/gi, '')
@@ -319,7 +323,15 @@ app.post("/parse", auth, async (req, res) => {
         'onze':'11','doze':'12','quinze':'15','vinte':'20','trinta':'30','quarenta':'40','cinquenta':'50',
       };
       for (const [w, d] of Object.entries(map)) {
-        s = s.replace(new RegExp('(?:^|\\s)' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?=\\s|$)', 'gi'), m => m.replace(new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'), d));
+        // Use \b for Latin words (works correctly), (?:^|\s) for Cyrillic
+        const isCyrillic = /[\u0400-\u04FF]/.test(w);
+        const escaped = w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        if (isCyrillic) {
+          s = s.replace(new RegExp('(?:^|\\s)' + escaped + '(?=\\s|$)', 'gi'),
+            m => m.replace(new RegExp(escaped, 'i'), d));
+        } else {
+          s = s.replace(new RegExp('\\b' + escaped + '\\b', 'gi'), d);
+        }
       }
       return s;
       }
