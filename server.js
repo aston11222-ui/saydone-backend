@@ -350,7 +350,7 @@ app.post("/parse", auth, async (req, res) => {
         const d = new Date(localNow);
         d.setMinutes(d.getMinutes() + totalMins);
         const datetime = toIso(d, offsetMinutes);
-        const taskText = removeTriggerWords(normInputGlobal)
+        let taskText = removeTriggerWords(normInputGlobal)
           .replace(/(?:in|dans|en|za|tra|fra|em|daqui\s+a|dentro\s+de|через|за)\s+\d+\s*\S+\s*(?:and\s+|und\s+|et\s+|y\s+|e\s+|і\s+|та\s+)?\d+\s*\S+/gi, '')
           .replace(/(сьогодні|сегодня|today|heute)/gi, '')
           .replace(/(вчора|вчера|yesterday|gestern|hier|ayer|wczoraj|ieri|ontem)/gi, '')
@@ -629,7 +629,7 @@ app.post("/parse", auth, async (req, res) => {
           d.setDate(d.getDate() + 1);
         }
         const datetime = toIso(d, offsetMinutes);
-        const taskText = removeTriggerWords(normInputGlobal)
+        let taskText = removeTriggerWords(normInputGlobal)
           .replace(noonRe, '').replace(midnightRe, '')
           .replace(/(завтра|tomorrow|morgen|demain|ma[nñ]ana|jutro|domani|amanh[aã])/gi, '')
           .replace(/(послезавтра|після\s*завтра|позавтра|übermorgen|après-demain|pojutrze|dopodomani|depois\s*de\s*amanh[aã])/gi, '')
