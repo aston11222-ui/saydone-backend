@@ -666,8 +666,10 @@ app.post("/parse", auth, async (req, res) => {
           if (timeInInput) {
             h = parseInt(timeInInput[1]);
             m = timeInInput[2] ? parseInt(timeInInput[2]) : 0;
-            const hasPMd = /(вечора|вечера|вечером|abends|du\s+soir|de\s+la\s+noche|di\s+sera|da\s+noite|pm\b)/i.test(input);
+            const hasPMd = /(вечора|вечера|вечором|увечері|ввечері|дня|після\s+обіду|после\s+обеда|abends|nachmittags|du\s+soir|de\s+la\s+(?:tarde|noche)|por\s+la\s+(?:tarde|noche)|di\s+sera|del\s+pomeriggio|da\s+(?:tarde|noite)|wieczorem?|\d(?:pm)|\bpm\b|p\.m\.)/i.test(input);
+            const hasAMd = /(ранку|вранці|зранку|утра|утром|ночи|ночі|вночі|ночью|morgens|du\s+matin|de\s+la\s+mañana|di\s+mattina|da\s+manhã|rano|\bam\b|a\.m\.)/i.test(input);
             if (hasPMd && h < 12) h += 12;
+            if (hasAMd && h === 12) h = 0;
             hasTime = true;
           }
 
@@ -846,7 +848,7 @@ app.post("/parse", auth, async (req, res) => {
         [5, /(friday|vendredi|viernes|pi[aą]tek|venerdì|sexta-?feira|sexta\b|пятниц[ую]?|п['']ятниц[юя]|freitag)/i],
         [6, /(saturday|samedi|s[aá]bado|sobot[ęa]|sabato|суббот[ау]?|субот[ую]?|samstag)/i],
       ];
-      const hasTimeRef = /\d{1,2}[:\-\.]\d{2}|\d{1,2}h\d{2}|\b\d{1,2}\s*Uhr\b|\bat\s+\d|\balle\s+\d|\ba\s+las\s+\d|\bum\s+\d|(?:^|\s)à\s+\d|(?:^|\s)às\s+\d|\bam\b|\bpm\b|[ap]\.m\.|вечора|вечера|ночи|ночі|утра|ранку|вранці|зранку|morning|evening|night|afternoon|abends|nachts|morgens|soir|matin|noche|tarde|manhã|noite|rano|wieczor/i.test(normInputGlobal);
+      const hasTimeRef = /\d{1,2}[:\-\.]\d{2}|\d{1,2}h\d{2}|\b\d{1,2}\s*Uhr\b|\bat\s+\d|\balle\s+\d|\ba\s+las\s+\d|\bum\s+\d|(?:^|\s)à\s+\d|(?:^|\s)às\s+\d|\bam\b|\bpm\b|[ap]\.m\.|вечора|вечера|ночи|ночі|утра|ранку|вранці|зранку|дня|дні|після\s+обіду|годин[иіу]?|morning|evening|night|afternoon|abends|nachts|morgens|soir|matin|noche|tarde|manhã|noite|rano|wieczor/i.test(normInputGlobal);
       if (!hasTimeRef) {
         let targetDow2 = -1;
         for (const [idx, re] of dowPatternsSimple) {
