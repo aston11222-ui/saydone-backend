@@ -933,9 +933,9 @@ app.post("/parse", auth, async (req, res) => {
         normInputGlobal.match(/\b(\d{1,2})-(\d{2})\b/) ||
         normInputGlobal.match(/\b(\d{1,2})\.(\d{2})\b/) ||
         normInputGlobal.match(/\b(\d{1,2})h(\d{2})\b(?!eure)/i) ||
-        // Bare hour + period word (RU/UK)
-        normInputGlobal.match(/в\s+(\d{1,2})\s+(?:вечера|вечора|ночи|ночі)/i) ||
-        normInputGlobal.match(/о\s+(\d{1,2})\s+(?:вечора|вечера|ранку|утра)/i) ||
+        // Bare hour + period word (RU/UK) — with or without годин
+        normInputGlobal.match(/(?:в|на)\s+(\d{1,2})\s+(?:годин[иу]?\s+)?(?:вечера|вечора|ночи|ночі|утра|ранку|дня)/i) ||
+        normInputGlobal.match(/о\s+(\d{1,2})\s+(?:годин[иу]?\s+)?(?:вечора|вечера|ранку|утра|ночі|ночи)/i) ||
         // ES bare hour
         normInputGlobal.match(/a\s+las\s+(\d{1,2})\s+de\s+la/i) ||
         // FR bare hour
