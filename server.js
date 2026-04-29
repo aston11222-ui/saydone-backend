@@ -232,8 +232,11 @@ app.post("/parse", auth, async (req, res) => {
         .replace(/\b(tonight|this\s+morning|this\s+evening|this\s+afternoon)\b/gi, '')
         // Remove ES 'y media' leftover
         .replace(/\by\s+media\b/gi, '')
-        // Remove 'a las N' leftover in task
+        // Remove 'a las N de la' and 'las N de la' leftovers
+        .replace(/\ba\s+las?\s+\d+\s+de\s+la\b/gi, '')
+        .replace(/\blas?\s+\d+\s+de\s+la\b/gi, '')
         .replace(/\ba\s+las?\s+\d+\b/gi, '')
+        .replace(/\blas?\s+\d+\b/gi, '')
         // Remove trailing isolated w/o/na
         .replace(/\s+[won]\s*$/gi, '')
         .replace(/\s+(na|po|o|w)\s*$/gi, '')
@@ -294,6 +297,9 @@ app.post("/parse", auth, async (req, res) => {
           .replace(/treinta\s+y\s+un[ao]?/gi,'31').replace(/treinta\s+y\s+cinco/gi,'35').replace(/treinta\s+y\s+seis/gi,'36')
           .replace(/cuarenta\s+y\s+cinco/gi,'45').replace(/cuarenta\s+y\s+un[ao]?/gi,'41').replace(/cuarenta\s+y\s+seis/gi,'46')
           .replace(/veinte\s+y\s+seis/gi,'26').replace(/veinte\s+y\s+siete/gi,'27').replace(/veinte\s+y\s+ocho/gi,'28').replace(/veinte\s+y\s+nueve/gi,'29')
+          .replace(/cincuenta\s+y\s+seis/gi,'56').replace(/cincuenta\s+y\s+cinco/gi,'55').replace(/cincuenta\s+y\s+un[ao]?/gi,'51')
+          .replace(/treinta\s+y\s+siete/gi,'37').replace(/treinta\s+y\s+ocho/gi,'38').replace(/treinta\s+y\s+nueve/gi,'39')
+          .replace(/cuarenta\s+y\s+siete/gi,'47').replace(/cuarenta\s+y\s+ocho/gi,'48').replace(/cuarenta\s+y\s+nueve/gi,'49')
           .replace(/vingt\s+et\s+un/gi,'21').replace(/vingt-cinq/gi,'25').replace(/trente\s+et\s+un/gi,'31')
           .replace(/venticinque/gi,'25').replace(/ventuno/gi,'21').replace(/quarantacinque/gi,'45').replace(/trentacinque/gi,'35')
           .replace(/vinte\s+e\s+cinco/gi,'25').replace(/vinte\s+e\s+um/gi,'21').replace(/quarenta\s+e\s+cinco/gi,'45').replace(/trinta\s+e\s+cinco/gi,'35')
@@ -325,7 +331,7 @@ app.post("/parse", auth, async (req, res) => {
         // ES
         'uno':'1','una':'1','dos':'2','tres':'3','cuatro':'4','cinco':'5',
         'seis':'6','siete':'7','ocho':'8','nueve':'9','diez':'10',
-        'once':'11','doce':'12','trece':'13','catorce':'14','quince':'15','dieciséis':'16','dieciseis':'16','diecisiete':'17','dieciocho':'18','diecinueve':'19','veinte':'20','treinta':'30','cuarenta':'40','cincuenta':'50','cincuenta':'50',
+        'once':'11','doce':'12','trece':'13','catorce':'14','quince':'15','dieciséis':'16','dieciseis':'16','diecisiete':'17','dieciocho':'18','diecinueve':'19','veinte':'20','treinta':'30','cuarenta':'40','cincuenta':'50','sesenta':'60','cincuenta':'50',
         // PL
         'jeden':'1','jedna':'1','jedno':'1','dwa':'2','dwie':'2','trzy':'3',
         'cztery':'4','pięć':'5','sześć':'6','siedem':'7','osiem':'8',
@@ -1106,7 +1112,7 @@ app.post("/parse", auth, async (req, res) => {
         // FR
         /\b(demain|aujourd'hui|hier|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|matin|soir|midi|minuit|moins)\b/i.test(normInputGlobal) ||
         // ES
-        /\b(mañana|hoy|ayer|lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo|tarde|noche|mediodía|medianoche|menos|dieciocho|diecisiete|dieciséis|dieciseis|diecinueve|quince|veinte|treinta|cuarenta)\b/i.test(normInputGlobal) ||
+        /\b(mañana|hoy|ayer|lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo|tarde|noche|mediodía|medianoche|menos|dieciocho|diecisiete|dieciséis|dieciseis|diecinueve|quince|veinte|treinta|cuarenta|cincuenta|sesenta)\b/i.test(normInputGlobal) ||
         // PL
         /\b(jutro|dzisiaj|wczoraj|poniedziałek|wtorek|środa|czwartek|piątek|sobota|niedziela|rano|wieczor|południe|północ|za\s+\d|pół\s+godziny)\b/i.test(normInputGlobal) ||
         // IT
