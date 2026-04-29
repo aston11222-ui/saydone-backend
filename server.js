@@ -904,8 +904,8 @@ app.post("/parse", auth, async (req, res) => {
         const m = parseInt(timeMatch[2]);
 
         // Determine if AM/PM word present
-        const hasPRE24AM = /(ранку|вранці|зранку|до\s+обіду|утра|утром|с\s+утра|до\s+обеда|\bmorning\b|in\s+the\s+morning|\bam\b|a\.m\.|morgens|fr[uü]h|vormittags|du\s+matin|le\s+matin|de\s+la\s+ma[nñ]ana|por\s+la\s+ma[nñ]ana|\bdi\s+mattina\b|\bmattina\b|da\s+manh[ãa]|de\s+manh[ãa]|\brano\b|z\s+rana|przed\s+po[łl]udniem)/i.test(input);
-        const hasPRE24PM = /(вечора|вечера|увечері|ввечері|ночи|ночі|вночі|уночі|дня|після\s+обіду|вечером|ночью|после\s+обеда|\bevening\b|in\s+the\s+evening|\bnight\b|at\s+night|\bpm\b|p\.m\.|\bafternoon\b|in\s+the\s+afternoon|\babends\b|\bnachts\b|du\s+soir|le\s+soir|de\s+nuit|la\s+nuit|de\s+la\s+(?:tarde|noche)|por\s+la\s+(?:tarde|noche)|\bdi\s+sera\b|\bdi\s+notte\b|\bsera\b|\bnotte\b|da\s+(?:tarde|noite)|[�xa0]\s+noite|wieczore?m?|w\s+nocy|noc[ąa])/i.test(normInputGlobal);
+        const hasPRE24AM = /(ранку|вранці|зранку|до\s+обіду|утра|утром|с\s+утра|до\s+обеда|ночи|ночі|вночі|уночі|ночью|\bmorning\b|in\s+the\s+morning|\bam\b|a\.m\.|morgens|fr[uü]h|vormittags|du\s+matin|le\s+matin|de\s+la\s+ma[nñ]ana|por\s+la\s+ma[nñ]ana|\bdi\s+mattina\b|\bmattina\b|da\s+manh[ãa]|de\s+manh[ãa]|\brano\b|z\s+rana|przed\s+po[łl]udniem)/i.test(input);
+        const hasPRE24PM = /(вечора|вечера|увечері|ввечері|дня|після\s+обіду|вечером|после\s+обеда|\bevening\b|in\s+the\s+evening|\bnight\b|at\s+night|\bpm\b|p\.m\.|\bafternoon\b|in\s+the\s+afternoon|\babends\b|\bnachts\b|du\s+soir|le\s+soir|de\s+nuit|la\s+nuit|de\s+la\s+(?:tarde|noche)|por\s+la\s+(?:tarde|noche)|\bdi\s+sera\b|\bdi\s+notte\b|\bsera\b|\bnotte\b|da\s+(?:tarde|noite)|[�xa0]\s+noite|wieczore?m?|w\s+nocy|noc[ąa])/i.test(normInputGlobal);
         let adjH = h;
         if (hasPRE24PM && h < 12) adjH = h + 12;
         if (hasPRE24AM && h === 12) adjH = 0;
