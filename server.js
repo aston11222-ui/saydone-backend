@@ -220,6 +220,14 @@ app.post("/parse", auth, async (req, res) => {
         .replace(/\b(w\s+nocy|w\s+rano|w\s+południe|\brano\b|\bwieczorem\b|\bnocy\b)\b/gi, '')
         // DE time period words
         .replace(/\b(Uhr|nachts|morgens|abends|nachmittags|vormittags)\b/gi, '')
+        // IT time period words
+        .replace(/\b(di\s+mattina|di\s+sera|di\s+notte|del\s+pomeriggio|mattina|sera|notte|pomeriggio)\b/gi, '')
+        // IT/ES 'dopo' leftover from dopodomani/pasado
+        .replace(/^(dopo|pasado)\s+/i, '')
+        // 'e mezza' leftover from un'ora e mezza
+        .replace(/\be\s+mezza\b/gi, '')
+        // 'alle' standalone leftover
+        .replace(/^alle?\s+/i, '').replace(/\s+alle?\s*$/i, '')
         // FR time period words
         .replace(/\b(du\s+matin|du\s+soir|de\s+l['']apr[eè]s-midi|et\s+demie?|demi-heure)\b/gi, '')
         // ES time period words
@@ -1025,7 +1033,7 @@ app.post("/parse", auth, async (req, res) => {
 
         // Determine if AM/PM word present
         const hasPRE24AM = /(ранку|вранці|зранку|до\s+обіду|утра|утром|с\s+утра|до\s+обеда|ночи|ночі|вночі|уночі|ночью|w\s+nocy|noc[ąa]|\bmorning\b|in\s+the\s+morning|\bam\b|a\.m\.|morgens|fr[uü]h|vormittags|du\s+matin|le\s+matin|de\s+la\s+ma[nñ]ana|por\s+la\s+ma[nñ]ana|\bdi\s+mattina\b|\bmattina\b|da\s+manh[ãa]|de\s+manh[ãa]|\brano\b|z\s+rana|przed\s+po[łl]udniem)/i.test(input);
-        const hasPRE24PM = /(вечора|вечера|увечері|ввечері|дня|після\s+обіду|вечером|после\s+обеда|\bevening\b|in\s+the\s+evening|\bnight\b|at\s+night|\bpm\b|p\.m\.|\bafternoon\b|in\s+the\s+afternoon|\babends\b|\bnachts\b|du\s+soir|le\s+soir|de\s+nuit|la\s+nuit|de\s+la\s+(?:tarde|noche)|por\s+la\s+(?:tarde|noche)|\bdi\s+sera\b|\bdi\s+notte\b|\bsera\b|\bnotte\b|da\s+(?:tarde|noite)|[�xa0]\s+noite|wieczore?m?)/i.test(normInputGlobal);
+        const hasPRE24PM = /(вечора|вечера|увечері|ввечері|дня|після\s+обіду|вечером|после\s+обеда|\bevening\b|in\s+the\s+evening|\bnight\b|at\s+night|\bpm\b|p\.m\.|\bafternoon\b|in\s+the\s+afternoon|\babends\b|\bnachts\b|du\s+soir|le\s+soir|de\s+nuit|la\s+nuit|de\s+la\s+(?:tarde|noche)|por\s+la\s+(?:tarde|noche)|\bdi\s+sera\b|\bsera\b|da\s+(?:tarde|noite)|[�xa0]\s+noite|wieczore?m?)/i.test(normInputGlobal);
         let adjH = h;
         if (hasPRE24PM && h < 12) adjH = h + 12;
         if (hasPRE24AM && h === 12) adjH = 0;
