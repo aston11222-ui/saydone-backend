@@ -1024,6 +1024,42 @@ app.post("/parse", auth, async (req, res) => {
       }
     }
     // ─────────────────────────────────────────────────────────────────────────
+    // ── Quick pre-check: if input has zero time signals → skip AI entirely ──
+    // Saves moderation + AI cost for random/casual phrases ("привет", "блабла")
+    {
+      const hasAnyTimeSignal = (
+        // Digits
+        /\d/.test(normInputGlobal) ||
+        // RU/UK time words
+        /(завтра|послезавтра|сегодня|вчера|сьогодні|вчора|через|утра|вечера|ночи|дня|ранку|вечора|ночі|годин|хвилин|понеділ|вівтор|серед|четвер|п.ятниц|субот|неділ|понедельник|вторник|среду|четверг|пятниц|суббот|воскресен)/i.test(normInputGlobal) ||
+        // EN time words
+        /\b(tomorrow|today|yesterday|morning|evening|night|afternoon|noon|midnight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|in\s+\d|at\s+\d|next\s+week|half\s+an\s+hour)\b/i.test(normInputGlobal) ||
+        // DE
+        /\b(morgen|heute|gestern|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|abends|morgens|nachts|halb|uhr)\b/i.test(normInputGlobal) ||
+        // FR
+        /\b(demain|aujourd'hui|hier|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|matin|soir|midi|minuit|moins)\b/i.test(normInputGlobal) ||
+        // ES
+        /\b(mañana|hoy|ayer|lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo|tarde|noche|mediodía|medianoche|menos)\b/i.test(normInputGlobal) ||
+        // PL
+        /\b(jutro|dzisiaj|wczoraj|poniedziałek|wtorek|środa|czwartek|piątek|sobota|niedziela|rano|wieczor|południe|północ|za\s+\d|pół\s+godziny)\b/i.test(normInputGlobal) ||
+        // IT
+        /\b(domani|oggi|ieri|lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica|mattina|sera|mezzanotte|mezzogiorno|meno)\b/i.test(normInputGlobal) ||
+        // PT
+        /(amanhã|amanha|manh[aã]|hoje|ontem|segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo|tarde|noite|meia-noite|meio-dia)/i.test(normInputGlobal) ||
+        // "без N" constructions
+        /без\s+(?:пяти|четверти|десяти|двадцати|двадцяти|п['']яти|чверті)/i.test(normInputGlobal) ||
+        // AM/PM markers
+        /\b(am|pm)\b|[ap]\.m\./i.test(normInputGlobal)
+      );
+
+      if (!hasAnyTimeSignal) {
+        // No time signal at all — return task text with empty datetime (show picker)
+        const taskText = removeTriggerWords(normInputGlobal).replace(/\s+/g, ' ').trim();
+        if (DEBUG) console.log(`[SKIP-AI] No time signal in: "${input}" → task: "${taskText}"`);
+        return res.json({ ok: true, text: taskText || input, datetime: '', source: 'unparsed' });
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
     // Whitelist: medical/everyday words that trigger false positives
     const medicalWhitelist = /таблетк|таблет|пігулк|пілюл|ліки|лікарств|лекарств|препарат|вітамін|витамин|аспірин|аспирин|ібупрофен|ибупрофен|парацетамол|антибіотик|антибиотик|краплі|капли|сироп|укол|укол|ін'єкц|инъекц|мазь|порошок|микстур|настойк|настоянк|\bpill|\btablet|\bmedicine|\bmedication|\bvitamin|\baspirin|\bibuprofen|\bparacetamol|\bantibiotic|\bdrops|\bsyrup|\bdrug\b|\bdose\b|\bTablette|\bMedikament|\bVitamin|\bPille|\bKapsel|\bSalbe|\bTropfen|\bmédicament|\bcomprimé|\bvitamine|\bgélule|\bsirop|\bmedicamento|\bpastilla|\bvitamina|\bcápsula|\bjarabe|\btabletk|\bwitamin|\blek\b|\bleku\b|\bleki\b|\bleków\b|\bmaść\b|\bkrople\b|\bmedicin|\bcompress|\bvitamin|\bcapsul|\bsciroppo|\bpastiglie|\bfiala|\bremédio|\bcomprimido|\bvitamina|\bcápsula|\bxarope|\bdose\b/i;
     const isMedicalContext = medicalWhitelist.test(input);
@@ -1060,7 +1096,7 @@ app.post("/parse", auth, async (req, res) => {
     let result = null;
     try {
       const response = await client.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-4.1-nano",
         temperature: 0,
         response_format: { type: "json_object" },
         messages: [
