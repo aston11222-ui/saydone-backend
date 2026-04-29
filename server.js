@@ -257,6 +257,9 @@ app.post("/parse", auth, async (req, res) => {
         .replace(/\s+(and|or)\s*$/i, '')
         .replace(/\s+/g, ' ')
         .trim();
+      // If only a single preposition remains — return empty
+      if (/^(на|в|о|у|o|w|na|po|at|on|to|for|um|à|às|a|le|la|las|los|el|de|da|di|du|al|alle|del|des|den|der|das)$/i.test(t.trim())) return '';
+      return t.trim();
     }
     // ─────────────────────────────────────────────────────────────────────────
 
