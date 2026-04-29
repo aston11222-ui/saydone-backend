@@ -648,7 +648,8 @@ app.post("/parse", auth, async (req, res) => {
                               normInputGlobal.match(/(\d{1,2})-[а-яіїєА-ЯІЇЄa-z]+/) ||
                               normInputGlobal.match(/в\s+(\d{1,2})\s+(?:вечера|вечора|ранку|утра|ночи|ночі)/i) ||
                               normInputGlobal.match(/о\s+(\d{1,2})\s+(?:вечора|вечера|ранку|утра)/i) ||
-                              normInputGlobal.match(/на\s+(\d{1,2})\s+(?:годин\s+)?(?:вечора|вечера|ранку|утра|ночи|ночі)/i) ||
+                              normInputGlobal.match(/на\s+(\d{1,2})\s+(?:годин[иу]?\s+)?(?:вечора|вечера|ранку|утра|ночи|ночі)/i) ||
+                          normInputGlobal.match(/о\s+(\d{1,2})\s+годин[иі]\s+(?:вечора|ранку|ночі)/i) ||
                               normInputGlobal.match(/\bat\s+(\d{1,2})\s*(pm|am)\b/i) ||
                               normInputGlobal.match(/\bat\s+(\d{1,2})\s*(?:a\.m\.|p\.m\.)(?=\s|$)/i) ||
                               // RU/UK bare 'в 8' / 'на 8' / 'о 8' without period word
@@ -679,7 +680,7 @@ app.post("/parse", auth, async (req, res) => {
           let taskText = removeTriggerWords(normInput)
             // Remove "на/в/о HH:MM period" time expressions
             .replace(/(?:на|в|о|у)\s+\d{1,2}:\d{2}(?:\s+(?:вечора|вечера|ранку|утра|вечером|ночи))?/gi, '')
-            .replace(/(?:на|в|о|у)\s+\d{1,2}\s+(?:годин\s+)?(?:вечора|вечера|ранку|утра|ночи|ночі)/gi, '')
+            .replace(/(?:на|в|о|у)\s+\d{1,2}\s+(?:годин[иу]?\s+)?(?:вечора|вечера|ранку|утра|ночи|ночі)/gi, '')
             // Remove interval expressions (digits after normalization)
             .replace(/(?:через|за)\s+\d+\s*\S+/gi, '')
             .replace(/\bin\s+\d+\s*\S+/gi, '')
