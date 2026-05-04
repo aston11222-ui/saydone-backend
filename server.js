@@ -124,6 +124,10 @@ Output ONLY the JSON. No explanation.`;
 // ── Endpoints ──────────────────────────────────────────────────────────────────
 app.get("/",       (_, res) => res.send("SayDone parser v6"));
 app.get("/health", (_, res) => res.json({ ok: true }));
+app.get("/app-ads.txt", (_, res) => {
+  res.setHeader("Content-Type", "text/plain");
+  res.send("google.com, pub-3022363215236201, DIRECT, f08c47fec0942fa0");
+});
 
 app.post("/parse", auth, async (req, res) => {
   try {
