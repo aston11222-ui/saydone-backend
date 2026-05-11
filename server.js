@@ -124,10 +124,6 @@ Output ONLY the JSON. No explanation.`;
 // ── Endpoints ──────────────────────────────────────────────────────────────────
 app.get("/",       (_, res) => res.send("SayDone parser v6"));
 app.get("/health", (_, res) => res.json({ ok: true }));
-app.get("/app-ads.txt", (_, res) => {
-  res.setHeader("Content-Type", "text/plain");
-  res.send("google.com, pub-3022363215236201, DIRECT, f08c47fec0942fa0");
-});
 
 app.post("/parse", auth, async (req, res) => {
   try {
@@ -420,7 +416,7 @@ app.post("/parse", auth, async (req, res) => {
     // ── Prefix interval reorder ────────────────────────────────────────────────
     // "через 2 часа напомни X" → "напомни X через 2 часа"
     {
-      const re = /^((?:через|за)\s+\d+[.,]?\d*\s*\S+|через\s+(?:полчаса|полтора\s+часа?)|(?:in|dans|en|za|tra|fra|em)\s+\d+[.,]?\d*\s*\S+|(?:daqui\s+a|dentro\s+de)\s+\d+[.,]?\d*\s*\S+|in\s+half\s+an\s+hour|in\s+an?\s+hour|in\s+(?:one\s+and\s+a\s+half|\d+\.5)\s+hours?)\s+((?:напомни|нагадай|поставь|постав|remind(?:\s+me)?|set\s+a\s+reminder|erinnere(?:\s+mich)?|rappelle(?:-moi)?|recu[eé]rdame|przypomnij(?:\s+mi)?|ricordami|lembra(?:-me)?|me\s+lembre)(?:\s|$).*)/i;
+      const re = /^((?:через|за)\s+\d+[.,]?\d*\s*\S+|через\s+(?:полчаса|полтора\s+часа?)|(?:in|after|dans|en|za|tra|fra|em)\s+\d+[.,]?\d*\s*\S+|(?:daqui\s+a|dentro\s+de)\s+\d+[.,]?\d*\s*\S+|in\s+half\s+an\s+hour|in\s+an?\s+hour|in\s+(?:one\s+and\s+a\s+half|\d+\.5)\s+hours?)\s+((?:напомни|нагадай|поставь|постав|remind(?:\s+me)?|set\s+a\s+reminder|erinnere(?:\s+mich)?|rappelle(?:-moi)?|recu[eé]rdame|przypomnij(?:\s+mi)?|ricordami|lembra(?:-me)?|me\s+lembre)(?:\s|$).*)/i;
       const m = input.match(re);
       if (m) {
         input = (m[2].trimEnd() + ' ' + m[1]).replace(/\s+/g, ' ').trim();
@@ -450,7 +446,7 @@ app.post("/parse", auth, async (req, res) => {
     {
       const relMatch =
         normInputGlobal.match(/(?:через|за)\s+(\d+(?:[.,]\d+)?)\s*(?:минут[аыу]?|минут\b|хвилин[аиу]?|хвилин\b|хв\.?|мин\.?)/i) ||
-        normInputGlobal.match(/\bin\s+(\d+(?:[.,]\d+)?)\s*(?:min(?:ute)?s?)\b/i) ||
+        normInputGlobal.match(/\b(?:in|after)\s+(\d+(?:[.,]\d+)?)\s*(?:min(?:ute)?s?)\b/i) ||
         normInputGlobal.match(/\bdans\s+(\d+(?:[.,]\d+)?)\s*(?:min(?:ute)?s?)\b/i) ||
         normInputGlobal.match(/\bin\s+(\d+(?:[.,]\d+)?)\s*(?:Minute[n]?)\b/i) ||
         normInputGlobal.match(/\ben\s+(\d+(?:[.,]\d+)?)\s*(?:min(?:uto)?s?)\b/i) ||
@@ -464,7 +460,7 @@ app.post("/parse", auth, async (req, res) => {
 
       const hourMatch =
         normInputGlobal.match(/(?:через|за)\s+(\d+(?:[.,]\d+)?)\s*(?:час[аов]?|час\b|годин[аиу]?|годин\b|год\.?)/i) ||
-        normInputGlobal.match(/\bin\s+(\d+(?:[.,]\d+)?)\s*(?:hours?|h)\b/i) ||
+        normInputGlobal.match(/\b(?:in|after)\s+(\d+(?:[.,]\d+)?)\s*(?:hours?|h)\b/i) ||
         normInputGlobal.match(/\bin\s+(\d+(?:[.,]\d+)?)\s*(?:Stunden?)\b/i) ||
         normInputGlobal.match(/\bdans\s+(\d+(?:[.,]\d+)?)\s*(?:heures?|h)\b/i) ||
         normInputGlobal.match(/\ben\s+(\d+(?:[.,]\d+)?)\s*(?:horas?|h)\b/i) ||
@@ -538,7 +534,7 @@ app.post("/parse", auth, async (req, res) => {
           .replace(/za\s+p[oó][łl](?:torej\s+godziny|\s+godziny)|za\s+godzin[ęe]/gi,'')
           // Numeric intervals
           .replace(/(?:через|за)\s+\d+[.,]?\d*\s*\S+/gi,'')
-          .replace(/in\s+\d+[.,]?\d*\s*\S+/gi,'')
+          .replace(/(?:in|after)\s+\d+[.,]?\d*\s*\S+/gi,'')
           .replace(/dans\s+\d+[.,]?\d*\s*\S+/gi,'').replace(/en\s+\d+[.,]?\d*\s*\S+/gi,'')
           .replace(/za\s+\d+[.,]?\d*\s*\S+/gi,'').replace(/tra\s+\d+[.,]?\d*\s*\S+/gi,'')
           .replace(/fra\s+\d+[.,]?\d*\s*\S+/gi,'').replace(/em\s+\d+[.,]?\d*\s*\S+/gi,'')
@@ -881,7 +877,7 @@ app.post("/parse", auth, async (req, res) => {
       // RU/UK
       /(завтра|послезавтра|сегодня|вчера|сьогодні|вчора|через|утра|вечера|ночи|дня|ранку|вечора|ночі|годин|хвилин|понеділ|вівтор|серед|четвер|п.ятниц|субот|неділ|понедельник|вторник|среду|четверг|пятниц|суббот|воскресен)/i.test(normInputGlobal) ||
       // EN
-      /\b(tomorrow|today|morning|evening|night|afternoon|noon|midnight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|in\s+\d|at\s+\d|next\s+week|half\s+an\s+hour)\b/i.test(normInputGlobal) ||
+      /\b(tomorrow|today|morning|evening|night|afternoon|noon|midnight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|in\s+\d|after\s+\d|at\s+\d|next\s+week|half\s+an\s+hour)\b/i.test(normInputGlobal) ||
       // DE
       /\b(morgen|heute|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|abends|morgens|nachts|halb|uhr)\b/i.test(normInputGlobal) ||
       // FR
