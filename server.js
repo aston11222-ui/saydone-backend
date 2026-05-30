@@ -2,14 +2,14 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import OpenAI from "openai";
-
+ 
 dotenv.config();
 const DEBUG = process.env.APP_DEBUG === 'true';
 const app = express();
 app.use(cors());
 app.use(express.json());
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
+ 
 // ── Rate limiter ───────────────────────────────────────────────────────────────
 const rateLimitMap = new Map();
 function checkRateLimit(ip) {
@@ -22,7 +22,7 @@ setInterval(() => {
   const n = Date.now();
   for (const [k, v] of rateLimitMap) if (n > v.resetAt) rateLimitMap.delete(k);
 }, 300_000);
-
+ 
 const APP_SECRET = process.env.APP_SECRET || null;
 function auth(req, res, next) {
   const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || '?';
@@ -30,12 +30,12 @@ function auth(req, res, next) {
   if (APP_SECRET && req.headers['x-app-key'] !== APP_SECRET) return res.status(403).json({ ok: false, error: "forbidden" });
   next();
 }
-
+ 
 // ── Utils ──────────────────────────────────────────────────────────────────────
 const p2    = n => String(n).padStart(2, "0");
 const offStr = o => { const s = o >= 0 ? "+" : "-", a = Math.abs(o); return `${s}${p2(Math.floor(a/60))}:${p2(a%60)}`; };
 const toIso  = (d, o) => `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}:00${offStr(o)}`;
-
+ 
 function parseNow(s) {
   const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
   return m ? new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +(m[6]||0)) : null;
@@ -44,9 +44,9 @@ function getOffset(s) {
   const m = String(s).match(/([+-])(\d{2}):(\d{2})$/);
   return m ? (+m[2]*60 + +m[3]) * (m[1]==='+' ? 1 : -1) : 0;
 }
-
+ 
 const DOW_EN = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-
+ 
 // ── AI Prompt builder ──────────────────────────────────────────────────────────
 function buildPrompt(nowIso, offsetStr, localNow, offsetMinutes, lang) {
   const dow     = DOW_EN[localNow.getDay()];
@@ -54,7 +54,7 @@ function buildPrompt(nowIso, offsetStr, localNow, offsetMinutes, lang) {
   const timeStr  = nowIso.slice(11, 16);
   const addD = n => { const d = new Date(localNow); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); };
   const nextDow = i => { let diff = i - localNow.getDay(); if(diff<=0) diff+=7; const d=new Date(localNow); d.setDate(d.getDate()+diff); return d.toISOString().slice(0,10); };
-
+ 
   const langHints = {
     ru: { am: 'утра/утром', pm: 'вечера/вечером/ночи', noon: 'дня/после обеда',
           triggers: 'поставь/напомни/поставь напоминание',
@@ -85,17 +85,17 @@ function buildPrompt(nowIso, offsetStr, localNow, offsetMinutes, lang) {
           days: 'seg=segunda, ter=terça, qua=quarta, qui=quinta, sex=sexta, sáb=sábado, dom=domingo' },
   };
   const h = langHints[lang] || langHints.en;
-
+ 
   return `You are a reminder time parser. Today is ${todayStr} (${dow}), time is ${timeStr}, UTC offset is ${offsetStr}.
-
+ 
 TASK: Extract reminder text and datetime from voice input in ${lang.toUpperCase()} language.
-
+ 
 OUTPUT: JSON only — {"text":"<task>","datetime":"<ISO8601 with offset>"}
 - datetime format: ${todayStr}T15:00:00${offsetStr}
 - CRITICAL: hours in datetime = LOCAL time (NOT UTC). If user says 9:00 → T09:00:00${offsetStr}, NOT T06:00:00${offsetStr}
 - If NO time stated → {"text":"<task>","datetime":""}
 - If ONLY trigger words, no task → {"ok":false}
-
+ 
 RULES:
 1. Remove trigger words from text: ${h.triggers}
 2. AM words (keep hour as-is, 12→0): ${h.am}
@@ -105,39 +105,39 @@ RULES:
 6. If past time and no date word → move to tomorrow
 7. Weekdays → next future occurrence (never today)
 8. послезавтра/übermorgen/après-demain/pojutrze/dopodomani/depois de amanhã → ${addD(2)}
-
+ 
 DATES (today=${todayStr}):
 - tomorrow → ${addD(1)}
 - day after tomorrow → ${addD(2)}
 - next monday → ${nextDow(1)}, tuesday → ${nextDow(2)}, wednesday → ${nextDow(3)}
 - thursday → ${nextDow(4)}, friday → ${nextDow(5)}, saturday → ${nextDow(6)}, sunday → ${nextDow(0)}
-
+ 
 EXAMPLES:
 {"text":"купить молоко","datetime":"${addD(1)}T21:00:00${offsetStr}"}  ← tomorrow at 9pm
 {"text":"","datetime":"${addD(3)}T09:00:00${offsetStr}"}              ← in 3 days at 9am
 {"text":"встреча","datetime":""}                                       ← no time stated
 {"ok":false}                                                           ← only trigger words
-
+ 
 Output ONLY the JSON. No explanation.`;
 }
-
+ 
 // ── Endpoints ──────────────────────────────────────────────────────────────────
 app.get("/",       (_, res) => res.send("SayDone parser v6"));
 app.get("/health", (_, res) => res.json({ ok: true }));
-
+ 
 app.post("/parse", auth, async (req, res) => {
   try {
     const { text, locale } = req.body ?? {};
     const lang = (locale || 'ru').split(/[_-]/)[0].toLowerCase();
     if (!text || !req.body.now) return res.status(400).json({ ok: false, error: "Missing text or now" });
-
+ 
     const localNow = parseNow(req.body.now);
     if (!localNow) return res.status(400).json({ ok: false, error: "Invalid now" });
     const offsetMinutes = getOffset(req.body.now);
     const nowIso = toIso(localNow, offsetMinutes);
-
+ 
     let input = String(text).replace(/\s+/g, " ").trim();
-
+ 
     // ── ASR normalization ────────────────────────────────────────────────────────
     input = (function normalizeASR(s) {
       // Fix glued time: "в8" → "в 8"
@@ -172,7 +172,7 @@ app.post("/parse", auth, async (req, res) => {
         .replace(/\b(uh|um|eh|äh|euh)\b/gi, '');
       return s.replace(/\s+/g, ' ').trim();
     })(input);
-
+ 
     // ── Word numbers → digits ────────────────────────────────────────────────────
     function normalizeWordNums(s) {
       // Accentless → accented
@@ -184,7 +184,7 @@ app.post("/parse", auth, async (req, res) => {
         .replace(/\bsroda\b/gi, 'środa').replace(/\bsrode\b/gi, 'środę').replace(/\bpiatek\b/gi, 'piątek')
         .replace(/\bniedziele\b/gi, 'niedzielę').replace(/\bsobote\b/gi, 'sobotę')
         .replace(/\bamanha\b/gi, 'amanhã');
-
+ 
       // Compound numbers (longest first to avoid partial matches)
       const compounds = [
         // ES
@@ -212,7 +212,7 @@ app.post("/parse", auth, async (req, res) => {
         [/двадцять\s+один/gi,'21'],[/двадцять\s+дві/gi,'22'],[/тридцять\s+п'ять/gi,'35'],
       ];
       for (const [re, val] of compounds) s = s.replace(re, val);
-
+ 
       // Single word numbers per language (NO shared map — avoids key collision)
       const singles = [
         // RU
@@ -279,7 +279,7 @@ app.post("/parse", auth, async (req, res) => {
       return s;
     }
     const normInputGlobal = normalizeWordNums(input);
-
+ 
     // ── Trigger words ──────────────────────────────────────────────────────────────
     const TRIGGERS = [
       // Wake words
@@ -316,7 +316,7 @@ app.post("/parse", auth, async (req, res) => {
       'define\\s+um\\s+lembrete','adicione\\s+um\\s+lembrete','criar\\s+lembrete','lembra(?=\\s|$)',
     ];
     const LEFTOVER_RE = /^(мне|мені|me|mich|mi|moi|por\s+favor|pls|please|bitte|s'il\s+te\s+pla[iî]t|per\s+favore|proszę|будь\s+ласка|пожалуйста)\s+/i;
-
+ 
     function removeTriggerWords(t) {
       for (const tr of TRIGGERS) {
         t = t.replace(new RegExp('^' + tr + '\\s*', 'i'), '');
@@ -324,7 +324,7 @@ app.post("/parse", auth, async (req, res) => {
       }
       return t.replace(LEFTOVER_RE, '').replace(/\s+/g, ' ').trim();
     }
-
+ 
     // ── AM/PM detection (single source of truth) ───────────────────────────────
     // Returns: 'am' | 'pm' | null
     function detectPeriod(s) {
@@ -335,13 +335,13 @@ app.post("/parse", auth, async (req, res) => {
       if (/(вечора|вечера|увечері|ввечері|дня|після\s+обіду|вечером|после\s+обеда|\bevening\b|in\s+the\s+evening|\bpm\b|p\.m\.|\bafternoon\b|in\s+the\s+afternoon|\babends\b|\bnachts\b|du\s+soir|le\s+soir|de\s+nuit|la\s+nuit|de\s+la\s+(?:tarde|noche)|por\s+la\s+(?:tarde|noche)|\bdi\s+sera\b|\bsera\b|da\s+(?:tarde|noite)|wieczore?m?)/i.test(norm)) return 'pm';
       return null;
     }
-
+ 
     function applyPeriod(h, period) {
       if (period === 'pm' && h < 12) return h + 12;
       if (period === 'am' && h === 12) return 0;
       return h;
     }
-
+ 
     // ── Task text cleaner ──────────────────────────────────────────────────────
     function cleanTaskText(t) {
       t = t
@@ -407,12 +407,12 @@ app.post("/parse", auth, async (req, res) => {
         // 'the day after' EN
         .replace(/\bthe\s+day\s+after\b/gi, '')
         .replace(/\s+/g, ' ').trim();
-
+ 
       // Single preposition → empty
       if (/^(на|в|о|у|o|w|na|no|po|at|on|to|for|um|à|às|as|a|le|la|las|los|el|de|da|do|di|du|al|alle|del|des|den|der|das|manhã|madrugada|ночі|ранку|вечора|дня|ночи|утра|вечера)$/i.test(t)) return '';
       return t;
     }
-
+ 
     // ── Prefix interval reorder ────────────────────────────────────────────────
     // "через 2 часа напомни X" → "напомни X через 2 часа"
     {
@@ -423,11 +423,11 @@ app.post("/parse", auth, async (req, res) => {
         if (DEBUG) console.log(`[REORDER] "${text}" → "${input}"`);
       }
     }
-
+ 
     // ════════════════════════════════════════════════════════════════════════════
     // PRE-PARSERS — deterministic, no AI needed
     // ════════════════════════════════════════════════════════════════════════════
-
+ 
     // ── PRE: Relative intervals HH+MM combined ──────────────────────────────────
     {
       const hmRe = /(?:in|dans|en|za|tra|fra|em|daqui\s+a|dentro\s+de|через|за)\s+(\d+)\s*(?:hours?|Stunden?|heures?|horas?|ora[e]?|ore\b|год[ину]+|годин[аиу]?|час[аов]?)\s*(?:and\s+|und\s+|et\s+|y\s+|e\s+|і\s+|та\s+|и\s+)?(\d+)\s*(?:min(?:ute)?s?|Minuten?|minutes?|minutos?|minut[oiа]?|хвилин[аиу]?|мин[утаы]*)/i;
@@ -441,7 +441,7 @@ app.post("/parse", auth, async (req, res) => {
         return res.json({ ok: true, text: taskText, datetime, source: 'pre' });
       }
     }
-
+ 
     // ── PRE: Relative intervals (minutes / hours) ───────────────────────────────
     {
       const relMatch =
@@ -457,7 +457,7 @@ app.post("/parse", auth, async (req, res) => {
         normInputGlobal.match(/\bdentro\s+de\s+(\d+(?:[.,]\d+)?)\s*(?:minutos?|min)\b/i) ||
         normInputGlobal.match(/\bdaqui\s+a\s+(\d+(?:[.,]\d+)?)\s*(?:minutos?|min)\b/i) ||
         normInputGlobal.match(/\bpara\s+(\d+(?:[.,]\d+)?)\s*(?:minutos?|horas?)\b/i);
-
+ 
       const hourMatch =
         normInputGlobal.match(/(?:через|за)\s+(\d+(?:[.,]\d+)?)\s*(?:час[аов]?|час\b|годин[аиу]?|годин\b|год\.?)/i) ||
         normInputGlobal.match(/\b(?:in|after)\s+(\d+(?:[.,]\d+)?)\s*(?:hours?|h)\b/i) ||
@@ -470,10 +470,10 @@ app.post("/parse", auth, async (req, res) => {
         normInputGlobal.match(/\bem\s+(\d+(?:[.,]\d+)?)\s*(?:horas?)\b/i) ||
         normInputGlobal.match(/\bdentro\s+de\s+(\d+(?:[.,]\d+)?)\s*horas?\b/i) ||
         normInputGlobal.match(/\bdaqui\s+a\s+(\d+(?:[.,]\d+)?)\s*horas?\b/i);
-
+ 
       // Half / one-and-a-half / one hour
       const halfHourMatch = /через\s+полчаса|через\s+пів\s*год|через\s+півгодини|in\s+half\s+an\s+hour|dans\s+une?\s+demi[-\s]heure|dans\s+1\s+demi[-\s]heure|en\s+media\s+hora|za\s+p[oó][łl]\s+godziny|tra\s+mezz['''\u2019]ora|fra\s+mezz['''\u2019]ora|em\s+meia\s+hora|in\s+einer\s+halben?\s+Stunde/i.test(normInputGlobal);
-
+ 
       const oneAndHalfMatch = !halfHourMatch && (
         /через\s+полтора\s+час|через\s+півтор/i.test(normInputGlobal) ||
         /\bin\s+(?:one\s+and\s+a\s+half|1\.5)\s+hours?\b/i.test(normInputGlobal) ||
@@ -484,7 +484,7 @@ app.post("/parse", auth, async (req, res) => {
         /\btra\s+un['''\u2019]ora\s+e\s+mezza\b/i.test(normInputGlobal) ||
         /\bem\s+uma\s+hora\s+e\s+meia\b/i.test(normInputGlobal)
       );
-
+ 
       const oneHourMatch = !halfHourMatch && !oneAndHalfMatch && (
         /через\s+(?:один\s+)?час(?!\S)|через\s+годину/i.test(normInputGlobal) ||
         /\bin\s+(?:one\s+)?hour\b/i.test(normInputGlobal) ||
@@ -495,7 +495,7 @@ app.post("/parse", auth, async (req, res) => {
         /\btra\s+un['''\u2019]ora\b/i.test(normInputGlobal) ||
         /\bem\s+(?:uma|1)\s+hora\b/i.test(normInputGlobal)
       );
-
+ 
       let preResult = null;
       if (halfHourMatch) {
         const d = new Date(localNow); d.setMinutes(d.getMinutes() + 30);
@@ -515,10 +515,10 @@ app.post("/parse", auth, async (req, res) => {
         const d = new Date(localNow); d.setMinutes(d.getMinutes() + Math.round(n * 60));
         preResult = { minutes: Math.round(n * 60), dt: d };
       }
-
+ 
       if (preResult) {
         const datetime = toIso(preResult.dt, offsetMinutes);
-
+ 
         // Build clean taskText from original input
         let taskText = removeTriggerWords(input)
           .replace(/в\s+полдень|о\s+полудні|опівдні/gi,'').replace(/at\s+noon|noon\b/gi,'')
@@ -556,15 +556,15 @@ app.post("/parse", auth, async (req, res) => {
         return res.json({ ok: true, text: taskText, datetime, source: 'pre' });
       }
     }
-
+ 
     // ── PRE-NOON: Noon / Midnight ───────────────────────────────────────────────
     {
       const noonRe  = /(в\s+полдень|о\s+полудні|опівдні|\bat\s+noon\b|\bnoon\b|\bzu\s+Mittag\b|\bMittag\b|\bà\s+midi\b|\bmidi\b|\bal\s+mediod[ií]a\b|\bmediod[ií]a\b|\ba\s+mezzogiorno\b|\bmezzogiorno\b|\bao?\s+meio-?dia\b|\bmeio-?dia\b|\bw\s+południe\b|\bpołudnie\b)/i;
       const midRe   = /(в\s+полночь|опівночі|о\s+полуночі|\bat\s+midnight\b|\bmidnight\b|\bzu\s+Mitternacht\b|\bMitternacht\b|\bà\s+minuit\b|\bminuit\b|\ba\s+medianoche\b|\bmedianoche\b|\ba\s+mezzanotte\b|\bmezzanotte\b|\bà\s+meia-?noite\b|\bmeia-?noite\b|\ba\s+media\s+noche\b|\bo\s+północy\b|\bpółnoc\b)/i;
-
+ 
       const isNoon     = noonRe.test(normInputGlobal);
       const isMidnight = !isNoon && midRe.test(normInputGlobal);
-
+ 
       if (isNoon || isMidnight) {
         const h  = isNoon ? 12 : 0;
         const hasTomorrow  = /(завтра|tomorrow|morgen|demain|ma[nñ]ana|jutro|domani|amanh[aã])/i.test(normInputGlobal);
@@ -584,7 +584,7 @@ app.post("/parse", auth, async (req, res) => {
         return res.json({ ok: true, text: taskText, datetime, source: 'pre' });
       }
     }
-
+ 
     // ── PRE-DAYS: In N days ─────────────────────────────────────────────────────
     {
       const normInput = normInputGlobal;
@@ -600,7 +600,7 @@ app.post("/parse", auth, async (req, res) => {
         normInput.match(/\bfra\s+(\d+)\s*giorni\b/i) ||
         normInput.match(/\bem\s+(\d+)\s*dias?\b/i) ||
         normInput.match(/\bdaqui\s+a\s+(\d+)\s*dias?\b/i);
-
+ 
       const weeksMatch = !daysMatch && (
         normInput.match(/(?:через|за)\s+(\d+)\s*(?:тижн|недел)/i) ||
         normInput.match(/\bin\s+(\d+)\s*weeks?\b/i) ||
@@ -613,14 +613,14 @@ app.post("/parse", auth, async (req, res) => {
         normInput.match(/\bem\s+(\d+)\s*semanas?\b/i) ||
         normInput.match(/\bdaqui\s+a\s+(\d+)\s*semanas?\b/i)
       );
-
+ 
       if (daysMatch || weeksMatch) {
         const m = daysMatch || weeksMatch;
         const n = parseInt(m[1]) * (weeksMatch ? 7 : 1);
         const targetDate = new Date(localNow);
         targetDate.setDate(localNow.getDate() + n);
         const dateStr = targetDate.toISOString().slice(0,10);
-
+ 
         // Check for time within same phrase
         const hasTime = !!(
           normInputGlobal.match(/\b(\d{1,2}):(\d{2})\b/) ||
@@ -636,7 +636,7 @@ app.post("/parse", auth, async (req, res) => {
           normInputGlobal.match(/\b(\d{1,2})h\b(?!eure)/i) ||
           /\b(am|pm)\b|[ap]\.m\./i.test(normInputGlobal)
         );
-
+ 
         if (!hasTime) {
           const taskText = cleanTaskText(removeTriggerWords(input)
             .replace(/(завтра|послезавтра|сегодня|сьогодні|today|heute|aujourd'hui|hoy|dzisiaj|oggi|hoje)/gi,'')
@@ -649,7 +649,7 @@ app.post("/parse", auth, async (req, res) => {
           if (DEBUG) console.log(`[PRE-DAYS] "${input}" → task:"${taskText}" date:${dateStr} (no time → picker)`);
           return res.json({ ok: true, text: taskText, datetime: '', source: 'unparsed' });
         }
-
+ 
         // Has time — extract it
         const timeMatch =
           normInputGlobal.match(/\b(\d{1,2}):(\d{2})\b/) ||
@@ -662,7 +662,7 @@ app.post("/parse", auth, async (req, res) => {
           normInputGlobal.match(/(?:^|\s)à\s+(\d{1,2})\b/i) ||
           normInputGlobal.match(/(?:^|\s)às\s+(\d{1,2})\b/i) ||
           normInputGlobal.match(/\ba\s+las\s+(\d{1,2})\b/i);
-
+ 
         if (timeMatch) {
           let h = parseInt(timeMatch[1]);
           const mins2 = timeMatch[2] && /^\d+$/.test(timeMatch[2]) ? parseInt(timeMatch[2]) : 0;
@@ -686,11 +686,11 @@ app.post("/parse", auth, async (req, res) => {
         }
       }
     }
-
+ 
     // ── PRE-DOW-NOTIME: Weekday without time → picker ───────────────────────────
     {
       const dowSimple = [
-        [0, /(sunday|dimanche|domingo|niedziela|niedziel[ęą]|domenica|воскресенье|неділ[юяі]?|sonntag)/i],
+        [0, /(sunday|dimanche|domingo|niedziela|niedziel[ęą]|domenica|воскресенье|(?<!поне)(?:^|[\\s,])неділ[юяі]?|sonntag)/i],
         [1, /(monday|lundi|lunes|poniedzia[łl]ek|lunedì|segunda-?feira|segunda\b|понедельник|понеділо?к|montag)/i],
         [2, /(tuesday|mardi|martes|wtorek|martedì|ter[çc]a-?feira|terça\b|вторник|вівторо?к|dienstag)/i],
         [3, /(wednesday|mercredi|miércoles|[sś]rod[ęa]|mercoledì|quarta-?feira|quarta\b|среду?|середу?|середа|mittwoch)/i],
@@ -699,7 +699,7 @@ app.post("/parse", auth, async (req, res) => {
         [6, /(saturday|samedi|s[aá]bado|sobot[ęa]|sabato|суббот[ау]?|субот[ую]?|samstag)/i],
       ];
       const hasTimeRef = /\d{1,2}[:\-\.]\d{2}|\d{1,2}h\d{2}|\b\d{1,2}\s*Uhr\b|\bat\s+\d|\balle\s+\d|\ba\s+las\s+\d|\bum\s+\d|(?:^|\s)à\s+\d|(?:^|\s)às\s+\d|\bam\b|\bpm\b|[ap]\.m\.|вечора|вечера|ночи|ночі|утра|ранку|вранці|зранку|дня|дні|після\s+обіду|годин[иіу]?|morning|evening|night|afternoon|abends|nachts|morgens|soir|matin|noche|tarde|manhã|noite|rano|wieczor/i.test(normInputGlobal);
-
+ 
       if (!hasTimeRef) {
         let targetDow = -1;
         for (const [idx, re] of dowSimple) {
@@ -724,11 +724,11 @@ app.post("/parse", auth, async (req, res) => {
         }
       }
     }
-
+ 
     // ── PRE-DOW: Weekday + time ─────────────────────────────────────────────────
     {
       const dowPatterns = [
-        [0, /(sunday|dimanche|domingo|niedziela|niedziel[ęą]|domenica|воскресенье|неділ[юяі]?|sonntag)/i],
+        [0, /(sunday|dimanche|domingo|niedziela|niedziel[ęą]|domenica|воскресенье|(?<!поне)(?:^|[\\s,])неділ[юяі]?|sonntag)/i],
         [1, /(monday|lundi|lunes|poniedzia[łl]ek|lunedì|segunda-?feira|segunda\b|понедельник|понеділо?к|montag)/i],
         [2, /(tuesday|mardi|martes|wtorek|martedì|ter[çc]a-?feira|terça\b|вторник|вівторо?к|dienstag)/i],
         [3, /(wednesday|mercredi|miércoles|[sś]rod[ęa]|mercoledì|quarta-?feira|quarta\b|среду?|середу?|середа|mittwoch)/i],
@@ -736,7 +736,7 @@ app.post("/parse", auth, async (req, res) => {
         [5, /(friday|vendredi|viernes|pi[aą]tek|venerdì|sexta-?feira|sexta\b|пятниц[ую]?|п['']ятниц[юя]|freitag)/i],
         [6, /(saturday|samedi|s[aá]bado|sobot[ęa]|sabato|суббот[ау]?|субот[ую]?|samstag)/i],
       ];
-
+ 
       const timeMatch24 =
         normInputGlobal.match(/\b(\d{1,2}):(\d{2})\b/) ||
         normInputGlobal.match(/\b(\d{1,2})\s*Uhr\b/i) ||
@@ -752,28 +752,28 @@ app.post("/parse", auth, async (req, res) => {
         normInputGlobal.match(/(?:^|\s)à\s+(\d{1,2})\b/i) ||
         normInputGlobal.match(/(?:^|\s)às\s+(\d{1,2})\b/i) ||
         normInputGlobal.match(/\ba\s+las\s+(\d{1,2})\b/i);
-
+ 
       const period = detectPeriod(input);
-
+ 
       let targetDow = -1;
       for (const [idx, re] of dowPatterns) {
         if (re.test(input)) { targetDow = idx; break; }
       }
-
+ 
       if (targetDow >= 0 && timeMatch24) {
         let h = parseInt(timeMatch24[1]);
         const g2 = timeMatch24[2]?.toLowerCase();
         const mins = g2 && /^\d+$/.test(g2) ? parseInt(g2) : 0;
         const pmInMatch = g2 === 'pm';
         const amInMatch = g2 === 'am';
-
+ 
         // hasPMd uses both period and explicit match
         const hasPMd = pmInMatch || period === 'pm' || /(дня|після\s+обіду|после\s+обеда|nachmittags|del\s+pomeriggio|pomeriggio|\d(?:pm))/i.test(input);
         const hasAMd = amInMatch || period === 'am';
-
+ 
         if (hasPMd && h < 12) h += 12;
         if (hasAMd && h === 12) h = 0;
-
+ 
         let diff = targetDow - localNow.getDay();
         if (diff < 0) diff += 7;
         if (diff === 0) diff = 7;
@@ -781,7 +781,7 @@ app.post("/parse", auth, async (req, res) => {
         d.setDate(localNow.getDate() + diff);
         const dateStr = d.toISOString().slice(0, 10);
         const datetime = `${dateStr}T${p2(h)}:${p2(mins)}:00${offStr(offsetMinutes)}`;
-
+ 
         const taskText = cleanTaskText(removeTriggerWords(input)
           .replace(new RegExp(dowPatterns.map(([,re]) => re.source).join('|'), 'gi'), '')
           .replace(/\b(следующ(?:ий|ую|его)|ближайш(?:ий|ую)|наступн(?:ий|ого|ій|у)|найближч(?:ий|у))\b/gi,'')
@@ -796,14 +796,14 @@ app.post("/parse", auth, async (req, res) => {
         return res.json({ ok: true, text: taskText, datetime, source: 'pre' });
       }
     }
-
+ 
     // ── PRE24: Explicit date (today/tomorrow/day-after) + time ──────────────────
     {
       const hasToday    = /(сегодня|сьогодні|today|heute|aujourd'hui|hoy|dzisiaj|oggi|hoje)/i.test(input);
       const hasTomorrow = /(завтра|tomorrow|morgen|demain|ma[nñ]ana|jutro|domani|amanh[aã])/i.test(input);
       const hasDayAfter = /(послезавтра|після\s*завтра|позавтра|day\s*after\s*tomorrow|übermorgen|après-demain|pasado\s*ma[nñ]ana|pojutrze|dopodomani|depois\s*de\s*amanh[aã])/i.test(normInputGlobal);
       const hasRelativeDays = /(?:через|за|in|dans|en|za|tra|fra|em|dentro\s+de|daqui\s+a)\s+(\d+|один|два|три|чотир|п.ять|шість|сім|вісім|дев.ять|десять|one|two|three|four|five|six|seven|eight|nine|ten|ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|deux|trois|quatre|cinq|sept|huit|neuf|dix|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|dwa|dwie|trzy|cztery|due|tre|quattro|cinque|sei|sette|otto|nove|dois|duas|três|quatro)\s*(?:день|дня|дней|дні|днів|тижн|недел|days?|weeks?|Tagen?|Wochen?|jours?|semaines?|días?|semanas?|dni|tygodni|giorni|settimane|dias?)/i.test(input);
-
+ 
       const timeMatch = !hasRelativeDays && (
         normInputGlobal.match(/\b(\d{1,2}):(\d{2})\b/) ||
         normInputGlobal.match(/\b(\d{1,2})-(\d{2})\b/) ||
@@ -818,23 +818,23 @@ app.post("/parse", auth, async (req, res) => {
         normInputGlobal.match(/\bat\s+(\d{1,2})\s*(pm|am)\b/i) ||
         normInputGlobal.match(/\bat\s+(\d{1,2})\s*(?:a\.m\.|p\.m\.)(?=\s|$)/i)
       );
-
+ 
       const hasExplicitColon = !!(normInputGlobal.match(/\b(\d{1,2}):(\d{2})\b/) || normInputGlobal.match(/\b(\d{1,2})-(\d{2})\b/));
       const period = detectPeriod(input);
-
+ 
       if (timeMatch) {
         let h = parseInt(timeMatch[1]);
         const m = timeMatch[2] && /^\d+$/.test(timeMatch[2]) ? parseInt(timeMatch[2]) : 0;
         const g2 = timeMatch[2]?.toLowerCase();
-
+ 
         if (g2 === 'pm' || period === 'pm') { if (h < 12) h += 12; }
         if (g2 === 'am' || period === 'am') { if (h === 12) h = 0; }
         const finalH = h;
-
+ 
         if ((finalH >= 13 || period !== null || hasExplicitColon || g2 === 'am' || g2 === 'pm') && finalH >= 0 && finalH <= 23 && m >= 0 && m <= 59) {
           const statedMins = finalH * 60 + m;
           const nowMins    = localNow.getHours() * 60 + localNow.getMinutes();
-
+ 
           // Determine date
           let d = new Date(localNow);
           if (hasDayAfter) {
@@ -849,7 +849,7 @@ app.post("/parse", auth, async (req, res) => {
           }
           d.setHours(finalH, m, 0, 0);
           const datetime = toIso(d, offsetMinutes);
-
+ 
           const taskText = cleanTaskText(removeTriggerWords(normInputGlobal)
             .replace(/(?:на|в|о|у|at|on|um|à|às|aos|alle|a\s+las|o\s+godzinie)\s+\d{1,2}(:\d{2})?(\s*Uhr)?/gi,'')
             .replace(/\d{1,2}[:\-\.]\d{2}/g,'').replace(/\d{1,2}h\d{2}\b/gi,'')
@@ -868,7 +868,7 @@ app.post("/parse", auth, async (req, res) => {
         }
       }
     }
-
+ 
     // ════════════════════════════════════════════════════════════════════════════
     // Quick pre-check: no time signal → skip AI, show picker
     // ════════════════════════════════════════════════════════════════════════════
@@ -895,17 +895,17 @@ app.post("/parse", auth, async (req, res) => {
       // AM/PM
       /\b(am|pm)\b|[ap]\.m\./i.test(normInputGlobal)
     );
-
+ 
     if (!hasAnyTimeSignal) {
       const taskText = cleanTaskText(removeTriggerWords(normInputGlobal));
       if (DEBUG) console.log(`[SKIP-AI] No time signal in: "${input}" → task: "${taskText}"`);
       return res.json({ ok: true, text: taskText || input, datetime: '', source: 'unparsed' });
     }
-
+ 
     // ════════════════════════════════════════════════════════════════════════════
     // AI fallback
     // ════════════════════════════════════════════════════════════════════════════
-
+ 
     // Moderation check
     let flagged = false;
     try {
@@ -924,9 +924,9 @@ app.post("/parse", auth, async (req, res) => {
         }
       }
     } catch(modErr) { console.warn("[MODERATION] skipped:", modErr.message); }
-
+ 
     if (flagged) return res.json({ ok: false, error: 'flagged' });
-
+ 
     // AI call
     let result = null;
     try {
@@ -948,21 +948,21 @@ app.post("/parse", auth, async (req, res) => {
       console.warn("[AI] error:", err.message);
       return res.json({ ok: true, text: input, datetime: '', source: 'error' });
     }
-
+ 
     if (!result || result.ok === false) {
       if (DEBUG) console.log(`[FAIL] "${input}"`);
       return res.json({ ok: false, error: 'unparseable' });
     }
-
+ 
     // Handle no-time result
     if (result.text !== undefined && result.datetime === '') {
       if (DEBUG) console.log(`[NO TIME] "${input}" → task: "${result.text}"`);
       const taskText = cleanTaskText(removeTriggerWords(result.text || input));
       return res.json({ ok: true, text: taskText, datetime: '', source: 'unparsed' });
     }
-
+ 
     if (!result.datetime) return res.json({ ok: true, text: cleanTaskText(removeTriggerWords(result.text || input)), datetime: '', source: 'unparsed' });
-
+ 
     // Validate AI result has actual time reference
     const hasTimeRefTrigger = (
       /\d{1,2}[:\-\.]\d{2}|\d{1,2}h\d{2}|\b\d{1,2}\s*Uhr\b|\bat\s+\d|\balle\s+\d|\ba\s+las\s+\d|\bum\s+\d|(?:^|\s)à\s+\d|(?:^|\s)às\s+\d|\bam\b|\bpm\b|[ap]\.m\./i.test(normInputGlobal) ||
@@ -978,13 +978,13 @@ app.post("/parse", auth, async (req, res) => {
       /(понедельник|вторник|среду|четверг|пятниц|суббот|воскресен|понеділ|вівтор|серед|четвер|п.ятниц|субот|неділ)/i.test(normInputGlobal) ||
       /\b(eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf)\s+Uhr\b/i.test(normInputGlobal)
     );
-
+ 
     if (!hasTimeRefTrigger && result.datetime) {
       if (DEBUG) console.log(`[NO TIME] No time in input, AI invented time → returning empty datetime for: "${input}"`);
       const taskText = cleanTaskText(removeTriggerWords(result.text || input));
       return res.json({ ok: true, text: taskText, datetime: '', source: 'unparsed' });
     }
-
+ 
     // Post-process AI datetime: fix today/tomorrow logic
     try {
       const dtMatch = result.datetime?.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/);
@@ -997,7 +997,7 @@ app.post("/parse", auth, async (req, res) => {
         const hasExplicitDateWord = /(завтра|послезавтра|tomorrow|day\s+after|morgen|demain|mañana|jutro|domani|amanhã|сьогодні|today|heute|aujourd'hui|hoy|dzisiaj|oggi|hoje)/i.test(normInputGlobal) ||
           /(понедельник|вторник|среду|четверг|пятниц|суббот|воскресен|понеділ|вівтор|серед|четвер|п.ятниц|субот|неділ)/i.test(normInputGlobal) ||
           /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)\b/i.test(normInputGlobal);
-
+ 
         if (!hasExplicitDateWord) {
           if (diffDays === 0 && rH * 60 + rMin > nowH * 60 + nowMin) {
             if (DEBUG) console.log(`[FIX] ${p2(rH)}:${p2(rMin)} > ${p2(nowH)}:${p2(nowMin)}, no explicit tomorrow → today`);
@@ -1010,7 +1010,7 @@ app.post("/parse", auth, async (req, res) => {
         } else {
           if (DEBUG) console.log(`[FIX] skipped — explicit date word detected in: "${input}"`);
         }
-
+ 
         // Fix past weekday
         if (hasExplicitDateWord && diffDays < 0) {
           const fixedDate = new Date(resultDateOnly);
@@ -1019,7 +1019,7 @@ app.post("/parse", auth, async (req, res) => {
           if (DEBUG) console.log(`[FIX] Past weekday date ${result.datetime} → ${fixedIso}`);
           result = { ...result, datetime: fixedIso };
         }
-
+ 
         // Afternoon word fix
         try {
           const rHour = rH, rMin2 = rMin;
@@ -1035,7 +1035,7 @@ app.post("/parse", auth, async (req, res) => {
         } catch(e) { console.warn('[AFTERNOON FIX] error:', e.message); }
       }
     } catch(fixErr) { console.warn("[FIX] error:", fixErr.message); }
-
+ 
     // Clean AI result text
     if (result.text) {
       result = { ...result, text: cleanTaskText(removeTriggerWords(result.text)
@@ -1044,15 +1044,15 @@ app.post("/parse", auth, async (req, res) => {
         .replace(/\s+(на|в|о|у)\s*$/i,''))
       };
     }
-
+ 
     if (DEBUG) console.log(`[OK] "${input}" → ${result.datetime}`);
     return res.json({ ok: true, text: result.text || '', datetime: result.datetime || '', source: 'ai' });
-
+ 
   } catch(e) {
     console.error("ERROR:", e);
     return res.status(500).json({ ok: false, error: "server_error" });
   }
 });
-
+ 
 const port = process.env.PORT || 10000;
 app.listen(port, () => console.log(`SayDone parser v6 on port ${port}`));
