@@ -949,7 +949,7 @@ app.post("/parse", auth, async (req, res) => {
     try {
       const systemPrompt = buildPrompt(nowIso, offStr(offsetMinutes), localNow, offsetMinutes, lang);
       const aiRes = await client.chat.completions.create({
-        model: 'gpt-5-mini',
+        model: 'gpt-4.1-nano',
         temperature: 0,
         response_format: { type: 'json_object' },
         messages: [
