@@ -797,7 +797,23 @@ app.post("/parse", auth, async (req, res) => {
       }
     }
  
+    // ── Absolute date detector (shared by PRE24-skip and AI hasExplicitDateWord) ──
+    // Matches: DD.MM, DD.MM.YYYY, "4 августа", "4 agosto", "4th of August", "4 avril", etc.
+    const hasAbsoluteDate = (
+      // Numeric: DD.MM or DD.MM.YYYY — lookbehind guards against time like 9:30
+      /(?<![:\d])\d{1,2}\.(?:0?[1-9]|1[0-2])(?:\.\d{2,4})?(?!\d)/.test(normInputGlobal) ||
+      // Word month: digit + optional ordinal/case suffix + space + confirmed month name
+      // Two-pass: broad unicode match first, then confirm against known month prefixes (all 9 langs)
+      (
+        /\d{1,2}(?:[-\.°º]|го|ого|th|st|nd|rd)?\s+(?:de\s+|of\s+|du\s+|del\s+|di\s+)?[а-яёА-ЯЁіІїЇa-zA-Z\u00C0-\u024F]{3,12}/u.test(normInputGlobal) &&
+        /\d{1,2}(?:[-\.°º]|го|ого|th|st|nd|rd)?\s+(?:de\s+|of\s+|du\s+|del\s+|di\s+)?(?:янв|фев|мар|апр|май|мая|июн|июл|авг|сен|окт|ноя|дек|січ|лют|бер|кві|тра|чер|лип|сер|вер|жов|лис|гру|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|januar|februar|m\u00e4rz|april|mai|juni|juli|august|september|oktober|november|dezember|janvier|f\u00e9vrier|mars|avril|juin|juillet|ao\u00fbt|octobre|d\u00e9cembre|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre|gennaio|febbraio|aprile|maggio|giugno|luglio|settembre|ottobre|novembre|dicembre|stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|wrze\u015bnia|pa\u017adziernika|listopada|grudnia|janeiro|fevereiro|mar\u00e7o|junho|julho|setembro|outubro|novembro|dezembro)/iu.test(normInputGlobal)
+      )
+    );
+
     // ── PRE24: Explicit date (today/tomorrow/day-after) + time ──────────────────
+    // If input contains an absolute date (DD.MM or "4 августа") skip PRE24 entirely
+    // and let AI handle it — AI correctly resolves specific dates across all languages.
+    if (!hasAbsoluteDate) {
     {
       const hasToday    = /(сегодня|сьогодні|today|heute|aujourd'hui|hoy|dzisiaj|oggi|hoje)/i.test(input);
       const hasTomorrow = /(завтра|tomorrow|morgen|demain|ma[nñ]ana|jutro|domani|amanh[aã])/i.test(input);
@@ -868,6 +884,7 @@ app.post("/parse", auth, async (req, res) => {
         }
       }
     }
+    } // end !hasAbsoluteDate
  
     // ════════════════════════════════════════════════════════════════════════════
     // Quick pre-check: no time signal → skip AI, show picker
@@ -996,7 +1013,8 @@ app.post("/parse", auth, async (req, res) => {
         const diffDays = Math.round((resultDateOnly - nowDateOnly) / 86400000);
         const hasExplicitDateWord = /(завтра|послезавтра|tomorrow|day\s+after|morgen|demain|mañana|jutro|domani|amanhã|сьогодні|today|heute|aujourd'hui|hoy|dzisiaj|oggi|hoje)/i.test(normInputGlobal) ||
           /(понедельник|вторник|среду|четверг|пятниц|суббот|воскресен|понеділ|вівтор|серед|четвер|п.ятниц|субот|неділ)/i.test(normInputGlobal) ||
-          /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)\b/i.test(normInputGlobal);
+          /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)\b/i.test(normInputGlobal) ||
+          hasAbsoluteDate; // absolute date like "4 августа", "4.08", "4 agosto", etc.
  
         if (!hasExplicitDateWord) {
           if (diffDays === 0 && rH * 60 + rMin > nowH * 60 + nowMin) {
