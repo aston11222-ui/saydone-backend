@@ -199,17 +199,24 @@ app.post("/parse", auth, async (req, res) => {
         [/veinte\s+y\s+siete/gi,'27'],[/veinte\s+y\s+ocho/gi,'28'],[/veinte\s+y\s+nueve/gi,'29'],
         // FR
         [/vingt\s+et\s+un/gi,'21'],[/vingt-cinq/gi,'25'],[/trente\s+et\s+un/gi,'31'],[/quarante\s+et\s+un/gi,'41'],
+        [/trente-cinq/gi,'35'],[/quarante-cinq/gi,'45'],[/cinquante-cinq/gi,'55'],
         // IT
-        [/ventuno/gi,'21'],[/venticinque/gi,'25'],[/trentacinque/gi,'35'],[/quarantacinque/gi,'45'],
+        [/ventuno/gi,'21'],[/venticinque/gi,'25'],[/trentacinque/gi,'35'],[/quarantacinque/gi,'45'],[/cinquantacinque/gi,'55'],
         // PT
-        [/vinte\s+e\s+um[a]?/gi,'21'],[/vinte\s+e\s+cinco/gi,'25'],[/trinta\s+e\s+cinco/gi,'35'],[/quarenta\s+e\s+cinco/gi,'45'],
+        [/vinte\s+e\s+um[a]?/gi,'21'],[/vinte\s+e\s+cinco/gi,'25'],[/trinta\s+e\s+cinco/gi,'35'],[/quarenta\s+e\s+cinco/gi,'45'],[/cinquenta\s+e\s+cinco/gi,'55'],
         // DE
-        [/einundzwanzig/gi,'21'],[/fünfundzwanzig/gi,'25'],[/fünfunddreißig/gi,'35'],[/fünfundvierzig/gi,'45'],
+        [/einundzwanzig/gi,'21'],[/fünfundzwanzig/gi,'25'],[/fünfunddreißig/gi,'35'],[/fünfundvierzig/gi,'45'],[/fünfundfünfzig/gi,'55'],
         // RU compound
         [/двадцать\s+один/gi,'21'],[/двадцать\s+два/gi,'22'],[/двадцать\s+три/gi,'23'],
-        [/двадцать\s+пять/gi,'25'],[/тридцать\s+пять/gi,'35'],[/сорок\s+пять/gi,'45'],
+        [/двадцать\s+пять/gi,'25'],[/тридцать\s+пять/gi,'35'],[/сорок\s+пять/gi,'45'],[/пятьдесят\s+пять/gi,'55'],
         // UK compound
         [/двадцять\s+один/gi,'21'],[/двадцять\s+дві/gi,'22'],[/тридцять\s+п'ять/gi,'35'],
+        [/двадцять\s+п'ять/gi,'25'],[/сорок\s+п'ять/gi,'45'],[/п'ятдесят\s+п'ять/gi,'55'],
+        // EN compound
+        [/twenty-five/gi,'25'],[/thirty-five/gi,'35'],[/forty-five/gi,'45'],[/fifty-five/gi,'55'],
+        [/twenty\s+five/gi,'25'],[/thirty\s+five/gi,'35'],[/forty\s+five/gi,'45'],[/fifty\s+five/gi,'55'],
+        // PL compound
+        [/dwadzieścia\s+pięć/gi,'25'],[/trzydzieści\s+pięć/gi,'35'],[/czterdzieści\s+pięć/gi,'45'],[/pięćdziesiąt\s+pięć/gi,'55'],
       ];
       for (const [re, val] of compounds) s = s.replace(re, val);
  
@@ -221,9 +228,7 @@ app.post("/parse", auth, async (req, res) => {
         [/(?:^|\s)пять(?=\s|$)/gi,'5'],[/(?:^|\s)шесть(?=\s|$)/gi,'6'],[/(?:^|\s)семь(?=\s|$)/gi,'7'],
         [/(?:^|\s)восемь(?=\s|$)/gi,'8'],[/(?:^|\s)девять(?=\s|$)/gi,'9'],[/(?:^|\s)десять(?=\s|$)/gi,'10'],
         [/(?:^|\s)одиннадцать(?=\s|$)/gi,'11'],[/(?:^|\s)двенадцать(?=\s|$)/gi,'12'],
-        [/(?:^|\s)тринадцать(?=\s|$)/gi,'13'],[/(?:^|\s)четырнадцать(?=\s|$)/gi,'14'],
-        [/(?:^|\s)пятнадцать(?=\s|$)/gi,'15'],[/(?:^|\s)шестнадцать(?=\s|$)/gi,'16'],
-        [/(?:^|\s)семнадцать(?=\s|$)/gi,'17'],[/(?:^|\s)восемнадцать(?=\s|$)/gi,'18'],[/(?:^|\s)девятнадцать(?=\s|$)/gi,'19'],[/(?:^|\s)двадцать(?=\s|$)/gi,'20'],
+        [/(?:^|\s)пятнадцать(?=\s|$)/gi,'15'],[/(?:^|\s)двадцать(?=\s|$)/gi,'20'],
         [/(?:^|\s)тридцать(?=\s|$)/gi,'30'],[/(?:^|\s)сорок(?=\s|$)/gi,'40'],[/(?:^|\s)пятьдесят(?=\s|$)/gi,'50'],
         // UK
         [/(?:^|\s)один(?=\s|$)/gi,'1'],[/(?:^|\s)одна(?=\s|$)/gi,'1'],[/(?:^|\s)два(?=\s|$)/gi,'2'],
@@ -231,30 +236,24 @@ app.post("/parse", auth, async (req, res) => {
         [/(?:^|\s)п'ять(?=\s|$)/gi,'5'],[/(?:^|\s)шість(?=\s|$)/gi,'6'],[/(?:^|\s)сім(?=\s|$)/gi,'7'],
         [/(?:^|\s)вісім(?=\s|$)/gi,'8'],[/(?:^|\s)дев'ять(?=\s|$)/gi,'9'],[/(?:^|\s)десять(?=\s|$)/gi,'10'],
         [/(?:^|\s)одинадцять(?=\s|$)/gi,'11'],[/(?:^|\s)дванадцять(?=\s|$)/gi,'12'],
-        [/(?:^|\s)тринадцять(?=\s|$)/gi,'13'],[/(?:^|\s)чотирнадцять(?=\s|$)/gi,'14'],
-        [/(?:^|\s)п'ятнадцять(?=\s|$)/gi,'15'],[/(?:^|\s)шістнадцять(?=\s|$)/gi,'16'],
-        [/(?:^|\s)сімнадцять(?=\s|$)/gi,'17'],[/(?:^|\s)вісімнадцять(?=\s|$)/gi,'18'],[/(?:^|\s)дев'ятнадцять(?=\s|$)/gi,'19'],
-        [/(?:^|\s)двадцять(?=\s|$)/gi,'20'],
-        [/(?:^|\s)тридцять(?=\s|$)/gi,'30'],[/(?:^|\s)сорок(?=\s|$)/gi,'40'],[/(?:^|\s)п'ятдесят(?=\s|$)/gi,'50'],
+        [/(?:^|\s)п'ятнадцять(?=\s|$)/gi,'15'],[/(?:^|\s)двадцять(?=\s|$)/gi,'20'],
+        [/(?:^|\s)тридцять(?=\s|$)/gi,'30'],[/(?:^|\s)сорок(?=\s|$)/gi,'40'],
         // EN
-        [/\bone\b/gi,'1'],[/\btwo\b/gi,'2'],[/\bthree\b/gi,'3'],[/\bfour\b/gi,'4'],[/\bfive\b/gi,'5'],
+        [/\bone\b/gi,'1'],[/\btwo\b/gi,'2'],[/\bthree\b/gi,'3'],[/\bfive\b/gi,'5'],
         [/\bsix\b/gi,'6'],[/\bseven\b/gi,'7'],[/\beight\b/gi,'8'],[/\bnine\b/gi,'9'],[/\bten\b/gi,'10'],
-        [/\beleven\b/gi,'11'],[/\btwelve\b/gi,'12'],[/\bthirteen\b/gi,'13'],[/\bfourteen\b/gi,'14'],
-        [/\bfifteen\b/gi,'15'],[/\bsixteen\b/gi,'16'],[/\bseventeen\b/gi,'17'],[/\beighteen\b/gi,'18'],[/\bnineteen\b/gi,'19'],
+        [/\beleven\b/gi,'11'],[/\btwelve\b/gi,'12'],[/\bfifteen\b/gi,'15'],
         [/\btwenty\b/gi,'20'],[/\bthirty\b/gi,'30'],[/\bforty\b/gi,'40'],[/\bfifty\b/gi,'50'],
         // DE
         [/\bein\b/gi,'1'],[/\beine\b/gi,'1'],[/\beiner\b/gi,'1'],[/\bzwei\b/gi,'2'],[/\bdrei\b/gi,'3'],
         [/\bvier\b/gi,'4'],[/\bfünf\b/gi,'5'],[/\bsechs\b/gi,'6'],[/\bsieben\b/gi,'7'],
         [/\bacht\b/gi,'8'],[/\bneun\b/gi,'9'],[/\bzehn\b/gi,'10'],
-        [/\belf\b/gi,'11'],[/\bzwölf\b/gi,'12'],[/\bdreizehn\b/gi,'13'],[/\bvierzehn\b/gi,'14'],
-        [/\bfünfzehn\b/gi,'15'],[/\bsechzehn\b/gi,'16'],[/\bsiebzehn\b/gi,'17'],[/\bachtzehn\b/gi,'18'],[/\bneunzehn\b/gi,'19'],
+        [/\belf\b/gi,'11'],[/\bzwölf\b/gi,'12'],[/\bfünfzehn\b/gi,'15'],
         [/\bzwanzig\b/gi,'20'],[/\bdreißig\b/gi,'30'],[/\bvierzig\b/gi,'40'],[/\bfünfzig\b/gi,'50'],
         // FR
         [/\bun\b/gi,'1'],[/\bune\b/gi,'1'],[/\bdeux\b/gi,'2'],[/\btrois\b/gi,'3'],
         [/\bquatre\b/gi,'4'],[/\bcinq\b/gi,'5'],[/\bsix\b/gi,'6'],[/\bsept\b/gi,'7'],
         [/\bhuit\b/gi,'8'],[/\bneuf\b/gi,'9'],[/\bdix\b/gi,'10'],
-        [/\bonze\b/gi,'11'],[/\bdouze\b/gi,'12'],[/\btreize\b/gi,'13'],[/\bquatorze\b/gi,'14'],
-        [/\bquinze\b/gi,'15'],[/\bseize\b/gi,'16'],[/\bdix-sept\b/gi,'17'],[/\bdix-huit\b/gi,'18'],[/\bdix-neuf\b/gi,'19'],
+        [/\bonze\b/gi,'11'],[/\bdouze\b/gi,'12'],[/\bquinze\b/gi,'15'],
         [/\bvingt\b/gi,'20'],[/\btrente\b/gi,'30'],[/\bquarante\b/gi,'40'],[/\bcinguante\b/gi,'50'],
         // ES
         [/\buno\b/gi,'1'],[/\buna\b/gi,'1'],[/\bdos\b/gi,'2'],[/\btres\b/gi,'3'],
@@ -269,22 +268,18 @@ app.post("/parse", auth, async (req, res) => {
         [/\bjeden\b/gi,'1'],[/\bjedna\b/gi,'1'],[/\bjedno\b/gi,'1'],[/\bdwa\b/gi,'2'],[/\bdwie\b/gi,'2'],
         [/\btrzy\b/gi,'3'],[/\bcztery\b/gi,'4'],[/\bpięć\b/gi,'5'],[/\bsześć\b/gi,'6'],
         [/\bsiedem\b/gi,'7'],[/\bosiem\b/gi,'8'],[/\bdziewięć\b/gi,'9'],[/\bdziesięć\b/gi,'10'],
-        [/\bjedenaście\b/gi,'11'],[/\bdwanaście\b/gi,'12'],[/\btrzynaście\b/gi,'13'],[/\bczternaście\b/gi,'14'],
-        [/\bpiętnaście\b/gi,'15'],[/\bszesnaście\b/gi,'16'],[/\bsiedemnaście\b/gi,'17'],[/\bosiemnaście\b/gi,'18'],[/\bdziewiętnaście\b/gi,'19'],
-        [/\bdwadzieścia\b/gi,'20'],[/\btrzydzieści\b/gi,'30'],[/\bczterdzieści\b/gi,'40'],[/\bpięćdziesiąt\b/gi,'50'],
+        [/\bpiętnaście\b/gi,'15'],[/\bdwadzieścia\b/gi,'20'],[/\btrzydzieści\b/gi,'30'],
         // IT
         [/\buno\b/gi,'1'],[/\buna\b/gi,'1'],[/\bdue\b/gi,'2'],[/\btre\b/gi,'3'],
         [/\bquattro\b/gi,'4'],[/\bcinque\b/gi,'5'],[/\bsei\b/gi,'6'],[/\bsette\b/gi,'7'],
         [/\botto\b/gi,'8'],[/\bnove\b/gi,'9'],[/\bdieci\b/gi,'10'],
-        [/\bundici\b/gi,'11'],[/\bdodici\b/gi,'12'],[/\btredici\b/gi,'13'],[/\bquattordici\b/gi,'14'],
-        [/\bquindici\b/gi,'15'],[/\bsedici\b/gi,'16'],[/\bdiciassette\b/gi,'17'],[/\bdiciotto\b/gi,'18'],[/\bdiciannove\b/gi,'19'],
+        [/\bundici\b/gi,'11'],[/\bdodici\b/gi,'12'],[/\bquindici\b/gi,'15'],
         [/\bventi\b/gi,'20'],[/\btrenta\b/gi,'30'],[/\bquaranta\b/gi,'40'],[/\bcinguanta\b/gi,'50'],
         // PT
         [/\bum\b/gi,'1'],[/\buma\b/gi,'1'],[/\bdois\b/gi,'2'],[/\bduas\b/gi,'2'],
         [/\btrês\b/gi,'3'],[/\bquatro\b/gi,'4'],[/\bcinco\b/gi,'5'],[/\bseis\b/gi,'6'],
         [/\bsete\b/gi,'7'],[/\boito\b/gi,'8'],[/\bnove\b/gi,'9'],[/\bdez\b/gi,'10'],
-        [/\bonze\b/gi,'11'],[/\bdoze\b/gi,'12'],[/\btreze\b/gi,'13'],[/\bcatorze\b/gi,'14'],
-        [/\bquinze\b/gi,'15'],[/\bdezasseis\b/gi,'16'],[/\bdezassete\b/gi,'17'],[/\bdezoito\b/gi,'18'],[/\bdezanove\b/gi,'19'],
+        [/\bonze\b/gi,'11'],[/\bdoze\b/gi,'12'],[/\bquinze\b/gi,'15'],
         [/\bvinte\b/gi,'20'],[/\btrinta\b/gi,'30'],[/\bquarenta\b/gi,'40'],[/\bcinguenta\b/gi,'50'],
       ];
       for (const [re, val] of singles) s = s.replace(re, (m) => m.replace(/\S+/i, val));
