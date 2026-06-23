@@ -216,7 +216,7 @@ app.post("/parse", auth, async (req, res) => {
       // Single word numbers per language (NO shared map — avoids key collision)
       const singles = [
         // RU
-        [/(?:^|\s)один(?=\s|$)/gi,'1'],[/(?:^|\s)одна(?=\s|$)/gi,'1'],[/(?:^|\s)два(?=\s|$)/gi,'2'],
+        [/(?:^|\s)один(?=\s|$)/gi,'1'],[/(?:^|\s)одна(?=\s|$)/gi,'1'],[/(?:^|\s)одну(?=\s|$)/gi,'1'],[/(?:^|\s)два(?=\s|$)/gi,'2'],
         [/(?:^|\s)две(?=\s|$)/gi,'2'],[/(?:^|\s)три(?=\s|$)/gi,'3'],[/(?:^|\s)четыре(?=\s|$)/gi,'4'],
         [/(?:^|\s)пять(?=\s|$)/gi,'5'],[/(?:^|\s)шесть(?=\s|$)/gi,'6'],[/(?:^|\s)семь(?=\s|$)/gi,'7'],
         [/(?:^|\s)восемь(?=\s|$)/gi,'8'],[/(?:^|\s)девять(?=\s|$)/gi,'9'],[/(?:^|\s)десять(?=\s|$)/gi,'10'],
@@ -224,7 +224,7 @@ app.post("/parse", auth, async (req, res) => {
         [/(?:^|\s)пятнадцать(?=\s|$)/gi,'15'],[/(?:^|\s)двадцать(?=\s|$)/gi,'20'],
         [/(?:^|\s)тридцать(?=\s|$)/gi,'30'],[/(?:^|\s)сорок(?=\s|$)/gi,'40'],[/(?:^|\s)пятьдесят(?=\s|$)/gi,'50'],
         // UK
-        [/(?:^|\s)один(?=\s|$)/gi,'1'],[/(?:^|\s)одна(?=\s|$)/gi,'1'],[/(?:^|\s)два(?=\s|$)/gi,'2'],
+        [/(?:^|\s)один(?=\s|$)/gi,'1'],[/(?:^|\s)одна(?=\s|$)/gi,'1'],[/(?:^|\s)одну(?=\s|$)/gi,'1'],[/(?:^|\s)два(?=\s|$)/gi,'2'],
         [/(?:^|\s)дві(?=\s|$)/gi,'2'],[/(?:^|\s)три(?=\s|$)/gi,'3'],[/(?:^|\s)чотири(?=\s|$)/gi,'4'],
         [/(?:^|\s)п'ять(?=\s|$)/gi,'5'],[/(?:^|\s)шість(?=\s|$)/gi,'6'],[/(?:^|\s)сім(?=\s|$)/gi,'7'],
         [/(?:^|\s)вісім(?=\s|$)/gi,'8'],[/(?:^|\s)дев'ять(?=\s|$)/gi,'9'],[/(?:^|\s)десять(?=\s|$)/gi,'10'],
@@ -982,7 +982,7 @@ app.post("/parse", auth, async (req, res) => {
  
     // Validate AI result has actual time reference
     const hasTimeRefTrigger = (
-      /\d{1,2}[:\-\.]\d{2}|\d{1,2}h\d{2}|\b\d{1,2}\s*Uhr\b|\bat\s+\d|\balle\s+\d|\ba\s+las?\s+\d|\bum\s+\d|(?:^|\s)à\s+\d|(?:^|\s)às\s+\d|\bam\b|\bpm\b|[ap]\.m\./i.test(normInputGlobal) ||
+      /\d{1,2}[:\-\.]\d{2}|\d{1,2}h\d{2}|\b\d{1,2}\s*Uhr\b|\bat\s+\d|\balle\s+\d|\ba\s+las\s+\d|\bum\s+\d|(?:^|\s)à\s+\d|(?:^|\s)às\s+\d|\bam\b|\bpm\b|[ap]\.m\./i.test(normInputGlobal) ||
       /вечора|вечера|ночи|ночі|утра|ранку|вранці|зранку|дня|дні|після\s+обіду|годин[иіу]?/i.test(normInputGlobal) ||
       /morning|evening|night|afternoon|abends|nachts|morgens|soir|matin|noche|tarde|manhã|noite|rano|wieczor/i.test(normInputGlobal) ||
       /(завтра|послезавтра|сегодня|сьогодні|tomorrow|today|morgen|heute|demain|aujourd'hui|mañana|hoy|jutro|domani|amanhã)/i.test(normInputGlobal) ||
