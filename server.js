@@ -933,7 +933,26 @@ app.post("/parse", auth, async (req, res) => {
     // Moderation check
     let flagged = false;
     try {
-      const medical = /\b(таблетк|лекарств|укол|доз[аеуи]|препарат|антибиотик|болеутоляющ|обезболивающ|аспирин|парацетамол|ибупрофен|рецепт|врач|больниц|аптек|ліки|таблетк|лікар|лікарн|аптек)\b/i.test(normInputGlobal);
+      const medical = (
+        // RU
+        /таблетк|лекарств|витамин|укол|доз[аеуи]|препарат|антибиотик|болеутоляющ|обезболивающ|аспирин|парацетамол|ибупрофен|рецепт|врач|больниц|аптек|капл[иею]|сироп|мазь|прививк|вакцин|процедур/i.test(normInputGlobal) ||
+        // UK
+        /ліки|таблетк|вітамін|лікар|лікарн|аптек|крапл|сироп|мазь|щеплен|вакцин|препарат/i.test(normInputGlobal) ||
+        // EN
+        /\b(tablet|pill|medicine|medication|vitamin|prescription|pharmacy|doctor|hospital|drug|capsule|injection|vaccine|dose|antibiotic|painkiller|aspirin|ibuprofen|paracetamol)s?\b/i.test(normInputGlobal) ||
+        // DE
+        /\b(tablette|pille|medikament|vitamin|arzt|ärztin|apotheke|krankenhaus|spritze|impfung|antibiotikum|kapsel|rezept|dosis)n?\b/i.test(normInputGlobal) ||
+        // FR
+        /\b(comprimé|médicament|vitamine|médecin|pharmacie|hôpital|pilule|injection|vaccin|antibiotique|capsule|ordonnance|dose)s?\b/i.test(normInputGlobal) ||
+        // ES
+        /\b(pastilla|medicamento|vitamina|médico|farmacia|hospital|píldora|inyección|vacuna|antibiótico|cápsula|receta|dosis)s?\b/i.test(normInputGlobal) ||
+        // IT
+        /\b(pillola|medicina|vitamina|medico|farmacia|ospedale|compressa|iniezione|vaccino|antibiotico|capsula|ricetta|dose)\b/i.test(normInputGlobal) ||
+        // PL
+        /\b(tabletka|lekarstwo|witamina|lekarz|apteka|szpital|zastrzyk|szczepionka|antybiotyk|kapsułka|recepta|dawka)\b/i.test(normInputGlobal) ||
+        // PT
+        /\b(comprimido|medicamento|vitamina|médico|farmácia|hospital|injeção|vacina|antibiótico|cápsula|receita|dose)s?\b/i.test(normInputGlobal)
+      );
       if (!medical) {
         const modRes = await client.moderations.create({ input });
         const cats = modRes.results[0]?.categories || {};
