@@ -310,7 +310,7 @@ app.post("/parse", auth, async (req, res) => {
       'rappelle-moi\\s+de','rappelle-moi','rappelle\\s+moi','rappelle',
       // ES
       'ponme\\s+un\\s+recordatorio','agrega\\s+un\\s+recordatorio','crea\\s+un\\s+recordatorio',
-      'recu[eé]rdame\\s+que','recu[eé]rdame',
+      'recu[eé]rdame\\s+que','recu[eé]rdame','recordarme\\s+que','recordarme','acu[eé]rdame\\s+que','acu[eé]rdame',
       // PL
       'ustaw\\s+przypomnienie','dodaj\\s+przypomnienie','utw[oó]rz\\s+przypomnienie',
       'przypomnij\\s+mi\\s+[żz]eby','przypomnij\\s+mi','przypomnij',
@@ -358,6 +358,8 @@ app.post("/parse", auth, async (req, res) => {
         .replace(/^(que|że|żeby|żebym|di|de|da|del)\s+/i, '')
         // Leading prepositions
         .replace(/^(на|в|о|у|um|to|for|le|la|el|na|po|at)\s+/i, '')
+        // ES: el día / el lunes / la semana
+        .replace(/^el\s+d[ií]a\s+/i, '').replace(/^el\s+/i, '').replace(/^la\s+/i, '')
         // PL w/o double strip
         .replace(/^[wo]\s+/i, '').replace(/^(о|o|na|at|h)\s+/i, '').replace(/^[wo]\s+/i, '')
         // FR/PT à/às
