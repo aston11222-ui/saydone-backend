@@ -646,7 +646,12 @@ app.post("/parse", auth, async (req, res) => {
     // Clean AI result text
     if (result.text) {
       result = { ...result, text: cleanTaskText(removeTriggerWords(result.text)
+        // Date words — yesterday
         .replace(/\b(вчора|вчера|yesterday|gestern|hier|ayer|wczoraj|ieri|ontem)\b/gi,'')
+        // Date words — today/tomorrow/day-after (RU/UK — no \b for Cyrillic)
+        .replace(/(^|\s)(сегодня|сьогодні|завтра|послезавтра|після\s*завтра)(\s|$)/gi,' ')
+        // Date words — today/tomorrow/day-after (latin langs)
+        .replace(/\b(today|tomorrow|yesterday|day\s+after\s+tomorrow|heute|morgen|übermorgen|aujourd'hui|demain|après-demain|hoy|ma[nñ]ana|pasado\s+ma[nñ]ana|dzisiaj|jutro|pojutrze|oggi|domani|dopodomani|hoje|amanh[aã]|depois\s+de\s+amanh[aã])\b/gi,'')
         .replace(/^(на|в|о|у|on|am|le|el|a|o)\s+/i,'')
         .replace(/\s+(на|в|о|у)\s*$/i,''))
       };
