@@ -652,7 +652,7 @@ app.post("/parse", auth, async (req, res) => {
       };
     }
  
-    if (DEBUG) console.log(`[OK] "${input}" → ${result.datetime}`);
+    if (DEBUG) console.log(`[OK] "${input}" → ${result.datetime} | task: "${result.text || ''}"`);
     return res.json({ ok: true, text: result.text || '', datetime: result.datetime || '', source: 'ai' });
  
   } catch(e) {
