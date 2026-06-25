@@ -436,6 +436,15 @@ app.post("/parse", auth, async (req, res) => {
     // ════════════════════════════════════════════════════════════════════════════
     // AI-ONLY MODE: all parsing delegated to OpenAI (no deterministic PRE blocks)
     // ════════════════════════════════════════════════════════════════════════════
+
+    const hasAbsoluteDate = (
+      /(?<![:\d])\d{1,2}\.(?:0?[1-9]|1[0-2])(?:\.\d{2,4})?(?!\d)/.test(normInputGlobal) ||
+      (
+        /\d{1,2}(?:[-\.\u00b0\u00ba]|\u0433\u043e|\u043e\u0433\u043e|th|st|nd|rd)?\s+(?:de\s+|of\s+|du\s+|del\s+|di\s+)?[\u0430-\u044f\u0451\u0410-\u042f\u0401\u0456\u0406\u0457\u0407a-zA-Z\u00C0-\u024F]{3,12}/u.test(normInputGlobal) &&
+        /\d{1,2}(?:[-\.\u00b0\u00ba]|\u0433\u043e|\u043e\u0433\u043e|th|st|nd|rd)?\s+(?:de\s+|of\s+|du\s+|del\s+|di\s+)?(?:\u044f\u043d\u0432|\u0444\u0435\u0432|\u043c\u0430\u0440|\u0430\u043f\u0440|\u043c\u0430\u0439|\u043c\u0430\u044f|\u0438\u044e\u043d|\u0438\u044e\u043b|\u0430\u0432\u0433|\u0441\u0435\u043d|\u043e\u043a\u0442|\u043d\u043e\u044f|\u0434\u0435\u043a|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|januar|februar|m\u00e4rz|april|mai|juni|juli|august|september|oktober|november|dezember|janvier|f\u00e9vrier|mars|avril|juin|juillet|ao\u00fbt|octobre|d\u00e9cembre|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre|gennaio|febbraio|aprile|maggio|giugno|luglio|settembre|ottobre|novembre|dicembre|stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|wrze\u015bnia|pa\u017adziernika|listopada|grudnia|janeiro|fevereiro|mar\u00e7o|junho|julho|setembro|outubro|novembro|dezembro)/iu.test(normInputGlobal)
+      )
+    );
+
  
     // ════════════════════════════════════════════════════════════════════════════
     // Quick pre-check: no time signal → skip AI, show picker
