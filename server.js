@@ -573,16 +573,30 @@ app.post("/parse", auth, async (req, res) => {
       /\b(segunda|terça|quarta|quinta|sexta|sábado|domingo)\b/i.test(normInputGlobal) ||
       /(понедельник|вторник|среду|четверг|пятниц|суббот|воскресен|понеділ|вівтор|серед|четвер|п.ятниц|субот|неділ)/i.test(normInputGlobal) ||
       /\b(eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf)\s+Uhr\b/i.test(normInputGlobal) ||
-      // relative time word without digit: "через минуту", "in a minute", etc (all 9 langs)
-      /(через|за)\s+\w+\s*(?:минут[аыу]?|хвилин[уиі]?|хв\.|мин\.)/i.test(normInputGlobal) ||
+      // relative time: minutes + hours without digit (all 9 langs)
+      // RU/UK — minutes
+      /(через|за)\s+\S+\s*(?:минут[аыу]?|хвилин[уиі]?|хв\.|мин\.)/i.test(normInputGlobal) ||
       /(через|за)\s*(?:минут[аыу]?|хвилин[уиі]?)/i.test(normInputGlobal) ||
-      /\b(in|within)\s+\w+\s*minutes?\b/i.test(normInputGlobal) ||
-      /\bin\s+\w+\s*Minuten?\b/i.test(normInputGlobal) ||
-      /\bdans\s+\w+\s*minutes?\b/i.test(normInputGlobal) ||
-      /\ben\s+\w+\s*minutos?\b/i.test(normInputGlobal) ||
-      /\btra\s+(?:\w+\s+)?minut[oi]?\b/i.test(normInputGlobal) ||
-      /\bem\s+\w+\s*minutos?\b/i.test(normInputGlobal) ||
-      /\bza\s+(?:\w+\s+)?minut[ęey]?/i.test(normInputGlobal)
+      // RU/UK — hours
+      /(через|за)\s+\S+\s*(?:час[аов]?|годин[аиу]?)/i.test(normInputGlobal) ||
+      /(через|за)\s*(?:час[аов]?|годин[аиу]?)/i.test(normInputGlobal) ||
+      // EN — minutes + hours
+      /\b(in|within)\s+\w+\s*(?:minutes?|hours?)\b/i.test(normInputGlobal) ||
+      // DE — minutes + hours
+      /\bin\s+\w+\s*(?:Minuten?|Stunden?)\b/i.test(normInputGlobal) ||
+      // FR — minutes + hours
+      /\bdans\s+\w+\s*(?:minutes?|heures?)\b/i.test(normInputGlobal) ||
+      // ES — minutes + hours
+      /\ben\s+\w+\s*(?:minutos?|horas?)\b/i.test(normInputGlobal) ||
+      // ES — a la / a las + digit
+      /\ba\s+las?\s+\d/i.test(normInputGlobal) ||
+      // IT — minutes + hours (tra/fra)
+      /\b(?:tra|fra)\s+(?:\w+\s+)?(?:minut[oi]?|or[ae])\b/i.test(normInputGlobal) ||
+      // PT — minutes + hours
+      /\bem\s+\w+\s*(?:minutos?|horas?)\b/i.test(normInputGlobal) ||
+      /\bdaqui\s+a\s+\w+\s*(?:minutos?|horas?)\b/i.test(normInputGlobal) ||
+      // PL — minutes + hours
+      /\bza\s+(?:\S+\s+)?(?:minut[ęey]?|godzin[ęyą]?)/i.test(normInputGlobal)
     );
  
     if (!hasTimeRefTrigger && result.datetime) {
