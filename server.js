@@ -54,6 +54,7 @@ function buildPrompt(nowIso, offsetStr, localNow, offsetMinutes, lang) {
   const timeStr  = nowIso.slice(11, 16);
   const addD = n => { const d = new Date(localNow); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); };
   const nextDow = i => { let diff = i - localNow.getDay(); if(diff<=0) diff+=7; const d=new Date(localNow); d.setDate(d.getDate()+diff); return d.toISOString().slice(0,10); };
+  const addMin = n => { const d = new Date(localNow); d.setMinutes(d.getMinutes()+n); return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}:00`; };
  
   const langHints = {
     ru: { am: 'утра/утром', pm: 'вечера/вечером/ночи', noon: 'дня/после обеда',
@@ -107,6 +108,10 @@ RULES:
 6. If past time and no date word → move to tomorrow
 7. Weekdays → next future occurrence (never today)
 8. послезавтра/übermorgen/après-demain/pojutrze/dopodomani/depois de amanhã → ${addD(2)}
+9. RELATIVE OFFSET — always compute a real datetime, NEVER leave it empty: через N минут/часов (RU/UK), за N хвилин, in N minutes/hours (EN), in N Minuten/Stunden (DE), dans N minutes/heures (FR), en N minutos/horas (ES), tra N minuti/ore (IT), em N minutos/horas (PT), za N minut/godzin (PL) → add N to the current time (${timeStr})
+10. No number given — через минуту/час, за хвилину/годину (RU/UK), a minute/an hour (EN), eine Minute/Stunde (DE), une minute/heure (FR), un minuto/una hora (ES), un minuto/un'ora (IT), um minuto/uma hora (PT), minutę/godzinę (PL) → add exactly 1 unit
+11. HALF HOUR → add 30 minutes: полчаса/пів години (RU/UK), half an hour (EN), halbe Stunde (DE), demi-heure (FR), media hora (ES), mezz'ora (IT), meia hora (PT), pół godziny (PL)
+12. HOUR AND A HALF → add 1 hour 30 minutes: полтора часа/півтори години (RU/UK), an hour and a half (EN), anderthalb Stunden (DE), une heure et demie (FR), hora y media (ES), un'ora e mezza (IT), uma hora e meia (PT), półtorej godziny (PL)
  
 DATES (today=${todayStr}):
 - tomorrow → ${addD(1)}
@@ -117,6 +122,8 @@ DATES (today=${todayStr}):
 EXAMPLES:
 {"text":"купить молоко","datetime":"${addD(1)}T21:00:00${offsetStr}"}  ← tomorrow at 9pm
 {"text":"","datetime":"${addD(3)}T09:00:00${offsetStr}"}              ← in 3 days at 9am
+{"text":"сходить в магазин","datetime":"${addMin(60)}${offsetStr}"}    ← "через час сходить в магазин" (relative, no number = 1 hour) → now + 1h
+{"text":"позвонить маме","datetime":"${addMin(120)}${offsetStr}"}      ← "через 2 часа позвонить маме" → now + 2h
 {"text":"купить подарок","datetime":"${addD(5)}T08:00:00${offsetStr}"} ← "26 августа купить подарок" (absolute date, no time) → default 08:00
 {"text":"позвонить маме","datetime":""}                                ← "в понедельник позвонить маме" (weekday, no time) → empty, do NOT invent time
 {"text":"встреча","datetime":""}                                       ← no date, no time stated
@@ -473,7 +480,7 @@ app.post("/parse", auth, async (req, res) => {
     const hasAnyTimeSignal = (
       /\d/.test(normInputGlobal) ||
       // RU/UK
-      /(завтра|послезавтра|сегодня|вчера|сьогодні|вчора|через|утра|вечера|ночи|дня|ранку|вечора|ночі|годин|хвилин|понеділ|вівтор|серед|четвер|п.ятниц|субот|неділ|понедельник|вторник|среду|четверг|пятниц|суббот|воскресен)/i.test(normInputGlobal) ||
+      /(завтра|послезавтра|сегодня|вчера|сьогодні|вчора|через|за\s|утра|вечера|ночи|дня|ранку|вечора|ночі|годин|хвилин|час|понеділ|вівтор|серед|четвер|п.ятниц|субот|неділ|понедельник|вторник|среду|четверг|пятниц|суббот|воскресен)/i.test(normInputGlobal) ||
       // EN
       /\b(tomorrow|today|morning|evening|night|afternoon|noon|midnight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|in\s+\d|after\s+\d|at\s+\d|next\s+week|half\s+an\s+hour)\b/i.test(normInputGlobal) ||
       // DE
@@ -485,11 +492,11 @@ app.post("/parse", auth, async (req, res) => {
       // PL
       /\b(jutro|dzisiaj|poniedziałek|wtorek|środa|czwartek|piątek|sobota|niedziela|rano|wieczor|południe|północ|za\s+\d|pół\s+godziny)\b/i.test(normInputGlobal) ||
       // IT
-      /\b(domani|oggi|lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica|mattina|sera|mezzanotte|mezzogiorno|meno)\b/i.test(normInputGlobal) ||
+      /\b(domani|oggi|lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica|mattina|sera|mezzanotte|mezzogiorno|meno|tra)\b/i.test(normInputGlobal) ||
       // PT
       /(amanhã|amanha|manh[aã]|hoje|ontem|segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo|tarde|noite|meia-noite|meio-dia)/i.test(normInputGlobal) ||
       // Time unit words (for word-based intervals)
-      /\b(minutos?|horas?|minutes?|heures?|Minuten?|Stunden?|minutę|godzin|minuti|ore\b|хвилин|хвил\b)\b/i.test(normInputGlobal) ||
+      /\b(minutos?|horas?|hours?|minutes?|heures?|Minuten?|Stunden?|minutę|godzin|minuti|or[ae]|хвилин|хвил)/i.test(normInputGlobal) ||
       // AM/PM
       /\b(am|pm)\b|[ap]\.m\./i.test(normInputGlobal)
     );
@@ -603,20 +610,47 @@ app.post("/parse", auth, async (req, res) => {
       /\ben\s+\w+\s*minutos?\b/i.test(normInputGlobal) ||
       /\btra\s+(?:\w+\s+)?minut[oi]?\b/i.test(normInputGlobal) ||
       /\bem\s+\w+\s*minutos?\b/i.test(normInputGlobal) ||
-      /\bza\s+(?:\w+\s+)?minut[ęey]?/i.test(normInputGlobal)
+      /\bza\s+(?:\w+\s+)?minut[ęey]?/i.test(normInputGlobal) ||
+      // relative HOUR word, with or without a digit: "через час", "через 2 часа",
+      // "in an hour", "in 2 hours", etc (all 9 langs) — was missing before, which
+      // caused a correctly-computed AI datetime to be wiped back to empty.
+      /(через|за)\s*(?:\d+\s*)?(?:час(?:а|ов)?|ч\.)/i.test(normInputGlobal) ||
+      /(через|за)\s*(?:\d+\s*)?годин[аиу]?/i.test(normInputGlobal) ||
+      /\b(in|within)\s+(?:an?\s+|\d+\s*)?hours?\b/i.test(normInputGlobal) ||
+      /\bin\s+(?:einer?\s+|\d+\s*)?Stunden?\b/i.test(normInputGlobal) ||
+      /\bdans\s+(?:une?\s+|\d+\s*)?heures?\b/i.test(normInputGlobal) ||
+      /\ben\s+(?:una?\s+|\d+\s*)?horas?\b/i.test(normInputGlobal) ||
+      /\btra\s+(?:un['’]?\s*|\d+\s*)?or[ae]\b/i.test(normInputGlobal) ||
+      /\bem\s+(?:uma?\s+|\d+\s*)?horas?\b/i.test(normInputGlobal) ||
+      /\bza\s+(?:\d+\s*)?godzin[ęya]?\b/i.test(normInputGlobal) ||
+      // half hour, all 9 langs
+      /(полчаса|пів\s*години|півгодини|половину\s+часа|half\s+an?\s+hour|halbe\s+stunde|demi-heure|media\s+hora|mezz'ora|meia\s+hora|pół\s+godziny)/i.test(normInputGlobal) ||
+      // hour and a half, all 9 langs
+      /(полтора\s+час|півтори\s+години|hour\s+and\s+a\s+half|anderthalb|une\s+heure\s+et\s+demie|hora\s+y\s+media|un'ora\s+e\s+mezza|uma\s+hora\s+e\s+meia|półtorej\s+godziny)/i.test(normInputGlobal)
     );
  
+    // Detect a "fake midnight": the AI invents 00:00 when no time was actually
+    // stated (e.g. "mañana mandar X" or a date word + a truncated "a las" with
+    // no number) — a date/weekday word alone already satisfies hasTimeRefTrigger,
+    // so this would otherwise slip through as a real, confirmed time.
+    const hasMidnightWord = /(medianoche|полночь|північ|minuit|mezzanotte|meia-noite|midnight|północ|mitternacht)/i.test(normInputGlobal);
+    const isFakeMidnight = /T00:00:00/.test(result.datetime || '') && !hasMidnightWord;
+
     // Absolute date stated (e.g. "26 августа") but no clock time/period word —
     // AI defaulted to 08:00 per prompt. Flag so the client asks for confirmation
     // instead of silently saving. Still goes through the date fix-ups below.
     let isDateOnlyDefault = false;
 
-    if (!hasTimeRefTrigger && result.datetime) {
+    if ((!hasTimeRefTrigger || isFakeMidnight) && result.datetime) {
       if (hasAbsoluteDate) {
         isDateOnlyDefault = true;
+        if (isFakeMidnight) {
+          // Replace the invented 00:00 with the 08:00 default.
+          result = { ...result, datetime: result.datetime.replace('T00:00:00', 'T08:00:00') };
+        }
         if (DEBUG) console.log(`[DATE ONLY] "${input}" → ${result.datetime} (needs confirm)`);
       } else {
-        if (DEBUG) console.log(`[NO TIME] No time in input, AI invented time → returning empty datetime for: "${input}"`);
+        if (DEBUG) console.log(`[NO TIME] No time in input${isFakeMidnight ? ' (fake midnight)' : ''}, returning empty datetime for: "${input}"`);
         const taskText = cleanTaskText(removeTriggerWords(result.text || input));
         return res.json({ ok: true, text: taskText, datetime: '', source: 'unparsed' });
       }
