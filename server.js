@@ -1,4 +1,4 @@
-import express from "express";
+ort express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import OpenAI from "openai";
@@ -93,7 +93,9 @@ TASK: Extract reminder text and datetime from voice input in ${lang.toUpperCase(
 OUTPUT: JSON only — {"text":"<task>","datetime":"<ISO8601 with offset>"}
 - datetime format: ${todayStr}T15:00:00${offsetStr}
 - CRITICAL: hours in datetime = LOCAL time (NOT UTC). If user says 9:00 → T09:00:00${offsetStr}, NOT T06:00:00${offsetStr}
-- If NO time stated → {"text":"<task>","datetime":""}
+- If an ABSOLUTE CALENDAR DATE is stated (day+month, e.g. "26 August", "4.08") but NO clock time and NO day-period word (morning/afternoon/evening/night) → use 08:00 as the time
+- If only a weekday or tomorrow/today/day-after-tomorrow is stated with NO clock time and NO day-period word → {"text":"<task>","datetime":""} (do NOT invent a time for these)
+- If NEITHER a date NOR a time/day-period is stated → {"text":"<task>","datetime":""}
 - If ONLY trigger words, no task → {"ok":false}
  
 RULES:
@@ -115,7 +117,9 @@ DATES (today=${todayStr}):
 EXAMPLES:
 {"text":"купить молоко","datetime":"${addD(1)}T21:00:00${offsetStr}"}  ← tomorrow at 9pm
 {"text":"","datetime":"${addD(3)}T09:00:00${offsetStr}"}              ← in 3 days at 9am
-{"text":"встреча","datetime":""}                                       ← no time stated
+{"text":"купить подарок","datetime":"${addD(5)}T08:00:00${offsetStr}"} ← "26 августа купить подарок" (absolute date, no time) → default 08:00
+{"text":"позвонить маме","datetime":""}                                ← "в понедельник позвонить маме" (weekday, no time) → empty, do NOT invent time
+{"text":"встреча","datetime":""}                                       ← no date, no time stated
 {"ok":false}                                                           ← only trigger words
  
 Output ONLY the JSON. No explanation.`;
@@ -348,7 +352,24 @@ app.post("/parse", auth, async (req, res) => {
       if (period === 'am' && h === 12) return 0;
       return h;
     }
- 
+
+    // ── Explicit HH:MM override ──────────────────────────────────────────────
+    // The model occasionally converts an explicit local clock time into UTC
+    // despite the prompt saying not to (e.g. "18:05" at UTC+3 comes back as
+    // "15:05"). Colon-separated time is unambiguous (unlike "21.08", which is
+    // a date, dd.mm) — when present, trust the literal digits over the AI.
+    function extractExplicitClockTime(s) {
+      const m = s.match(/\b(\d{1,2}):(\d{2})\b/);
+      if (!m) return null;
+      let h = parseInt(m[1], 10);
+      const min = parseInt(m[2], 10);
+      if (h > 23 || min > 59) return null;
+      if (h >= 13) return { hour: h, minute: min }; // 24h format, unambiguous
+      const period = detectPeriod(s);
+      if (period) return { hour: applyPeriod(h, period), minute: min };
+      return null; // e.g. "6:05" with no am/pm word — ambiguous, leave to AI
+    }
+
     // ── Task text cleaner ──────────────────────────────────────────────────────
     function cleanTaskText(t) {
       t = t
@@ -528,7 +549,7 @@ app.post("/parse", auth, async (req, res) => {
     try {
       const systemPrompt = buildPrompt(nowIso, offStr(offsetMinutes), localNow, offsetMinutes, lang);
       const aiRes = await client.chat.completions.create({
-        model: 'gpt-4.1-nano',
+        model: 'gpt-4.1-mini',
         temperature: 0,
         response_format: { type: 'json_object' },
         messages: [
@@ -585,12 +606,35 @@ app.post("/parse", auth, async (req, res) => {
       /\bza\s+(?:\w+\s+)?minut[ęey]?/i.test(normInputGlobal)
     );
  
+    // Absolute date stated (e.g. "26 августа") but no clock time/period word —
+    // AI defaulted to 08:00 per prompt. Flag so the client asks for confirmation
+    // instead of silently saving. Still goes through the date fix-ups below.
+    let isDateOnlyDefault = false;
+
     if (!hasTimeRefTrigger && result.datetime) {
-      if (DEBUG) console.log(`[NO TIME] No time in input, AI invented time → returning empty datetime for: "${input}"`);
-      const taskText = cleanTaskText(removeTriggerWords(result.text || input));
-      return res.json({ ok: true, text: taskText, datetime: '', source: 'unparsed' });
+      if (hasAbsoluteDate) {
+        isDateOnlyDefault = true;
+        if (DEBUG) console.log(`[DATE ONLY] "${input}" → ${result.datetime} (needs confirm)`);
+      } else {
+        if (DEBUG) console.log(`[NO TIME] No time in input, AI invented time → returning empty datetime for: "${input}"`);
+        const taskText = cleanTaskText(removeTriggerWords(result.text || input));
+        return res.json({ ok: true, text: taskText, datetime: '', source: 'unparsed' });
+      }
     }
  
+    // Override AI's hour/minute with the literal digits from the input when
+    // an unambiguous clock time (HH:MM) was stated — fixes AI local/UTC mixups.
+    {
+      const explicitTime = extractExplicitClockTime(normInputGlobal);
+      if (explicitTime && result.datetime) {
+        const dtHead = result.datetime.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/);
+        if (dtHead && (parseInt(dtHead[2], 10) !== explicitTime.hour || parseInt(dtHead[3], 10) !== explicitTime.minute)) {
+          if (DEBUG) console.log(`[TIME OVERRIDE] "${input}": AI said ${dtHead[2]}:${dtHead[3]}, input states ${p2(explicitTime.hour)}:${p2(explicitTime.minute)} → overriding`);
+          result = { ...result, datetime: `${dtHead[1]}T${p2(explicitTime.hour)}:${p2(explicitTime.minute)}:00${offStr(offsetMinutes)}` };
+        }
+      }
+    }
+
     // Post-process AI datetime: fix today/tomorrow logic
     try {
       const dtMatch = result.datetime?.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/);
@@ -658,7 +702,12 @@ app.post("/parse", auth, async (req, res) => {
     }
  
     if (DEBUG) console.log(`[OK] "${input}" → ${result.datetime} | task: "${result.text || ''}"`);
-    return res.json({ ok: true, text: result.text || '', datetime: result.datetime || '', source: 'ai' });
+    return res.json({
+      ok: true,
+      text: result.text || '',
+      datetime: result.datetime || '',
+      source: isDateOnlyDefault ? 'date_only' : 'ai',
+    });
  
   } catch(e) {
     console.error("ERROR:", e);
