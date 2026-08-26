@@ -93,7 +93,8 @@ TASK: Extract reminder text and datetime from voice input in ${lang.toUpperCase(
 OUTPUT: JSON only — {"text":"<task>","datetime":"<ISO8601 with offset>"}
 - datetime format: ${todayStr}T15:00:00${offsetStr}
 - CRITICAL: hours in datetime = LOCAL time (NOT UTC). If user says 9:00 → T09:00:00${offsetStr}, NOT T06:00:00${offsetStr}
-- If NO time stated → {"text":"<task>","datetime":""}
+- If a DATE is stated but NO time → still return the date, with 00:00 as placeholder time: {"text":"<task>","datetime":"YYYY-MM-DDT00:00:00${offsetStr}"}
+- If NEITHER date NOR time stated → {"text":"<task>","datetime":""}
 - If ONLY trigger words, no task → {"ok":false}
  
 RULES:
@@ -115,7 +116,8 @@ DATES (today=${todayStr}):
 EXAMPLES:
 {"text":"купить молоко","datetime":"${addD(1)}T21:00:00${offsetStr}"}  ← tomorrow at 9pm
 {"text":"","datetime":"${addD(3)}T09:00:00${offsetStr}"}              ← in 3 days at 9am
-{"text":"встреча","datetime":""}                                       ← no time stated
+{"text":"встреча","datetime":"${addD(2)}T00:00:00${offsetStr}"}       ← date stated (day after tomorrow), no time → 00:00 placeholder
+{"text":"встреча","datetime":""}                                       ← no date AND no time stated at all
 {"ok":false}                                                           ← only trigger words
  
 Output ONLY the JSON. No explanation.`;
@@ -600,9 +602,13 @@ app.post("/parse", auth, async (req, res) => {
     );
  
     if (!hasTimeRefTrigger && result.datetime) {
-      if (DEBUG) console.log(`[NO TIME] No time in input, AI invented time → returning empty datetime for: "${input}"`);
+      // AI invented the time, but the date part is still usable — don't throw it away,
+      // just strip the time so the client can prefill the date picker.
+      const dateOnlyMatch = result.datetime.match(/^(\d{4}-\d{2}-\d{2})/);
+      const dateOnly = dateOnlyMatch ? dateOnlyMatch[1] : '';
+      if (DEBUG) console.log(`[NO TIME] No time in input, AI invented time → keeping date "${dateOnly}", clearing time for: "${input}"`);
       const taskText = cleanTaskText(removeTriggerWords(result.text || input));
-      return res.json({ ok: true, text: taskText, datetime: '', source: 'unparsed' });
+      return res.json({ ok: true, text: taskText, datetime: '', date: dateOnly, source: 'unparsed_time' });
     }
  
     // Post-process AI datetime: fix today/tomorrow logic
