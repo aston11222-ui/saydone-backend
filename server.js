@@ -93,8 +93,7 @@ TASK: Extract reminder text and datetime from voice input in ${lang.toUpperCase(
 OUTPUT: JSON only — {"text":"<task>","datetime":"<ISO8601 with offset>"}
 - datetime format: ${todayStr}T15:00:00${offsetStr}
 - CRITICAL: hours in datetime = LOCAL time (NOT UTC). If user says 9:00 → T09:00:00${offsetStr}, NOT T06:00:00${offsetStr}
-- If a DATE is stated but NO time → still return the date, with 00:00 as placeholder time: {"text":"<task>","datetime":"YYYY-MM-DDT00:00:00${offsetStr}"}
-- If NEITHER date NOR time stated → {"text":"<task>","datetime":""}
+- If NO time stated → {"text":"<task>","datetime":""}
 - If ONLY trigger words, no task → {"ok":false}
  
 RULES:
@@ -116,8 +115,7 @@ DATES (today=${todayStr}):
 EXAMPLES:
 {"text":"купить молоко","datetime":"${addD(1)}T21:00:00${offsetStr}"}  ← tomorrow at 9pm
 {"text":"","datetime":"${addD(3)}T09:00:00${offsetStr}"}              ← in 3 days at 9am
-{"text":"встреча","datetime":"${addD(2)}T00:00:00${offsetStr}"}       ← date stated (day after tomorrow), no time → 00:00 placeholder
-{"text":"встреча","datetime":""}                                       ← no date AND no time stated at all
+{"text":"встреча","datetime":""}                                       ← no time stated
 {"ok":false}                                                           ← only trigger words
  
 Output ONLY the JSON. No explanation.`;
@@ -454,17 +452,17 @@ app.post("/parse", auth, async (req, res) => {
     const hasAnyTimeSignal = (
       /\d/.test(normInputGlobal) ||
       // RU/UK
-      /(завтра|послезавтра|сегодня|вчера|сьогодні|вчора|через|утра|утром|вечера|вечером|ввечері|вдень|днём|днем|ночи|ночью|дня|ранку|вечора|ночі|годин|хвилин|понеділ|вівтор|серед|четвер|п.ятниц|субот|неділ|понедельник|вторник|среду|четверг|пятниц|суббот|воскресен)/i.test(normInputGlobal) ||
+      /(завтра|послезавтра|сегодня|вчера|сьогодні|вчора|через|утра|вечера|ночи|дня|ранку|вечора|ночі|годин|хвилин|понеділ|вівтор|серед|четвер|п.ятниц|субот|неділ|понедельник|вторник|среду|четверг|пятниц|суббот|воскресен)/i.test(normInputGlobal) ||
       // EN
       /\b(tomorrow|today|morning|evening|night|afternoon|noon|midnight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|in\s+\d|after\s+\d|at\s+\d|next\s+week|half\s+an\s+hour)\b/i.test(normInputGlobal) ||
       // DE
       /\b(morgen|heute|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|abends|morgens|nachts|halb|uhr)\b/i.test(normInputGlobal) ||
       // FR
-      /\b(demain|aujourd'hui|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|matin|soir|nuit|midi|minuit|moins)\b/i.test(normInputGlobal) ||
+      /\b(demain|aujourd'hui|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|matin|soir|midi|minuit|moins)\b/i.test(normInputGlobal) ||
       // ES
       /\b(mañana|hoy|lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo|tarde|noche|mediodía|medianoche|dieciocho|diecisiete|dieciséis|dieciseis|diecinueve|quince|veinte|treinta|cuarenta|cincuenta|sesenta)\b/i.test(normInputGlobal) ||
       // PL
-      /\b(jutro|dzisiaj|poniedziałek|wtorek|środa|środę|czwartek|piątek|sobota|niedziela|rano|wieczor|południe|południu|północ|północy|za\s+\d|pół\s+godziny)\b/i.test(normInputGlobal) ||
+      /\b(jutro|dzisiaj|poniedziałek|wtorek|środa|czwartek|piątek|sobota|niedziela|rano|wieczor|południe|północ|za\s+\d|pół\s+godziny)\b/i.test(normInputGlobal) ||
       // IT
       /\b(domani|oggi|lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica|mattina|sera|mezzanotte|mezzogiorno|meno)\b/i.test(normInputGlobal) ||
       // PT
@@ -561,50 +559,36 @@ app.post("/parse", auth, async (req, res) => {
  
     if (!result.datetime) return res.json({ ok: true, text: cleanTaskText(removeTriggerWords(result.text || input)), datetime: '', source: 'unparsed' });
  
-    // Validate AI result has actual TIME reference (clock time / day-part / relative time).
-    // NOTE: deliberately excludes weekday names and tomorrow/today words — those signal a
-    // DATE was stated, not a TIME, and must not make us trust an invented placeholder time
-    // (e.g. "el viernes ... a las" with the time cut off → AI returns 00:00 placeholder,
-    // which must still go through the [NO TIME] branch below, not be treated as real).
+    // Validate AI result has actual time reference
     const hasTimeRefTrigger = (
       /\d{1,2}[:\-\.]\d{2}|\d{1,2}h\d{2}|\b\d{1,2}\s*Uhr\b|\bat\s+\d|\balle\s+\d|\ba\s+las\s+\d|\bum\s+\d|(?:^|\s)à\s+\d|(?:^|\s)às\s+\d|\bam\b|\bpm\b|[ap]\.m\./i.test(normInputGlobal) ||
-      /вечора|вечера|вечером|ввечері|вдень|днём|днем|ночи|ночі|ночью|утра|утром|ранку|вранці|зранку|дня|дні|після\s+обіду|годин[иіу]?/i.test(normInputGlobal) ||
-      /morning|evening|night|afternoon|noon|midnight|abends|nachts|morgens|soir|matin|nuit|noche|tarde|manhã|noite|rano|wieczor|południ|północ|mattina|sera|notte|pomeriggio/i.test(normInputGlobal) ||
+      /вечора|вечера|ночи|ночі|утра|ранку|вранці|зранку|дня|дні|після\s+обіду|годин[иіу]?/i.test(normInputGlobal) ||
+      /morning|evening|night|afternoon|abends|nachts|morgens|soir|matin|noche|tarde|manhã|noite|rano|wieczor/i.test(normInputGlobal) ||
+      /(завтра|послезавтра|сегодня|сьогодні|tomorrow|today|morgen|heute|demain|aujourd'hui|mañana|hoy|jutro|domani|amanhã)/i.test(normInputGlobal) ||
+      /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\b/i.test(normInputGlobal) ||
+      /\b(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)\b/i.test(normInputGlobal) ||
+      /\b(lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica)\b/i.test(normInputGlobal) ||
+      /\b(lunes|martes|miércoles|jueves|viernes|sábado|domingo)\b/i.test(normInputGlobal) ||
+      /\b(poniedziałek|wtorek|środa|czwartek|piątek|sobota|niedziela)\b/i.test(normInputGlobal) ||
+      /\b(segunda|terça|quarta|quinta|sexta|sábado|domingo)\b/i.test(normInputGlobal) ||
+      /(понедельник|вторник|среду|четверг|пятниц|суббот|воскресен|понеділ|вівтор|серед|четвер|п.ятниц|субот|неділ)/i.test(normInputGlobal) ||
       /\b(eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf)\s+Uhr\b/i.test(normInputGlobal) ||
-      // relative time: minutes + hours without digit (all 9 langs)
-      // RU/UK — minutes
-      /(через|за)\s+\S+\s*(?:минут[аыу]?|хвилин[уиі]?|хв\.|мин\.)/i.test(normInputGlobal) ||
+      // relative time word without digit: "через минуту", "in a minute", etc (all 9 langs)
+      /(через|за)\s+\w+\s*(?:минут[аыу]?|хвилин[уиі]?|хв\.|мин\.)/i.test(normInputGlobal) ||
       /(через|за)\s*(?:минут[аыу]?|хвилин[уиі]?)/i.test(normInputGlobal) ||
-      // RU/UK — hours
-      /(через|за)\s+\S+\s*(?:час[аов]?|годин[аиу]?)/i.test(normInputGlobal) ||
-      /(через|за)\s*(?:час[аов]?|годин[аиу]?)/i.test(normInputGlobal) ||
-      // EN — minutes + hours
-      /\b(in|within)\s+\w+\s*(?:minutes?|hours?)\b/i.test(normInputGlobal) ||
-      // DE — minutes + hours
-      /\bin\s+\w+\s*(?:Minuten?|Stunden?)\b/i.test(normInputGlobal) ||
-      // FR — minutes + hours
-      /\bdans\s+\w+\s*(?:minutes?|heures?)\b/i.test(normInputGlobal) ||
-      // ES — minutes + hours
-      /\ben\s+\w+\s*(?:minutos?|horas?)\b/i.test(normInputGlobal) ||
-      // ES — a la / a las + digit
-      /\ba\s+las?\s+\d/i.test(normInputGlobal) ||
-      // IT — minutes + hours (tra/fra)
-      /\b(?:tra|fra)\s+(?:\w+\s+)?(?:minut[oi]?|or[ae])\b/i.test(normInputGlobal) ||
-      // PT — minutes + hours
-      /\bem\s+\w+\s*(?:minutos?|horas?)\b/i.test(normInputGlobal) ||
-      /\bdaqui\s+a\s+\w+\s*(?:minutos?|horas?)\b/i.test(normInputGlobal) ||
-      // PL — minutes + hours
-      /\bza\s+(?:\S+\s+)?(?:minut[ęey]?|godzin[ęyą]?)/i.test(normInputGlobal)
+      /\b(in|within)\s+\w+\s*minutes?\b/i.test(normInputGlobal) ||
+      /\bin\s+\w+\s*Minuten?\b/i.test(normInputGlobal) ||
+      /\bdans\s+\w+\s*minutes?\b/i.test(normInputGlobal) ||
+      /\ben\s+\w+\s*minutos?\b/i.test(normInputGlobal) ||
+      /\btra\s+(?:\w+\s+)?minut[oi]?\b/i.test(normInputGlobal) ||
+      /\bem\s+\w+\s*minutos?\b/i.test(normInputGlobal) ||
+      /\bza\s+(?:\w+\s+)?minut[ęey]?/i.test(normInputGlobal)
     );
  
     if (!hasTimeRefTrigger && result.datetime) {
-      // AI invented the time, but the date part is still usable — don't throw it away,
-      // just strip the time so the client can prefill the date picker.
-      const dateOnlyMatch = result.datetime.match(/^(\d{4}-\d{2}-\d{2})/);
-      const dateOnly = dateOnlyMatch ? dateOnlyMatch[1] : '';
-      if (DEBUG) console.log(`[NO TIME] No time in input, AI invented time → keeping date "${dateOnly}", clearing time for: "${input}"`);
+      if (DEBUG) console.log(`[NO TIME] No time in input, AI invented time → returning empty datetime for: "${input}"`);
       const taskText = cleanTaskText(removeTriggerWords(result.text || input));
-      return res.json({ ok: true, text: taskText, datetime: '', date: dateOnly, source: 'unparsed_time' });
+      return res.json({ ok: true, text: taskText, datetime: '', source: 'unparsed' });
     }
  
     // Post-process AI datetime: fix today/tomorrow logic
