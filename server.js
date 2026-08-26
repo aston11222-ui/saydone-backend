@@ -460,11 +460,11 @@ app.post("/parse", auth, async (req, res) => {
       // DE
       /\b(morgen|heute|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|abends|morgens|nachts|halb|uhr)\b/i.test(normInputGlobal) ||
       // FR
-      /\b(demain|aujourd'hui|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|matin|soir|midi|minuit|moins)\b/i.test(normInputGlobal) ||
+      /\b(demain|aujourd'hui|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|matin|soir|nuit|midi|minuit|moins)\b/i.test(normInputGlobal) ||
       // ES
       /\b(mañana|hoy|lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo|tarde|noche|mediodía|medianoche|dieciocho|diecisiete|dieciséis|dieciseis|diecinueve|quince|veinte|treinta|cuarenta|cincuenta|sesenta)\b/i.test(normInputGlobal) ||
       // PL
-      /\b(jutro|dzisiaj|poniedziałek|wtorek|środa|czwartek|piątek|sobota|niedziela|rano|wieczor|południe|północ|za\s+\d|pół\s+godziny)\b/i.test(normInputGlobal) ||
+      /\b(jutro|dzisiaj|poniedziałek|wtorek|środa|środę|czwartek|piątek|sobota|niedziela|rano|wieczor|południe|południu|północ|północy|za\s+\d|pół\s+godziny)\b/i.test(normInputGlobal) ||
       // IT
       /\b(domani|oggi|lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica|mattina|sera|mezzanotte|mezzogiorno|meno)\b/i.test(normInputGlobal) ||
       // PT
@@ -569,7 +569,7 @@ app.post("/parse", auth, async (req, res) => {
     const hasTimeRefTrigger = (
       /\d{1,2}[:\-\.]\d{2}|\d{1,2}h\d{2}|\b\d{1,2}\s*Uhr\b|\bat\s+\d|\balle\s+\d|\ba\s+las\s+\d|\bum\s+\d|(?:^|\s)à\s+\d|(?:^|\s)às\s+\d|\bam\b|\bpm\b|[ap]\.m\./i.test(normInputGlobal) ||
       /вечора|вечера|вечером|ввечері|вдень|днём|днем|ночи|ночі|ночью|утра|утром|ранку|вранці|зранку|дня|дні|після\s+обіду|годин[иіу]?/i.test(normInputGlobal) ||
-      /morning|evening|night|afternoon|abends|nachts|morgens|soir|matin|noche|tarde|manhã|noite|rano|wieczor|mattina|sera|notte|pomeriggio/i.test(normInputGlobal) ||
+      /morning|evening|night|afternoon|noon|midnight|abends|nachts|morgens|soir|matin|nuit|noche|tarde|manhã|noite|rano|wieczor|południ|północ|mattina|sera|notte|pomeriggio/i.test(normInputGlobal) ||
       /\b(eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf)\s+Uhr\b/i.test(normInputGlobal) ||
       // relative time: minutes + hours without digit (all 9 langs)
       // RU/UK — minutes
