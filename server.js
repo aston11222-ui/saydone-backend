@@ -454,7 +454,7 @@ app.post("/parse", auth, async (req, res) => {
     const hasAnyTimeSignal = (
       /\d/.test(normInputGlobal) ||
       // RU/UK
-      /(завтра|послезавтра|сегодня|вчера|сьогодні|вчора|через|утра|вечера|ночи|дня|ранку|вечора|ночі|годин|хвилин|понеділ|вівтор|серед|четвер|п.ятниц|субот|неділ|понедельник|вторник|среду|четверг|пятниц|суббот|воскресен)/i.test(normInputGlobal) ||
+      /(завтра|послезавтра|сегодня|вчера|сьогодні|вчора|через|утра|вечера|ввечері|вдень|ночи|дня|ранку|вечора|ночі|годин|хвилин|понеділ|вівтор|серед|четвер|п.ятниц|субот|неділ|понедельник|вторник|среду|четверг|пятниц|суббот|воскресен)/i.test(normInputGlobal) ||
       // EN
       /\b(tomorrow|today|morning|evening|night|afternoon|noon|midnight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|in\s+\d|after\s+\d|at\s+\d|next\s+week|half\s+an\s+hour)\b/i.test(normInputGlobal) ||
       // DE
@@ -561,19 +561,15 @@ app.post("/parse", auth, async (req, res) => {
  
     if (!result.datetime) return res.json({ ok: true, text: cleanTaskText(removeTriggerWords(result.text || input)), datetime: '', source: 'unparsed' });
  
-    // Validate AI result has actual time reference
+    // Validate AI result has actual TIME reference (clock time / day-part / relative time).
+    // NOTE: deliberately excludes weekday names and tomorrow/today words — those signal a
+    // DATE was stated, not a TIME, and must not make us trust an invented placeholder time
+    // (e.g. "el viernes ... a las" with the time cut off → AI returns 00:00 placeholder,
+    // which must still go through the [NO TIME] branch below, not be treated as real).
     const hasTimeRefTrigger = (
       /\d{1,2}[:\-\.]\d{2}|\d{1,2}h\d{2}|\b\d{1,2}\s*Uhr\b|\bat\s+\d|\balle\s+\d|\ba\s+las\s+\d|\bum\s+\d|(?:^|\s)à\s+\d|(?:^|\s)às\s+\d|\bam\b|\bpm\b|[ap]\.m\./i.test(normInputGlobal) ||
-      /вечора|вечера|ночи|ночі|утра|ранку|вранці|зранку|дня|дні|після\s+обіду|годин[иіу]?/i.test(normInputGlobal) ||
-      /morning|evening|night|afternoon|abends|nachts|morgens|soir|matin|noche|tarde|manhã|noite|rano|wieczor/i.test(normInputGlobal) ||
-      /(завтра|послезавтра|сегодня|сьогодні|tomorrow|today|morgen|heute|demain|aujourd'hui|mañana|hoy|jutro|domani|amanhã)/i.test(normInputGlobal) ||
-      /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\b/i.test(normInputGlobal) ||
-      /\b(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)\b/i.test(normInputGlobal) ||
-      /\b(lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica)\b/i.test(normInputGlobal) ||
-      /\b(lunes|martes|miércoles|jueves|viernes|sábado|domingo)\b/i.test(normInputGlobal) ||
-      /\b(poniedziałek|wtorek|środa|czwartek|piątek|sobota|niedziela)\b/i.test(normInputGlobal) ||
-      /\b(segunda|terça|quarta|quinta|sexta|sábado|domingo)\b/i.test(normInputGlobal) ||
-      /(понедельник|вторник|среду|четверг|пятниц|суббот|воскресен|понеділ|вівтор|серед|четвер|п.ятниц|субот|неділ)/i.test(normInputGlobal) ||
+      /вечора|вечера|ввечері|вдень|ночи|ночі|утра|ранку|вранці|зранку|дня|дні|після\s+обіду|годин[иіу]?/i.test(normInputGlobal) ||
+      /morning|evening|night|afternoon|abends|nachts|morgens|soir|matin|noche|tarde|manhã|noite|rano|wieczor|mattina|sera|notte|pomeriggio/i.test(normInputGlobal) ||
       /\b(eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf)\s+Uhr\b/i.test(normInputGlobal) ||
       // relative time: minutes + hours without digit (all 9 langs)
       // RU/UK — minutes
