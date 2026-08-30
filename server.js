@@ -626,7 +626,15 @@ app.post("/parse", auth, async (req, res) => {
       // half hour, all 9 langs
       /(полчаса|пів\s*години|півгодини|половину\s+часа|half\s+an?\s+hour|halbe\s+stunde|demi-heure|media\s+hora|mezz'ora|meia\s+hora|pół\s+godziny)/i.test(normInputGlobal) ||
       // hour and a half, all 9 langs
-      /(полтора\s+час|півтори\s+години|hour\s+and\s+a\s+half|anderthalb|une\s+heure\s+et\s+demie|hora\s+y\s+media|un'ora\s+e\s+mezza|uma\s+hora\s+e\s+meia|półtorej\s+godziny)/i.test(normInputGlobal)
+      /(полтора\s+час|півтори\s+години|hour\s+and\s+a\s+half|anderthalb|une\s+heure\s+et\s+demie|hora\s+y\s+media|un'ora\s+e\s+mezza|uma\s+hora\s+e\s+meia|półtorej\s+godziny)/i.test(normInputGlobal) ||
+      // digit directly followed by a duration-unit word, with ANY preposition or
+      // none at all — "after 5 minutes", "5 minutos más", "nach 5 Minuten",
+      // "dopo 5 minuti", "po 5 minutach", etc. The preposition-specific patterns
+      // above only cover a fixed set (in/within/dans/en/tra/em/za/через/за) and
+      // miss constructions like English "after" or Spanish "N minutos" with the
+      // number before the noun and no preposition — this catches those too,
+      // for all 9 supported languages, without enumerating every preposition.
+      /\d+\s*(?:минут\w*|мин\.|час(?:а|ов)?|ч\.|хвилин\w*|хвил\.?|годин\w*|minutes?|hours?|Minuten?|Stunden?|heures?|minutos?|horas?|minuti|or[ae]|minut\w*|godzin\w*)\b/i.test(normInputGlobal)
     );
  
     // Detect a "fake midnight": the AI invents 00:00 when no time was actually
