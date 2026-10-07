@@ -154,7 +154,7 @@ app.post("/parse", auth, async (req, res) => {
       // Fix glued time: "в8" → "в 8"
       s = s
         .replace(/(в|о|у|на)(\d{1,2})(?=\s|$)/gi, '$1 $2')
-        .replace(/(?<=^|\s)(at|on|um|à|a|às|alle|las)(\d{1,2})\b/gi, '$1 $2');
+        .replace(/(?<=^|\s|[.,!?;:])(at|on|um|à|a|às|alle|las)(\d{1,2})\b/gi, '$1 $2');
       // Fix spaced time: "в 8 30" → "в 8:30"
       s = s.replace(/(в|о|у|на|at|um|à|a|às|alle|las)\s+(\d{1,2})\s+(\d{2})(?=\s|$)/gi, '$1 $2:$3');
       // Fix bare spaced time with NO preposition: "17 50 холодильник" → "17:50 холодильник"
@@ -287,8 +287,8 @@ app.post("/parse", auth, async (req, res) => {
         [/\bcincuenta\b/gi,'50'],[/\bsesenta\b/gi,'60'],
         // PL
         [/\bjeden\b/gi,'1'],[/\bjedna\b/gi,'1'],[/\bjedno\b/gi,'1'],[/\bdwa\b/gi,'2'],[/\bdwie\b/gi,'2'],
-        [/\btrzy\b/gi,'3'],[/\bcztery\b/gi,'4'],[/(?<=^|\s)pięć(?=\s|$)/gi,'5'],[/(?<=^|\s)sześć(?=\s|$)/gi,'6'],
-        [/\bsiedem\b/gi,'7'],[/\bosiem\b/gi,'8'],[/(?<=^|\s)dziewięć(?=\s|$)/gi,'9'],[/(?<=^|\s)dziesięć(?=\s|$)/gi,'10'],
+        [/\btrzy\b/gi,'3'],[/\bcztery\b/gi,'4'],[/(?<=^|\s|[.,!?;:])pięć(?=\s|$|[.,!?;:])/gi,'5'],[/(?<=^|\s|[.,!?;:])sześć(?=\s|$|[.,!?;:])/gi,'6'],
+        [/\bsiedem\b/gi,'7'],[/\bosiem\b/gi,'8'],[/(?<=^|\s|[.,!?;:])dziewięć(?=\s|$|[.,!?;:])/gi,'9'],[/(?<=^|\s|[.,!?;:])dziesięć(?=\s|$|[.,!?;:])/gi,'10'],
         [/\bpiętnaście\b/gi,'15'],[/\bdwadzieścia\b/gi,'20'],[/\btrzydzieści\b/gi,'30'],
         // IT
         [/\buno\b/gi,'1'],[/\buna\b/gi,'1'],[/\bdue\b/gi,'2'],[/\btre\b/gi,'3'],
@@ -501,10 +501,10 @@ app.post("/parse", auth, async (req, res) => {
       /\b(mañana|hoy|lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo|tarde|noche|mediodía|medianoche|dieciocho|diecisiete|dieciséis|dieciseis|diecinueve|quince|veinte|treinta|cuarenta|cincuenta|sesenta)\b/i.test(normInputGlobal) ||
       // PL
       /\b(jutro|dzisiaj|poniedziałek|wtorek|czwartek|piątek|sobota|niedziela|rano|wieczor|południe|północ|za\s+\d|pół\s+godziny)\b/i.test(normInputGlobal) ||
-      /(?<=^|\s)środ[aęy]?(?=\s|$)/i.test(normInputGlobal) ||
+      /(?<=^|\s|[.,!?;:])środ[aęy]?(?=\s|$|[.,!?;:])/i.test(normInputGlobal) ||
       // IT
       /\b(domani|oggi|sabato|domenica|mattina|sera|mezzanotte|mezzogiorno|meno|tra)\b/i.test(normInputGlobal) ||
-      /(?<=^|\s)(lunedì|martedì|mercoledì|giovedì|venerdì)(?=\s|$)/i.test(normInputGlobal) ||
+      /(?<=^|\s|[.,!?;:])(lunedì|martedì|mercoledì|giovedì|venerdì)(?=\s|$|[.,!?;:])/i.test(normInputGlobal) ||
       // PT
       /(amanhã|amanha|manh[aã]|hoje|ontem|segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo|tarde|noite|meia-noite|meio-dia)/i.test(normInputGlobal) ||
       // Time unit words (for word-based intervals)
@@ -536,10 +536,10 @@ app.post("/parse", auth, async (req, res) => {
         /\b(tablet|pill|medicine|medication|vitamin|prescription|pharmacy|doctor|hospital|drug|capsule|injection|vaccine|dose|antibiotic|painkiller|aspirin|ibuprofen|paracetamol)s?\b/i.test(normInputGlobal) ||
         // DE
         /\b(tablette|pille|medikament|vitamin|arzt|apotheke|krankenhaus|spritze|impfung|antibiotikum|kapsel|rezept|dosis)n?\b/i.test(normInputGlobal) ||
-        /(?<=^|\s)ärztin(?=n?\b)/i.test(normInputGlobal) ||
+        /(?<=^|\s|[.,!?;:])ärztin(?=n?\b)/i.test(normInputGlobal) ||
         // FR
         /\b(médicament|vitamine|médecin|pharmacie|hôpital|pilule|injection|vaccin|antibiotique|capsule|ordonnance|dose)s?\b/i.test(normInputGlobal) ||
-        /(?<=^|\s)comprimé(?=s?(?:\s|$))/i.test(normInputGlobal) ||
+        /(?<=^|\s|[.,!?;:])comprimé(?=s?(?:\s|$|[.,!?;:]))/i.test(normInputGlobal) ||
         // ES
         /\b(pastilla|medicamento|vitamina|médico|farmacia|hospital|píldora|inyección|vacuna|antibiótico|cápsula|receta|dosis)s?\b/i.test(normInputGlobal) ||
         // IT
@@ -611,10 +611,10 @@ app.post("/parse", auth, async (req, res) => {
       /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\b/i.test(normInputGlobal) ||
       /\b(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)\b/i.test(normInputGlobal) ||
       /\b(sabato|domenica)\b/i.test(normInputGlobal) ||
-      /(?<=^|\s)(lunedì|martedì|mercoledì|giovedì|venerdì)(?=\s|$)/i.test(normInputGlobal) ||
+      /(?<=^|\s|[.,!?;:])(lunedì|martedì|mercoledì|giovedì|venerdì)(?=\s|$|[.,!?;:])/i.test(normInputGlobal) ||
       /\b(lunes|martes|miércoles|jueves|viernes|sábado|domingo)\b/i.test(normInputGlobal) ||
       /\b(poniedziałek|wtorek|czwartek|piątek|sobota|niedziela)\b/i.test(normInputGlobal) ||
-      /(?<=^|\s)środ[aęy]?(?=\s|$)/i.test(normInputGlobal) ||
+      /(?<=^|\s|[.,!?;:])środ[aęy]?(?=\s|$|[.,!?;:])/i.test(normInputGlobal) ||
       /\b(segunda|terça|quarta|quinta|sexta|sábado|domingo)\b/i.test(normInputGlobal) ||
       /(понедельник|вторник|среду|четверг|пятниц|суббот|воскресен|понеділ|вівтор|серед|четвер|п.ятниц|субот|неділ)/i.test(normInputGlobal) ||
       /\b(eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf)\s+Uhr\b/i.test(normInputGlobal) ||
@@ -758,8 +758,8 @@ app.post("/parse", auth, async (req, res) => {
         .replace(/(^|\s)(сегодня|сьогодні|завтра|послезавтра|після\s*завтра)(\s|$)/gi,' ')
         // Date words — today/tomorrow/day-after (latin langs)
         .replace(/\b(today|tomorrow|yesterday|day\s+after\s+tomorrow|heute|morgen|aujourd'hui|demain|après-demain|hoy|ma[nñ]ana|pasado\s+ma[nñ]ana|dzisiaj|jutro|pojutrze|oggi|domani|dopodomani|hoje)\b/gi,'')
-        .replace(/(?<=^|\s)übermorgen(?=\s|$)/gi,'')
-        .replace(/(?<=^|\s)(depois\s+de\s+)?amanh[aã](?=\s|$)/gi,'')
+        .replace(/(?<=^|\s|[.,!?;:])übermorgen(?=\s|$|[.,!?;:])/gi,'')
+        .replace(/(?<=^|\s|[.,!?;:])(depois\s+de\s+)?amanh[aã](?=\s|$|[.,!?;:])/gi,'')
         .replace(/^(на|в|о|у|on|am|le|el|a|o)\s+/i,'')
         .replace(/\s+(на|в|о|у)\s*$/i,''))
       };
