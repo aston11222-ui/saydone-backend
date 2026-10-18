@@ -44,6 +44,49 @@ function getOffset(s) {
   const m = String(s).match(/([+-])(\d{2}):(\d{2})$/);
   return m ? (+m[2]*60 + +m[3]) * (m[1]==='+' ? 1 : -1) : 0;
 }
+
+// ── DST-aware offset correction ──────────────────────────────────────────────
+// A numeric offset captured "now" (e.g. +03:00 in October) is WRONG for a future
+// date that falls on the other side of a DST transition (e.g. +02:00 in November
+// for Europe/Kyiv). These helpers compute the correct offset for a SPECIFIC civil
+// date/time in a named IANA timezone, using only Node's built-in Intl (no new deps).
+function offsetMinutesAtInstant(utcMs, timeZone) {
+  const dtf = new Intl.DateTimeFormat('en-US', {
+    timeZone, hourCycle: 'h23',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
+  });
+  const parts = dtf.formatToParts(new Date(utcMs)).reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {});
+  const asIfUTC = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute, +parts.second);
+  return Math.round((asIfUTC - utcMs) / 60000);
+}
+// Given civil (wall-clock) fields meant to be read in `timeZone`, return the
+// correct UTC offset in minutes for that specific date — correctly reflecting
+// whichever side of a DST transition that date falls on.
+function civilOffsetMinutes(year, month, day, hour, minute, timeZone) {
+  if (!timeZone) return null;
+  try {
+    const guessUtcMs = Date.UTC(year, month - 1, day, hour, minute, 0);
+    const offset1 = offsetMinutesAtInstant(guessUtcMs, timeZone);
+    // one refinement pass correctly resolves all but the ambiguous/skipped hour
+    // during the transition itself, which is an acceptable rare edge case
+    const refinedUtcMs = guessUtcMs - offset1 * 60000;
+    return offsetMinutesAtInstant(refinedUtcMs, timeZone);
+  } catch (e) {
+    return null; // unknown/invalid IANA zone name — caller falls back to static offset
+  }
+}
+// Rebuild an "YYYY-MM-DDTHH:MM:SS±HH:MM" string with the correct offset for its
+// own date, given the client's IANA timezone. Leaves the string untouched if no
+// timezone was supplied or it doesn't parse (old app versions, graceful fallback).
+function fixOffsetForZone(isoString, timeZone) {
+  if (!isoString || !timeZone) return isoString;
+  const m = String(isoString).match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+  if (!m) return isoString;
+  const correctOffset = civilOffsetMinutes(+m[1], +m[2], +m[3], +m[4], +m[5], timeZone);
+  if (correctOffset === null) return isoString;
+  return `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}${offStr(correctOffset)}`;
+}
  
 const DOW_EN = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
  
@@ -137,6 +180,18 @@ app.get("/",       (_, res) => res.send("SayDone parser v6"));
 app.get("/health", (_, res) => res.json({ ok: true }));
  
 app.post("/parse", auth, async (req, res) => {
+  // Correct the final `datetime`'s offset for its own target date (DST-aware),
+  // using the client's IANA timezone if supplied. Applied once, here, to every
+  // response this route sends — rather than touching each return branch below.
+  // Old app versions that don't send `timezone` get the previous (unfixed) behavior.
+  const clientTimezone = req.body?.timezone || null;
+  const originalJson = res.json.bind(res);
+  res.json = (payload) => {
+    if (clientTimezone && payload && typeof payload.datetime === 'string' && payload.datetime) {
+      payload = { ...payload, datetime: fixOffsetForZone(payload.datetime, clientTimezone) };
+    }
+    return originalJson(payload);
+  };
   try {
     const { text, locale } = req.body ?? {};
     const lang = (locale || 'ru').split(/[_-]/)[0].toLowerCase();
@@ -306,7 +361,8 @@ app.post("/parse", auth, async (req, res) => {
       for (const [re, val] of singles) s = s.replace(re, (m) => m.replace(/\S+/i, val));
       return s;
     }
-    const normInputGlobal = normalizeWordNums(input);
+    input = normalizeWordNums(input);
+    const normInputGlobal = input;
  
     // ── Trigger words ──────────────────────────────────────────────────────────────
     const TRIGGERS = [
@@ -454,6 +510,18 @@ app.post("/parse", auth, async (req, res) => {
         // 'the day after' EN
         .replace(/\bthe\s+day\s+after\b/gi, '')
         .replace(/\s+/g, ' ').trim();
+
+      // Safety net: AI sometimes inconsistently leaks the literal date/time it already
+      // extracted into the text field instead of leaving it empty (e.g. text:"25 ноября
+      // на 18:35" when datetime already holds that exact value). Strip a leftover literal
+      // clock time and "day + month name" (RU/UK genitive), then re-check if anything
+      // meaningful remains.
+      let stripped = t
+        .replace(/\b\d{1,2}:\d{2}\b/g, '')
+        .replace(/\b\d{1,2}\s*(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря|січня|лютого|березня|квітня|травня|червня|липня|серпня|вересня|жовтня|листопада|грудня)\b/gi, '')
+        .replace(/\s+(в|на|о|у|at|on|to|for)\s*$/i, '')
+        .replace(/\s+/g, ' ').trim();
+      if (stripped === '' || /^(в|на|о|у|at|on|to|for)$/i.test(stripped)) t = '';
  
       // Single preposition → empty
       if (/^(на|в|о|у|o|w|na|no|po|at|on|to|for|um|à|às|as|a|le|la|las|los|el|de|da|do|di|du|al|alle|del|des|den|der|das|manhã|madrugada|ночі|ранку|вечора|дня|ночи|утра|вечера)$/i.test(t)) return '';
@@ -463,7 +531,7 @@ app.post("/parse", auth, async (req, res) => {
     // ── Prefix interval reorder ────────────────────────────────────────────────
     // "через 2 часа напомни X" → "напомни X через 2 часа"
     {
-      const re = /^((?:через|за)\s+\d+[.,]?\d*\s*\S+|через\s+(?:полчаса|полтора\s+часа?)|(?:in|after|dans|en|za|tra|fra|em)\s+\d+[.,]?\d*\s*\S+|(?:daqui\s+a|dentro\s+de)\s+\d+[.,]?\d*\s*\S+|in\s+half\s+an\s+hour|in\s+an?\s+hour|in\s+(?:one\s+and\s+a\s+half|\d+\.5)\s+hours?)\s+((?:напомни|нагадай|поставь|постав|remind(?:\s+me)?|set\s+a\s+reminder|erinnere(?:\s+mich)?|rappelle(?:-moi)?|recu[eé]rdame|przypomnij(?:\s+mi)?|ricordami|lembra(?:-me)?|me\s+lembre)(?:\s|$).*)/i;
+      const re = /^((?:через|за)\s+\d+[.,]?\d*\s*\S+|через\s+(?:полчаса|полтора\s+часа?|час|годину|хвилину)|(?:in|after|dans|en|za|tra|fra|em)\s+\d+[.,]?\d*\s*\S+|(?:daqui\s+a|dentro\s+de)\s+\d+[.,]?\d*\s*\S+|in\s+half\s+an\s+hour|in\s+an?\s+hour|in\s+(?:one\s+and\s+a\s+half|\d+\.5)\s+hours?)\s+((?:напомни|напомнить|напоминание|нагадай|нагадати|нагадування|поставь|постав|remind(?:\s+me)?|remember|set\s+a\s+reminder|erinner[en]?(?:\s+mich)?|rappelle(?:[- ]moi)?|recu[eé]rdame|recordarme|acu[eé]rdame|przypomnij(?:\s+mi)?|przypomnieć|ricordami|ricorda|lembr(?:ar?|e)(?:-me)?|me\s+lembre)(?:\s|$).*)/i;
       const m = input.match(re);
       if (m) {
         input = (m[2].trimEnd() + ' ' + m[1]).replace(/\s+/g, ' ').trim();
